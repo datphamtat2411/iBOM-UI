@@ -1,1 +1,1 @@
-# IBOM-UI
+# iBOM-UI
