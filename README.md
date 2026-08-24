@@ -3,7 +3,7 @@
 
 Frontend application for the **iBOM CV Management System**.
 
-Manage professional profiles, maintain multiple CV versions, preview CVs, and prepare standardized documents through a modern web interface.
+Manage professional profiles, maintain multiple CV versions, preview CVs, and prepare standardized documents.
 
 <p align="center">
   <img src="./img/website_preview/HomePage.png" alt="iBOM Homepage" width="100%" />
