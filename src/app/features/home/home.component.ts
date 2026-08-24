@@ -124,10 +124,18 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   private gsapContext?: ReturnType<typeof gsap.context>;
   private heroTimeline?: gsap.core.Timeline;
   private sceneInitTimer?: ReturnType<typeof setTimeout>;
+  private viewportRefreshFrame?: number;
   private destroyed = false;
   private readonly onViewportChange = (): void => {
-    this.syncChromeHeight();
-    ScrollTrigger.refresh();
+    if (this.viewportRefreshFrame !== undefined) {
+      return;
+    }
+
+    this.viewportRefreshFrame = window.requestAnimationFrame(() => {
+      this.viewportRefreshFrame = undefined;
+      this.syncChromeHeight();
+      ScrollTrigger.refresh();
+    });
   };
 
   constructor(
@@ -170,6 +178,11 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
 
     if (this.sceneInitTimer) {
       clearTimeout(this.sceneInitTimer);
+    }
+
+    if (this.viewportRefreshFrame !== undefined) {
+      window.cancelAnimationFrame(this.viewportRefreshFrame);
+      this.viewportRefreshFrame = undefined;
     }
 
     this.resizeObserver?.disconnect();
@@ -220,8 +233,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
 
     const host = this.elementRef.nativeElement;
     this.resizeObserver = new ResizeObserver(() => {
-      this.syncChromeHeight();
-      ScrollTrigger.refresh();
+      this.onViewportChange();
     });
 
     const observedElements = [
@@ -247,7 +259,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
           start: () =>
             `top top+=${host.querySelector<HTMLElement>('#site-header')?.offsetHeight ?? 0}`,
           end: '+=1400',
-          scrub: 0.8,
+          scrub: 1.2,
           pin: true,
           anticipatePin: 1,
           invalidateOnRefresh: true,
@@ -317,12 +329,12 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
             autoAlpha: 1,
             scale: 1,
             y: 0,
-            pointerEvents: 'auto',
             duration: 1.2,
             ease: 'back.out(1.2)',
           },
           2.0,
-        );
+        )
+        .set('#hero-split-trio', { pointerEvents: 'auto' });
     }, host);
 
     queueMicrotask(() => {

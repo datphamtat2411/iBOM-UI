@@ -431,13 +431,12 @@ h1 {
 
 .split-card {
   min-width: 0;
-  transition: filter 180ms ease;
+  backface-visibility: hidden;
   transform-style: preserve-3d;
-  will-change: transform, opacity;
+  will-change: transform;
 
   &:hover {
     z-index: 50;
-    filter: brightness(1.01);
   }
 }
 
@@ -471,10 +470,12 @@ h1 {
   flex-shrink: 0;
   flex-wrap: nowrap;
   animation: marquee 25s linear infinite;
+  backface-visibility: hidden;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  will-change: transform;
   white-space: nowrap;
 
   &:hover {
@@ -556,7 +557,7 @@ h1 {
 
 @keyframes marquee {
   to {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -741,13 +742,5 @@ h1 {
   .footer-brand {
     align-items: flex-start;
     flex-direction: column;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .float-card-1,
-  .float-card-2,
-  .float-card-3 {
-    animation: none;
   }
 }
