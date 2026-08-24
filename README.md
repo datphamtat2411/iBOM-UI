@@ -111,20 +111,4 @@ npm test
 | `npm run watch` | Build continuously in development mode |
 | `npm test`      | Run unit tests                         |
 
-## Documentation Assets
 
-README images are stored separately from application assets:
-
-```text
-docs/
-└── images/
-    └── homepage.png
-```
-
----
-
-<div align="center">
-
-**iBOM — One profile. Multiple CV versions.**
-
-</div>
