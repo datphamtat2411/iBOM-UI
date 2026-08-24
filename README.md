@@ -1,27 +1,130 @@
-# iBOM-UI
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 17.3.17.
+# iBOM UI
 
-## Development server
+Frontend application for the **iBOM CV Management System**.
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+Manage professional profiles, maintain multiple CV versions, preview CVs, and prepare standardized documents through a modern web interface.
 
-## Code scaffolding
+<p align="center">
+  <img src="./img/website_preview/HomePage.png" alt="iBOM Homepage" width="100%" />
+</p>
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+## Overview
+
+**iBOM UI** provides the frontend experience for the iBOM platform.
+
+The system is designed to help users manage professional information and create multiple CV profiles for different roles while keeping profile data organized and consistent.
+
+## Features
+
+Current and planned frontend capabilities include:
+
+* Multiple CV profiles
+* Profile completion tracking
+* CV preview
+* PDF export
+* DOCX export
+* Profile management
+* Authentication
+* Responsive web interface
+
+## Tech Stack
+
+* Angular 17
+* TypeScript
+* SCSS
+* Angular Router
+* RxJS
+* GSAP
+* Jasmine / Karma
+
+## Project Structure
+
+```text
+src/
+├── app/
+│   ├── core/
+│   ├── features/
+│   ├── models/
+│   ├── shared/
+│   ├── app.component.ts
+│   ├── app.config.ts
+│   └── app.routes.ts
+│
+├── assets/
+├── main.ts
+└── styles.scss
+```
+
+## Getting Started
+
+### Prerequisites
+
+* Node.js
+* npm
+* Git
+
+### Installation
+
+```bash
+git clone https://github.com/datphamtat2411/iBOM-UI.git
+cd iBOM-UI
+npm install
+```
+
+### Run Development Server
+
+```bash
+npm start
+```
+
+or:
+
+```bash
+npx ng serve
+```
+
+Open:
+
+```text
+http://localhost:4200
+```
 
 ## Build
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+```bash
+npm run build
+```
 
-## Running unit tests
+## Test
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+```bash
+npm test
+```
 
-## Running end-to-end tests
+## Available Scripts
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
+| Command         | Description                            |
+| --------------- | -------------------------------------- |
+| `npm start`     | Start development server               |
+| `npm run build` | Build the application                  |
+| `npm run watch` | Build continuously in development mode |
+| `npm test`      | Run unit tests                         |
 
-## Further help
+## Documentation Assets
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+README images are stored separately from application assets:
+
+```text
+docs/
+└── images/
+    └── homepage.png
+```
+
+---
+
+<div align="center">
+
+**iBOM — One profile. Multiple CV versions.**
+
+</div>
