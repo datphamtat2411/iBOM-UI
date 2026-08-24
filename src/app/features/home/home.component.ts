@@ -215,7 +215,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     this.gsapMedia = gsap.matchMedia();
 
     this.gsapMedia.add(
-      '(min-width: 768px) and (pointer: fine) and (prefers-reduced-motion: no-preference)',
+      '(min-width: 768px) and (prefers-reduced-motion: no-preference)',
       () => {
         this.gsapContext = gsap.context(() => {
           const timeline = gsap.timeline({
@@ -223,69 +223,113 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
               trigger: '#hero-interactive-scene',
               start: () =>
                 `top top+=${host.querySelector<HTMLElement>('#site-header')?.offsetHeight ?? 0}`,
-              end: '+=1400',
-              scrub: 0.8,
+              end: '+=1800',
+              scrub: 0.6,
               pin: true,
               anticipatePin: 1,
               invalidateOnRefresh: true,
             },
           });
 
+          gsap.set('#hero-split-trio', { autoAlpha: 0 });
+          gsap.set('.split-card', { transformOrigin: 'center center' });
+
           timeline
             .to(
               '#hero-left-col',
-              { autoAlpha: 0, x: -30, duration: 0.8, ease: 'power1.inOut' },
+              { autoAlpha: 0, x: -48, duration: 0.9, ease: 'power1.inOut' },
               0,
             )
             .to(
               '#hero-right-col',
-              { xPercent: -50, duration: 1, ease: 'power1.inOut' },
+              { xPercent: -50, duration: 1.15, ease: 'power1.inOut' },
               0,
             )
             .to(
               '#hero-main-cv',
               {
-                scaleY: 0.04,
-                scaleX: 0.65,
-                rotateX: 85,
-                y: -20,
-                autoAlpha: 0,
-                transformOrigin: 'center top',
-                duration: 1,
-                ease: 'power2.inOut',
+                scaleY: 0.72,
+                scaleX: 0.92,
+                rotateX: 14,
+                transformOrigin: 'center center',
+                duration: 0.5,
+                ease: 'power1.in',
               },
-              0.8,
+              0.85,
             )
             .to(
+              '#hero-main-cv',
+              {
+                scaleY: 0.08,
+                scaleX: 0.68,
+                rotateX: 78,
+                duration: 0.8,
+                ease: 'power2.inOut',
+              },
+              1.25,
+            )
+            .fromTo(
               '#hero-rolled-cylinder',
+              { autoAlpha: 0, scaleX: 0.55, scaleY: 0.4, rotationX: -90 },
               {
                 autoAlpha: 1,
-                scale: 1,
-                rotation: 360,
-                duration: 1,
+                scaleX: 1,
+                scaleY: 1,
+                rotationX: 0,
+                duration: 0.55,
                 ease: 'power2.inOut',
               },
-              1,
+              1.65,
             )
             .to(
-              '#hero-rolled-cylinder',
-              { scale: 1.2, autoAlpha: 0, duration: 0.6, ease: 'power2.out' },
+              '#hero-main-cv',
+              { autoAlpha: 0, scaleX: 0.62, duration: 0.35, ease: 'power1.out' },
               1.8,
             )
-            .to('#hero-right-col', { autoAlpha: 0, duration: 0.2 }, 1.8)
+            .to(
+              '#hero-rolled-cylinder',
+              { rotationX: 720, duration: 1.1, ease: 'none' },
+              2,
+            )
+            .to(
+              '#hero-rolled-cylinder',
+              {
+                autoAlpha: 0,
+                scaleX: 0.5,
+                scaleY: 1.25,
+                duration: 0.45,
+                ease: 'power2.in',
+              },
+              2.85,
+            )
             .fromTo(
               '#hero-split-trio',
-              { autoAlpha: 0, scale: 0.8, y: 40 },
+              { autoAlpha: 0 },
+              { autoAlpha: 1, pointerEvents: 'auto', duration: 0.15 },
+              2.9,
+            )
+            .fromTo(
+              '.split-card',
+              {
+                xPercent: (index) => [105, 0, -105][index] ?? 0,
+                y: 32,
+                scale: 0.46,
+                rotationY: (index) => [24, 0, -24][index] ?? 0,
+                autoAlpha: 0,
+              },
               {
                 autoAlpha: 1,
                 scale: 1,
+                xPercent: 0,
                 y: 0,
-                pointerEvents: 'auto',
-                duration: 1.2,
-                ease: 'back.out(1.2)',
+                rotationY: 0,
+                duration: 0.95,
+                stagger: 0.08,
+                ease: 'power2.out',
               },
-              2,
-            );
+              2.9,
+            )
+            .to('#hero-right-col', { autoAlpha: 0, duration: 0.15 }, 3.15);
         }, host);
 
         queueMicrotask(() => {

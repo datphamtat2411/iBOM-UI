@@ -382,6 +382,7 @@ h1 {
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.9);
   pointer-events: none;
   transform: scale(0.5);
+  transform-style: preserve-3d;
   will-change: transform, opacity;
 }
 
@@ -411,11 +412,14 @@ h1 {
 .split-trio {
   position: absolute;
   z-index: 40;
+  top: 0;
   right: 1.5rem;
+  bottom: 0;
   left: 1.5rem;
   display: grid;
   max-width: 77rem;
   margin: 0 auto;
+  align-items: center;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem;
   opacity: 0;
@@ -424,24 +428,15 @@ h1 {
 }
 
 .split-card {
+  min-width: 0;
   transition: filter 180ms ease;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
 
   &:hover {
     z-index: 50;
     filter: brightness(1.01);
   }
-}
-
-.float-card-1 {
-  animation: float-card-1 5s ease-in-out infinite;
-}
-
-.float-card-2 {
-  animation: float-card-2 6s ease-in-out 0.3s infinite;
-}
-
-.float-card-3 {
-  animation: float-card-3 5.5s ease-in-out 0.6s infinite;
 }
 
 .hero-marquee {
@@ -547,36 +542,6 @@ h1 {
 @keyframes marquee {
   to {
     transform: translateX(-50%);
-  }
-}
-
-@keyframes float-card-1 {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-0.5deg);
-  }
-  50% {
-    transform: translateY(-7px) rotate(0.5deg);
-  }
-}
-
-@keyframes float-card-2 {
-  0%,
-  100% {
-    transform: translateY(-5px);
-  }
-  50% {
-    transform: translateY(5px) rotate(-0.6deg);
-  }
-}
-
-@keyframes float-card-3 {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0.6deg);
-  }
-  50% {
-    transform: translateY(-7px) rotate(-0.5deg);
   }
 }
 
@@ -745,7 +710,7 @@ h1 {
   }
 }
 
-@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) {
   .hero-pin-wrapper {
     min-height: auto;
     padding-block: 2.5rem;
@@ -757,12 +722,6 @@ h1 {
     margin-top: 2.5rem;
     opacity: 1;
     pointer-events: auto;
-  }
-
-  .float-card-1,
-  .float-card-2,
-  .float-card-3 {
-    animation: none;
   }
 
   .marquee-track {

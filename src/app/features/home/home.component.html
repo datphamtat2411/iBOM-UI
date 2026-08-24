@@ -91,12 +91,9 @@
         </div>
 
         <div id="hero-split-trio" class="split-trio" aria-label="Independent profile versions">
-          @for (profile of profileVersions; track profile.id; let index = $index) {
+          @for (profile of profileVersions; track profile.id) {
             <app-profile-card
               class="split-card"
-              [class.float-card-1]="index === 0"
-              [class.float-card-2]="index === 1"
-              [class.float-card-3]="index === 2"
               [data]="profile"
             />
           }
