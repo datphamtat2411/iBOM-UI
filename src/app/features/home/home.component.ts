@@ -16,6 +16,8 @@ import {
   ProfileCardData,
 } from './profile-card/profile-card.component';
 
+gsap.registerPlugin(ScrollTrigger);
+
 const SOURCE_PROFILE: ProfileCardData = {
   id: 'source-profile',
   profileCode: 'CV-2024-1256',
@@ -120,8 +122,13 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   private clockInterval?: ReturnType<typeof setInterval>;
   private resizeObserver?: ResizeObserver;
   private gsapContext?: ReturnType<typeof gsap.context>;
-  private gsapMedia?: ReturnType<typeof gsap.matchMedia>;
+  private heroTimeline?: gsap.core.Timeline;
+  private sceneInitTimer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
+  private readonly onViewportChange = (): void => {
+    this.syncChromeHeight();
+    ScrollTrigger.refresh();
+  };
 
   constructor(
     private readonly elementRef: ElementRef<HTMLElement>,
@@ -144,7 +151,13 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     this.ngZone.runOutsideAngular(() => {
       this.syncChromeHeight();
       this.observeChromeSize();
-      this.setupScrollScene();
+      window.addEventListener('load', this.onViewportChange);
+      window.addEventListener('resize', this.onViewportChange);
+      this.sceneInitTimer = window.setTimeout(() => {
+        if (!this.destroyed) {
+          this.initScrollAnimation();
+        }
+      }, 0);
     });
   }
 
@@ -155,9 +168,18 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
       clearInterval(this.clockInterval);
     }
 
+    if (this.sceneInitTimer) {
+      clearTimeout(this.sceneInitTimer);
+    }
+
     this.resizeObserver?.disconnect();
-    this.gsapMedia?.revert();
+    window.removeEventListener('load', this.onViewportChange);
+    window.removeEventListener('resize', this.onViewportChange);
+    this.heroTimeline?.scrollTrigger?.kill();
+    this.heroTimeline?.kill();
+    this.heroTimeline = undefined;
     this.gsapContext?.revert();
+    this.gsapContext = undefined;
   }
 
   private updateClock(): void {
@@ -170,18 +192,24 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
 
   private syncChromeHeight(): void {
     const host = this.elementRef.nativeElement;
+    const root = document.documentElement;
     const siteHeader = host.querySelector<HTMLElement>('#site-header');
     const statusBar = host.querySelector<HTMLElement>('#system-status-bar');
     const marquee = host.querySelector<HTMLElement>('#hero-marquee');
 
+    const assign = (name: string, value: string): void => {
+      root.style.setProperty(name, value);
+      host.style.setProperty(name, value);
+    };
+
     if (siteHeader) {
-      host.style.setProperty('--site-header-height', `${siteHeader.offsetHeight}px`);
+      assign('--site-header-height', `${siteHeader.offsetHeight}px`);
     }
     if (statusBar) {
-      host.style.setProperty('--system-status-bar-height', `${statusBar.offsetHeight}px`);
+      assign('--system-status-bar-height', `${statusBar.offsetHeight}px`);
     }
     if (marquee) {
-      host.style.setProperty('--hero-marquee-height', `${marquee.offsetHeight}px`);
+      assign('--hero-marquee-height', `${marquee.offsetHeight}px`);
     }
   }
 
@@ -209,140 +237,98 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  private setupScrollScene(): void {
+  private initScrollAnimation(): void {
     const host = this.elementRef.nativeElement;
-    gsap.registerPlugin(ScrollTrigger);
-    this.gsapMedia = gsap.matchMedia();
 
-    this.gsapMedia.add(
-      '(min-width: 768px) and (prefers-reduced-motion: no-preference)',
-      () => {
-        this.gsapContext = gsap.context(() => {
-          const timeline = gsap.timeline({
-            scrollTrigger: {
-              trigger: '#hero-interactive-scene',
-              start: () =>
-                `top top+=${host.querySelector<HTMLElement>('#site-header')?.offsetHeight ?? 0}`,
-              end: '+=1800',
-              scrub: 0.6,
-              pin: true,
-              anticipatePin: 1,
-              invalidateOnRefresh: true,
-            },
-          });
+    this.gsapContext = gsap.context(() => {
+      this.heroTimeline = gsap.timeline({
+        scrollTrigger: {
+          trigger: '#hero-interactive-scene',
+          start: () =>
+            `top top+=${host.querySelector<HTMLElement>('#site-header')?.offsetHeight ?? 0}`,
+          end: '+=1400',
+          scrub: 0.8,
+          pin: true,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+        },
+      });
 
-          gsap.set('#hero-split-trio', { autoAlpha: 0 });
-          gsap.set('.split-card', { transformOrigin: 'center center' });
+      gsap.set('#hero-split-trio', { autoAlpha: 0, pointerEvents: 'none' });
+      gsap.set('#hero-main-cv', { transformOrigin: 'center top' });
+      gsap.set('#hero-rolled-cylinder', {
+        autoAlpha: 0,
+        scale: 0.5,
+        rotation: 0,
+        transformOrigin: 'center center',
+      });
 
-          timeline
-            .to(
-              '#hero-left-col',
-              { autoAlpha: 0, x: -48, duration: 0.9, ease: 'power1.inOut' },
-              0,
-            )
-            .to(
-              '#hero-right-col',
-              { xPercent: -50, duration: 1.15, ease: 'power1.inOut' },
-              0,
-            )
-            .to(
-              '#hero-main-cv',
-              {
-                scaleY: 0.72,
-                scaleX: 0.92,
-                rotateX: 14,
-                transformOrigin: 'center center',
-                duration: 0.5,
-                ease: 'power1.in',
-              },
-              0.85,
-            )
-            .to(
-              '#hero-main-cv',
-              {
-                scaleY: 0.08,
-                scaleX: 0.68,
-                rotateX: 78,
-                duration: 0.8,
-                ease: 'power2.inOut',
-              },
-              1.25,
-            )
-            .fromTo(
-              '#hero-rolled-cylinder',
-              { autoAlpha: 0, scaleX: 0.55, scaleY: 0.4, rotationX: -90 },
-              {
-                autoAlpha: 1,
-                scaleX: 1,
-                scaleY: 1,
-                rotationX: 0,
-                duration: 0.55,
-                ease: 'power2.inOut',
-              },
-              1.65,
-            )
-            .to(
-              '#hero-main-cv',
-              { autoAlpha: 0, scaleX: 0.62, duration: 0.35, ease: 'power1.out' },
-              1.8,
-            )
-            .to(
-              '#hero-rolled-cylinder',
-              { rotationX: 720, duration: 1.1, ease: 'none' },
-              2,
-            )
-            .to(
-              '#hero-rolled-cylinder',
-              {
-                autoAlpha: 0,
-                scaleX: 0.5,
-                scaleY: 1.25,
-                duration: 0.45,
-                ease: 'power2.in',
-              },
-              2.85,
-            )
-            .fromTo(
-              '#hero-split-trio',
-              { autoAlpha: 0 },
-              { autoAlpha: 1, pointerEvents: 'auto', duration: 0.15 },
-              2.9,
-            )
-            .fromTo(
-              '.split-card',
-              {
-                xPercent: (index) => [105, 0, -105][index] ?? 0,
-                y: 32,
-                scale: 0.46,
-                rotationY: (index) => [24, 0, -24][index] ?? 0,
-                autoAlpha: 0,
-              },
-              {
-                autoAlpha: 1,
-                scale: 1,
-                xPercent: 0,
-                y: 0,
-                rotationY: 0,
-                duration: 0.95,
-                stagger: 0.08,
-                ease: 'power2.out',
-              },
-              2.9,
-            )
-            .to('#hero-right-col', { autoAlpha: 0, duration: 0.15 }, 3.15);
-        }, host);
+      this.heroTimeline
+        .to(
+          '#hero-left-col',
+          { autoAlpha: 0, x: -30, duration: 0.8, ease: 'power1.inOut' },
+          0,
+        )
+        .to(
+          '#hero-right-col',
+          { xPercent: -50, duration: 1.0, ease: 'power1.inOut' },
+          0,
+        )
+        .to(
+          '#hero-main-cv',
+          {
+            scaleY: 0.04,
+            scaleX: 0.65,
+            rotateX: 85,
+            y: -20,
+            autoAlpha: 0,
+            transformOrigin: 'center top',
+            duration: 1.0,
+            ease: 'power2.inOut',
+          },
+          0.8,
+        )
+        .to(
+          '#hero-rolled-cylinder',
+          {
+            autoAlpha: 1,
+            scale: 1,
+            rotation: 360,
+            duration: 1.0,
+            ease: 'power2.inOut',
+          },
+          1.0,
+        )
+        .to(
+          '#hero-rolled-cylinder',
+          {
+            scale: 1.2,
+            autoAlpha: 0,
+            duration: 0.6,
+            ease: 'power2.out',
+          },
+          1.8,
+        )
+        .to('#hero-right-col', { autoAlpha: 0, duration: 0.2 }, 1.8)
+        .fromTo(
+          '#hero-split-trio',
+          { autoAlpha: 0, scale: 0.8, y: 40 },
+          {
+            autoAlpha: 1,
+            scale: 1,
+            y: 0,
+            pointerEvents: 'auto',
+            duration: 1.2,
+            ease: 'back.out(1.2)',
+          },
+          2.0,
+        );
+    }, host);
 
-        queueMicrotask(() => {
-          if (!this.destroyed) {
-            ScrollTrigger.refresh();
-          }
-        });
-
-        return () => {
-          this.gsapContext?.revert();
-          this.gsapContext = undefined;
-        };
-      },
-    );
+    queueMicrotask(() => {
+      if (!this.destroyed) {
+        ScrollTrigger.refresh();
+      }
+    });
   }
 }

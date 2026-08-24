@@ -7,7 +7,6 @@
 
 .home-page {
   min-height: 100vh;
-  overflow: clip;
   background: var(--paper-bg);
   color: var(--fpt-black);
 }
@@ -235,6 +234,9 @@
   padding: 1.5rem 3rem;
   flex-direction: column;
   justify-content: center;
+}
+
+.card-perspective {
   perspective: 1400px;
   transform-style: preserve-3d;
 }
@@ -439,6 +441,18 @@ h1 {
   }
 }
 
+.float-card-1 {
+  animation: floatCard1 5s ease-in-out infinite;
+}
+
+.float-card-2 {
+  animation: floatCard2 6s ease-in-out infinite 0.3s;
+}
+
+.float-card-3 {
+  animation: floatCard3 5.5s ease-in-out infinite 0.6s;
+}
+
 .hero-marquee {
   display: flex;
   height: var(--system-status-bar-height);
@@ -454,6 +468,7 @@ h1 {
   display: flex;
   width: max-content;
   min-width: 200%;
+  flex-shrink: 0;
   flex-wrap: nowrap;
   animation: marquee 25s linear infinite;
   font-family: var(--font-mono);
@@ -563,6 +578,36 @@ h1 {
   }
 }
 
+@keyframes floatCard1 {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.5deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(0.5deg);
+  }
+}
+
+@keyframes floatCard2 {
+  0%,
+  100% {
+    transform: translateY(-5px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(5px) rotate(-0.6deg);
+  }
+}
+
+@keyframes floatCard3 {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0.6deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(-0.5deg);
+  }
+}
+
 @media (max-width: 1023px) {
   .system-status-bar {
     padding-inline: 1rem;
@@ -611,7 +656,6 @@ h1 {
   }
 
   .hero-pin-wrapper {
-    min-height: auto;
     padding: 2.5rem 1rem 3rem;
   }
 
@@ -632,21 +676,11 @@ h1 {
 
   .hero-profile-stage {
     width: 100%;
-    min-height: auto;
-  }
-
-  .rolled-cylinder {
-    display: none;
   }
 
   .split-trio {
-    position: static;
-    width: 100%;
-    margin-top: 2rem;
     grid-template-columns: 1fr;
     gap: 1.5rem;
-    opacity: 1;
-    pointer-events: auto;
   }
 
   .footer-inner {
@@ -711,22 +745,9 @@ h1 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-pin-wrapper {
-    min-height: auto;
-    padding-block: 2.5rem;
-  }
-
-  .split-trio {
-    position: static;
-    width: 100%;
-    margin-top: 2.5rem;
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .marquee-track {
-    width: auto;
-    min-width: max-content;
+  .float-card-1,
+  .float-card-2,
+  .float-card-3 {
     animation: none;
   }
 }

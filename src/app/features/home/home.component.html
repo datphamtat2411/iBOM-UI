@@ -47,7 +47,7 @@
 
   <main>
     <section id="hero-interactive-scene" class="hero-scene" aria-labelledby="hero-title">
-      <div id="hero-pin-wrapper" class="hero-pin-wrapper">
+      <div id="hero-pin-wrapper" class="hero-pin-wrapper card-perspective">
         <div class="hero-grid">
           <div id="hero-left-col" class="hero-copy">
             <div class="hero-kicker">
@@ -83,17 +83,20 @@
             </div>
 
             <div id="hero-rolled-cylinder" class="rolled-cylinder" aria-hidden="true">
-              <span class="cylinder-count">3x</span>
-              <span class="cylinder-label">LOADING ......</span>
-              <span class="cylinder-light"></span>
+              <div class="cylinder-count led-amber">3x</div>
+              <div class="cylinder-label">LOADING ......</div>
+              <div class="cylinder-light"></div>
             </div>
           </div>
         </div>
 
         <div id="hero-split-trio" class="split-trio" aria-label="Independent profile versions">
-          @for (profile of profileVersions; track profile.id) {
+          @for (profile of profileVersions; track profile.id; let index = $index) {
             <app-profile-card
               class="split-card"
+              [class.float-card-1]="index === 0"
+              [class.float-card-2]="index === 1"
+              [class.float-card-3]="index === 2"
               [data]="profile"
             />
           }
