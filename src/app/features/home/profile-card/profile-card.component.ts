@@ -1,4 +1,12 @@
-import { Component, Input, OnDestroy } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  Input,
+  NgZone,
+  OnDestroy,
+  ViewChild,
+} from '@angular/core';
 
 export type ProfileCardTab = 'overview' | 'skills' | 'export';
 export type ProfileCardTheme = 'orange' | 'blue' | 'green';
@@ -29,9 +37,11 @@ export interface ProfileCardData {
   templateUrl: './profile-card.component.html',
   styleUrl: './profile-card.component.scss',
 })
-export class ProfileCardComponent implements OnDestroy {
+export class ProfileCardComponent implements AfterViewInit, OnDestroy {
   @Input({ required: true }) data!: ProfileCardData;
   @Input() variant: 'hero' | 'compact' = 'compact';
+  @ViewChild('profileCard', { static: true })
+  private profileCard?: ElementRef<HTMLElement>;
 
   readonly tabs: readonly ProfileCardTab[] = ['overview', 'skills', 'export'];
   activeTab: ProfileCardTab = 'overview';
@@ -42,6 +52,23 @@ export class ProfileCardComponent implements OnDestroy {
     readonly clientX: number;
     readonly clientY: number;
   };
+
+  constructor(private readonly ngZone: NgZone) {}
+
+  ngAfterViewInit(): void {
+    if (
+      typeof window === 'undefined' ||
+      window.matchMedia('(pointer: coarse)').matches
+    ) {
+      return;
+    }
+
+    this.ngZone.runOutsideAngular(() => {
+      const card = this.profileCard?.nativeElement;
+      card?.addEventListener('pointermove', this.onPointerMove);
+      card?.addEventListener('pointerleave', this.resetTilt);
+    });
+  }
 
   selectTab(tab: ProfileCardTab): void {
     this.activeTab = tab;
@@ -55,16 +82,11 @@ export class ProfileCardComponent implements OnDestroy {
     return `${this.data.id}-${tab}-panel`;
   }
 
-  onPointerMove(event: PointerEvent): void {
-    if (
-      typeof window === 'undefined' ||
-      window.matchMedia('(pointer: coarse)').matches
-    ) {
-      return;
-    }
+  private readonly onPointerMove = (event: PointerEvent): void => {
+    const card = event.currentTarget as HTMLElement;
 
     this.pendingTilt = {
-      card: event.currentTarget as HTMLElement,
+      card,
       clientX: event.clientX,
       clientY: event.clientY,
     };
@@ -85,24 +107,31 @@ export class ProfileCardComponent implements OnDestroy {
       const bounds = tilt.card.getBoundingClientRect();
       const x = (tilt.clientX - bounds.left - bounds.width / 2) / (bounds.width / 2);
       const y = (tilt.clientY - bounds.top - bounds.height / 2) / (bounds.height / 2);
-      const intensity = this.variant === 'hero' ? 4 : 6;
+      const intensity = this.variant === 'hero' ? 2.5 : 6;
 
       tilt.card.style.setProperty('--tilt-x', `${-y * intensity}deg`);
       tilt.card.style.setProperty('--tilt-y', `${x * intensity}deg`);
-      tilt.card.style.setProperty('--tilt-lift', this.variant === 'hero' ? '-2px' : '-3px');
+      tilt.card.style.setProperty('--tilt-lift', this.variant === 'hero' ? '-1px' : '-3px');
     });
-  }
+  };
 
-  resetTilt(event: PointerEvent): void {
+  private readonly resetTilt = (): void => {
     this.cancelTiltFrame();
 
-    const card = event.currentTarget as HTMLElement;
+    const card = this.profileCard?.nativeElement;
+    if (!card) {
+      return;
+    }
+
     card.style.removeProperty('--tilt-x');
     card.style.removeProperty('--tilt-y');
     card.style.removeProperty('--tilt-lift');
-  }
+  };
 
   ngOnDestroy(): void {
+    const card = this.profileCard?.nativeElement;
+    card?.removeEventListener('pointermove', this.onPointerMove);
+    card?.removeEventListener('pointerleave', this.resetTilt);
     this.cancelTiltFrame();
   }
 

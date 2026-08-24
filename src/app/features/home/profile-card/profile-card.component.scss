@@ -16,16 +16,19 @@
   background: #fff;
   box-shadow: var(--card-shadow);
   cursor: default;
+  transform: none;
+  transition: box-shadow 180ms ease, transform 180ms ease-out;
+}
+
+.profile-card:hover {
   transform: perspective(1000px) rotateX(var(--tilt-x, 0deg))
     rotateY(var(--tilt-y, 0deg)) translateY(var(--tilt-lift, 0))
     scale(var(--card-scale, 1));
-  transform-style: preserve-3d;
-  transition: box-shadow 180ms ease, transform 180ms ease-out;
-  will-change: transform;
+  transition: box-shadow 180ms ease, transform 60ms linear;
+}
 
-  &:hover {
-    transition: box-shadow 180ms ease, transform 60ms linear;
-  }
+.profile-card--hero:hover {
+  transition: box-shadow 180ms ease, transform 90ms ease-out;
 }
 
 .profile-card:not(.profile-card--hero):hover {
@@ -420,8 +423,7 @@
 }
 
 @media (pointer: coarse) {
-  .profile-card {
+  .profile-card:hover {
     transform: none;
-    will-change: auto;
   }
 }

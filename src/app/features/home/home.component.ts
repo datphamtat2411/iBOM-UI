@@ -120,13 +120,21 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
 
   private readonly isBrowser: boolean;
   private clockInterval?: ReturnType<typeof setInterval>;
-  private resizeObserver?: ResizeObserver;
   private gsapContext?: ReturnType<typeof gsap.context>;
   private heroTimeline?: gsap.core.Timeline;
-  private sceneInitTimer?: ReturnType<typeof setTimeout>;
+  private sceneInitTimer?: number;
   private viewportRefreshFrame?: number;
+  private viewportWidth?: number;
   private destroyed = false;
-  private readonly onViewportChange = (): void => {
+  private readonly onViewportChange = (event: Event): void => {
+    const viewportWidth = document.documentElement.clientWidth;
+
+    if (event.type === 'resize' && viewportWidth === this.viewportWidth) {
+      return;
+    }
+
+    this.viewportWidth = viewportWidth;
+
     if (this.viewportRefreshFrame !== undefined) {
       return;
     }
@@ -157,8 +165,9 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     }
 
     this.ngZone.runOutsideAngular(() => {
+      ScrollTrigger.config({ ignoreMobileResize: true });
+      this.viewportWidth = document.documentElement.clientWidth;
       this.syncChromeHeight();
-      this.observeChromeSize();
       window.addEventListener('load', this.onViewportChange);
       window.addEventListener('resize', this.onViewportChange);
       this.sceneInitTimer = window.setTimeout(() => {
@@ -185,7 +194,6 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
       this.viewportRefreshFrame = undefined;
     }
 
-    this.resizeObserver?.disconnect();
     window.removeEventListener('load', this.onViewportChange);
     window.removeEventListener('resize', this.onViewportChange);
     this.heroTimeline?.scrollTrigger?.kill();
@@ -226,49 +234,51 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private observeChromeSize(): void {
-    if (!('ResizeObserver' in window)) {
+  private initScrollAnimation(): void {
+    const host = this.elementRef.nativeElement;
+    const siteHeader = host.querySelector<HTMLElement>('#site-header');
+    const heroScene = host.querySelector<HTMLElement>('#hero-interactive-scene');
+    const heroLeftCol = host.querySelector<HTMLElement>('#hero-left-col');
+    const heroRightCol = host.querySelector<HTMLElement>('#hero-right-col');
+    const heroMainCv = host.querySelector<HTMLElement>('#hero-main-cv');
+    const heroRolledCylinder = host.querySelector<HTMLElement>('#hero-rolled-cylinder');
+    const heroSplitTrio = host.querySelector<HTMLElement>('#hero-split-trio');
+
+    if (
+      !siteHeader ||
+      !heroScene ||
+      !heroLeftCol ||
+      !heroRightCol ||
+      !heroMainCv ||
+      !heroRolledCylinder ||
+      !heroSplitTrio
+    ) {
       return;
     }
 
-    const host = this.elementRef.nativeElement;
-    this.resizeObserver = new ResizeObserver(() => {
-      this.onViewportChange();
-    });
-
-    const observedElements = [
-      host.querySelector('#site-header'),
-      host.querySelector('#system-status-bar'),
-      host.querySelector('#hero-marquee'),
-    ];
-
-    observedElements.forEach((element) => {
-      if (element) {
-        this.resizeObserver?.observe(element);
-      }
-    });
-  }
-
-  private initScrollAnimation(): void {
-    const host = this.elementRef.nativeElement;
+    const splitCards = gsap.utils.toArray<HTMLElement>('.split-card', heroSplitTrio);
 
     this.gsapContext = gsap.context(() => {
       this.heroTimeline = gsap.timeline({
         scrollTrigger: {
-          trigger: '#hero-interactive-scene',
-          start: () =>
-            `top top+=${host.querySelector<HTMLElement>('#site-header')?.offsetHeight ?? 0}`,
+          trigger: heroScene,
+          start: () => `top top+=${siteHeader.offsetHeight}`,
           end: '+=1400',
-          scrub: 1.2,
+          scrub: 0.7,
           pin: true,
           anticipatePin: 1,
           invalidateOnRefresh: true,
         },
       });
 
-      gsap.set('#hero-split-trio', { autoAlpha: 0, pointerEvents: 'none' });
-      gsap.set('#hero-main-cv', { transformOrigin: 'center top' });
-      gsap.set('#hero-rolled-cylinder', {
+      gsap.set(
+        [heroLeftCol, heroRightCol, heroMainCv, heroRolledCylinder, heroSplitTrio],
+        { force3D: true },
+      );
+      gsap.set(heroSplitTrio, { autoAlpha: 0, pointerEvents: 'none' });
+      gsap.set(splitCards, { animationPlayState: 'paused' });
+      gsap.set(heroMainCv, { transformOrigin: 'center top' });
+      gsap.set(heroRolledCylinder, {
         autoAlpha: 0,
         scale: 0.5,
         rotation: 0,
@@ -277,17 +287,17 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
 
       this.heroTimeline
         .to(
-          '#hero-left-col',
+          heroLeftCol,
           { autoAlpha: 0, x: -30, duration: 0.8, ease: 'power1.inOut' },
           0,
         )
         .to(
-          '#hero-right-col',
+          heroRightCol,
           { xPercent: -50, duration: 1.0, ease: 'power1.inOut' },
           0,
         )
         .to(
-          '#hero-main-cv',
+          heroMainCv,
           {
             scaleY: 0.04,
             scaleX: 0.65,
@@ -301,7 +311,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
           0.8,
         )
         .to(
-          '#hero-rolled-cylinder',
+          heroRolledCylinder,
           {
             autoAlpha: 1,
             scale: 1,
@@ -312,7 +322,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
           1.0,
         )
         .to(
-          '#hero-rolled-cylinder',
+          heroRolledCylinder,
           {
             scale: 1.2,
             autoAlpha: 0,
@@ -321,9 +331,9 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
           },
           1.8,
         )
-        .to('#hero-right-col', { autoAlpha: 0, duration: 0.2 }, 1.8)
+        .to(heroRightCol, { autoAlpha: 0, duration: 0.2 }, 1.8)
         .fromTo(
-          '#hero-split-trio',
+          heroSplitTrio,
           { autoAlpha: 0, scale: 0.8, y: 40 },
           {
             autoAlpha: 1,
@@ -334,13 +344,8 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
           },
           2.0,
         )
-        .set('#hero-split-trio', { pointerEvents: 'auto' });
+        .set(splitCards, { animationPlayState: 'running' }, 2.0)
+        .set(heroSplitTrio, { pointerEvents: 'auto' }, 2.0);
     }, host);
-
-    queueMicrotask(() => {
-      if (!this.destroyed) {
-        ScrollTrigger.refresh();
-      }
-    });
   }
 }

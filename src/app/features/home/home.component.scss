@@ -116,8 +116,7 @@
   justify-content: space-between;
   padding: 1rem 4rem;
   border-bottom: 1px solid var(--grid-border);
-  background: rgba(249, 247, 241, 0.95);
-  backdrop-filter: blur(8px);
+  background: var(--paper-bg);
 }
 
 .brand {
@@ -238,7 +237,6 @@
 
 .card-perspective {
   perspective: 1400px;
-  transform-style: preserve-3d;
 }
 
 .hero-grid {
@@ -257,6 +255,7 @@
 
 .hero-copy {
   padding-right: 1rem;
+  will-change: transform, opacity;
 }
 
 .hero-kicker {
@@ -351,13 +350,14 @@ h1 {
   min-height: 35rem;
   align-items: center;
   justify-content: center;
+  will-change: transform, opacity;
 }
 
 .source-profile {
   z-index: 30;
   width: 100%;
   max-width: 32rem;
-  transform-style: preserve-3d;
+  backface-visibility: hidden;
   will-change: transform, opacity;
 }
 
@@ -382,9 +382,9 @@ h1 {
     #a39b8c 100%
   );
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.9);
+  backface-visibility: hidden;
   pointer-events: none;
   transform: scale(0.5);
-  transform-style: preserve-3d;
   will-change: transform, opacity;
 }
 
@@ -425,15 +425,13 @@ h1 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem;
   opacity: 0;
+  backface-visibility: hidden;
   pointer-events: none;
   will-change: transform, opacity;
 }
 
 .split-card {
   min-width: 0;
-  backface-visibility: hidden;
-  transform-style: preserve-3d;
-  will-change: transform;
 
   &:hover {
     z-index: 50;

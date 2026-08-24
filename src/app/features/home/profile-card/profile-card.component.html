@@ -1,11 +1,10 @@
 <article
+  #profileCard
   class="profile-card"
   [class.profile-card--hero]="variant === 'hero'"
   [class.profile-card--orange]="data.theme === 'orange'"
   [class.profile-card--blue]="data.theme === 'blue'"
   [class.profile-card--green]="data.theme === 'green'"
-  (pointermove)="onPointerMove($event)"
-  (pointerleave)="resetTilt($event)"
 >
   <div class="card-body">
     <header class="radio-box profile-status">

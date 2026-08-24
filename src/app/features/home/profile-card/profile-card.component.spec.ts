@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 
 import {
   ProfileCardComponent,
@@ -68,4 +68,26 @@ describe('ProfileCardComponent', () => {
     expect(panel.id).toBe('panel-profile-export-panel');
     expect(panel.textContent).toContain('PDF and DOCX output');
   });
+
+  it('keeps the hero tilt interactive while its scroll container transforms', fakeAsync(() => {
+    const fixture = TestBed.createComponent(ProfileCardComponent);
+    fixture.componentRef.setInput('data', { ...PROFILE, id: 'hero-profile' });
+    fixture.componentRef.setInput('variant', 'hero');
+    fixture.detectChanges();
+
+    fixture.nativeElement.classList.add('is-scroll-transforming');
+    const card = fixture.nativeElement.querySelector('.profile-card') as HTMLElement;
+    spyOn(card, 'getBoundingClientRect').and.returnValue(new DOMRect(0, 0, 100, 100));
+
+    card.dispatchEvent(
+      new PointerEvent('pointermove', { bubbles: true, clientX: 100, clientY: 0 }),
+    );
+    tick(16);
+
+    expect(card.style.getPropertyValue('--tilt-x')).toBe('2.5deg');
+    expect(card.style.getPropertyValue('--tilt-y')).toBe('2.5deg');
+    expect(card.style.getPropertyValue('--tilt-lift')).toBe('-1px');
+
+    fixture.destroy();
+  }));
 });
