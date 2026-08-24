@@ -1,0 +1,116 @@
+<article
+  class="profile-card"
+  [class.profile-card--hero]="variant === 'hero'"
+  [class.profile-card--orange]="data.theme === 'orange'"
+  [class.profile-card--blue]="data.theme === 'blue'"
+  [class.profile-card--green]="data.theme === 'green'"
+  (pointermove)="onPointerMove($event)"
+  (pointerleave)="resetTilt($event)"
+>
+  <div class="card-body">
+    <header class="radio-box profile-status">
+      <span class="profile-code">
+        <span class="status-light" aria-hidden="true"></span>
+        <span class="radio-text">ID: {{ data.profileCode }}</span>
+      </span>
+      <span
+        class="profile-state"
+        [class.profile-state--draft]="data.statusTone === 'draft'"
+      >
+        <span aria-hidden="true">&bull;</span> {{ data.status }}
+      </span>
+    </header>
+
+    <div class="profile-identity">
+      <div class="profile-initials" aria-hidden="true">{{ data.initials }}</div>
+      <div>
+        <h2>{{ data.name }}</h2>
+        <p class="profile-role">{{ data.role }}</p>
+        <p class="profile-organization">{{ data.organization }}</p>
+      </div>
+    </div>
+
+    <div class="profile-tabs" role="tablist" aria-label="Profile details">
+      @for (tab of tabs; track tab) {
+        <button
+          type="button"
+          role="tab"
+          [id]="tabId(tab)"
+          [attr.data-tab]="tab"
+          [attr.aria-controls]="panelId(tab)"
+          [attr.aria-selected]="activeTab === tab"
+          [class.is-active]="activeTab === tab"
+          (click)="selectTab(tab)"
+        >
+          {{ tab }}
+        </button>
+      }
+    </div>
+
+    @switch (activeTab) {
+      @case ('overview') {
+        <section
+          class="tab-panel overview-panel"
+          role="tabpanel"
+          [id]="panelId('overview')"
+          [attr.aria-labelledby]="tabId('overview')"
+        >
+          <div class="detail-row">
+            <span>Experience:</span>
+            <strong>{{ data.experience }}</strong>
+          </div>
+          <div class="detail-row">
+            <span>Completion:</span>
+            <span class="radio-box completion-state">{{ data.completion }}</span>
+          </div>
+          <div class="detail-row">
+            <span>Standard filename:</span>
+            <strong class="filename">{{ data.filename }}</strong>
+          </div>
+        </section>
+      }
+      @case ('skills') {
+        <section
+          class="tab-panel skills-panel"
+          role="tabpanel"
+          [id]="panelId('skills')"
+          [attr.aria-labelledby]="tabId('skills')"
+        >
+          <p class="panel-label">Primary skill:</p>
+          <div class="primary-skill">
+            <strong>{{ data.primarySkill }}</strong>
+            <span>{{ data.primarySkillExperience }}</span>
+          </div>
+          <div class="skill-list" aria-label="Additional skills">
+            @for (skill of data.skills; track skill) {
+              <span>{{ skill }}</span>
+            }
+          </div>
+        </section>
+      }
+      @case ('export') {
+        <section
+          class="tab-panel export-panel"
+          role="tabpanel"
+          [id]="panelId('export')"
+          [attr.aria-labelledby]="tabId('export')"
+        >
+          <div class="export-state">
+            <span class="export-light" aria-hidden="true"></span>
+            <strong>{{ data.exportHeading }}</strong>
+          </div>
+          <p>{{ data.exportDescription }}</p>
+        </section>
+      }
+    }
+  </div>
+
+  <footer class="profile-actions" aria-label="Profile demo actions">
+    <button type="button" disabled title="Preview is not available in this homepage demo">
+      Preview PDF
+    </button>
+    <button type="button" disabled title="Profile duplication is not available in this homepage demo">
+      Duplicate profile &nearr;
+    </button>
+  </footer>
+</article>

@@ -1,0 +1,135 @@
+<div class="home-page">
+  <div id="site-header" class="site-header">
+    <header id="system-status-bar" class="system-status-bar">
+      <div class="status-cluster">
+        <div class="radio-box online-status">
+          <span class="online-light" aria-hidden="true"></span>
+          <span class="led-green">SYS_STATUS: ONLINE</span>
+        </div>
+        <span class="status-divider status-detail" aria-hidden="true">|</span>
+        <span class="status-detail">FPT SOFTWARE (EST. 1988)</span>
+        <span class="status-divider archive-detail" aria-hidden="true">|</span>
+        <span class="archive-detail">ARCHIVE ID: iBOM-2026.V1</span>
+      </div>
+
+      <div class="clock-cluster">
+        <span class="clock-label">LOCAL TIME:</span>
+        <div class="radio-box digital-clock" aria-live="off">
+          <time class="led-amber">{{ localTime }}</time>
+        </div>
+      </div>
+    </header>
+
+    <nav class="editorial-nav" aria-label="Primary navigation">
+      <a class="brand" href="/" aria-label="iBOM homepage">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span class="brand-copy">
+          <span class="brand-line">
+            <strong>iBOM</strong>
+            <span class="brand-module">CV-MOD</span>
+          </span>
+          <span class="brand-subtitle">CV Management System</span>
+        </span>
+      </a>
+
+      <button
+        class="login-control"
+        type="button"
+        disabled
+        title="Login is not available in this homepage demo"
+      >
+        Login -&gt;
+      </button>
+    </nav>
+  </div>
+
+  <main>
+    <section id="hero-interactive-scene" class="hero-scene" aria-labelledby="hero-title">
+      <div id="hero-pin-wrapper" class="hero-pin-wrapper">
+        <div class="hero-grid">
+          <div id="hero-left-col" class="hero-copy">
+            <div class="hero-kicker">
+              <span class="kicker-light" aria-hidden="true"></span>
+              <span>Profile workspace</span>
+              <span class="hero-kicker-code">MULTI-CV</span>
+            </div>
+
+            <h1 id="hero-title">
+              Enter once.<br>
+              <span class="hero-title-promise">
+                Create <em>Multiple profiles</em>
+              </span><br>
+              Standardized for FPT Corp.
+            </h1>
+
+            <p class="hero-description">
+              FPT's workforce competency profile management platform lets every engineer maintain
+              multiple independent CV versions, track each version's completion state, preview it,
+              and prepare standardized PDF or DOCX documents.
+            </p>
+
+            <div class="radio-box feature-display">
+              <span><small>Framework:</small><strong class="led-amber">Angular 17+</strong></span>
+              <i aria-hidden="true">|</i>
+              <span><small>Feature:</small><strong class="led-green">CV Consistency</strong></span>
+            </div>
+          </div>
+
+          <div id="hero-right-col" class="hero-profile-stage">
+            <div id="hero-main-cv" class="source-profile">
+              <app-profile-card [data]="sourceProfile" variant="hero" />
+            </div>
+
+            <div id="hero-rolled-cylinder" class="rolled-cylinder" aria-hidden="true">
+              <span class="cylinder-count">3x</span>
+              <span class="cylinder-label">LOADING ......</span>
+              <span class="cylinder-light"></span>
+            </div>
+          </div>
+        </div>
+
+        <div id="hero-split-trio" class="split-trio" aria-label="Independent profile versions">
+          @for (profile of profileVersions; track profile.id; let index = $index) {
+            <app-profile-card
+              class="split-card"
+              [class.float-card-1]="index === 0"
+              [class.float-card-2]="index === 1"
+              [class.float-card-3]="index === 2"
+              [data]="profile"
+            />
+          }
+        </div>
+      </div>
+
+      <div id="hero-marquee" class="hero-marquee">
+        <div class="marquee-track">
+          @for (item of marqueeItems; track item) {
+            <span>{{ item }}</span>
+          }
+          @for (item of marqueeItems; track item) {
+            <span aria-hidden="true">{{ item }}</span>
+          }
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand">
+          <strong>iBOM - CV Management System</strong>
+          <span class="radio-box led-amber">EST. 1988</span>
+        </div>
+        <p>&copy; 1988-2026 FPT Corporation. For internal corporate distribution.</p>
+      </div>
+      <div class="footer-notes" aria-label="Resource areas">
+        <span>SSO Privacy Policy</span>
+        <span>CV Profile Standards</span>
+        <span>IT Helpdesk Support</span>
+      </div>
+    </div>
+  </footer>
+</div>
