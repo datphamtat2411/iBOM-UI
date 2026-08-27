@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="en">
+<head><script type="application/json" data-od-external-dependencies>["https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"]</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iBOM Core Flow Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link id="ibom-fonts" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" media="print" onload="this.media='all';this.dataset.loaded='true';window.dispatchEvent(new Event('ibomfontscssloaded'))">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"></noscript>
+  <style>
+    :root {
+      --bg: oklch(97.8% 0.010 88);
+      --surface: oklch(92.7% 0.016 88);
+      --fg: oklch(18.4% 0.007 264);
+      --muted: oklch(49.8% 0.015 75);
+      --border: oklch(86.3% 0.018 84);
+      --accent: oklch(63.5% 0.180 43);
+      --accent-dark: oklch(52% 0.16 43);
+      --info: oklch(39% 0.11 258);
+      --success: oklch(48% 0.11 151);
+      --brand-blue: #1e4785;
+      --brand-orange: #d85a18;
+      --brand-green: #2a7347;
+      --warn: oklch(57% 0.13 65);
+      --danger: oklch(49% 0.17 28);
+      --white: oklch(99.6% 0.003 88);
+      --shadow: 0 18px 46px oklch(18.4% 0.007 264 / .12);
+      --system-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      --system-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --body: var(--system-sans);
+      --display: var(--system-sans);
+      --mono: var(--system-mono);
+      --brand-serif: Georgia, "Times New Roman", serif;
+      --brand-sans: var(--system-sans);
+      --brand-mono: var(--system-mono);
+      --ease-out: cubic-bezier(.16, 1, .3, 1);
+      --motion-fast: 100ms;
+      --motion-ui: 160ms;
+      --motion-context: 190ms;
+      color-scheme: light;
+    }
+    html.fonts-ibm-ready {
+      --body: "IBM Plex Sans", var(--system-sans);
+      --display: "IBM Plex Sans", var(--system-sans);
+      --mono: "IBM Plex Mono", var(--system-mono);
+    }
+    html.fonts-brand-ready {
+      --brand-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+      --brand-sans: "Plus Jakarta Sans", "IBM Plex Sans", var(--system-sans);
+      --brand-mono: "JetBrains Mono", "IBM Plex Mono", var(--system-mono);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-width: 320px; min-height: 100%; background: var(--bg); color: var(--fg); font-family: var(--body); }
+    body { font-size: 15px; line-height: 1.55; overflow-wrap: break-word; }
+    button, input, select, textarea { font: inherit; }
+    button, a, input, select, textarea { outline: none; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), transform 80ms var(--ease-out); }
+    button:active { transform: translateY(1px); }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--fg); outline-offset: 2px; box-shadow: 0 0 0 4px var(--white); border-color: var(--accent) !important;
+    }
+    .hidden { display: none !important; }
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .muted { color: var(--muted); }
+    .small { font-size: 13px; }
+    .btn { display: inline-flex; min-height: 44px; max-width: 100%; padding: 9px 15px; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--fg); font-weight: 600; line-height: 1.25; letter-spacing: 0; white-space: normal; overflow-wrap: anywhere; }
+    .btn:hover { background: var(--surface); border-color: var(--muted); }
+    .btn.primary { background: var(--accent); color: var(--fg); border-color: var(--accent); }
+    .btn.primary:hover { background: var(--accent-dark); color: var(--white); border-color: var(--accent-dark); }
+    .btn.text { border-color: transparent; background: transparent; padding-inline: 8px; }
+    .btn.text:hover { background: var(--surface); }
+    .btn.danger { color: var(--danger); border-color: oklch(49% 0.17 28 / .35); }
+    .btn:disabled { cursor: not-allowed; color: var(--muted); background: var(--surface); border-color: var(--border); transform: none; }
+    .field { display: grid; gap: 6px; min-width: 0; }
+    label, .data-label { font-size: 13px; line-height: 1.35; font-weight: 600; }
+    input, select, textarea { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--fg); }
+    input:hover, select:hover, textarea:hover { border-color: var(--muted); }
+    textarea { resize: vertical; line-height: 1.55; }
+    .helper { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .error-text { color: var(--danger); font-size: 12px; line-height: 1.45; }
+    .status { display: inline-flex; align-items: center; gap: 7px; width: fit-content; min-height: 26px; padding: 3px 8px; border: 1px solid currentColor; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .status::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ""; }
+    .status.valid, .status.active { color: var(--success); }
+    .status.warning { color: var(--warn); }
+    .status.info { color: var(--info); }
+    .status.inactive { color: var(--muted); }
+    .brand { display: flex; padding: 0; align-items: center; gap: 10px; border: 0; background: transparent; color: inherit; text-align: start; text-decoration: none; }
+    .link-button { min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+    .link-button:hover { color: var(--accent-dark); }
+    .brand-mark { display: grid; grid-template-columns: repeat(3, 8px); gap: 2px; padding: 3px; border: 1px solid var(--fg); background: var(--white); }
+    .brand-mark i { display: block; height: 21px; }
+    .brand-mark i:nth-child(1) { background: var(--brand-blue); }
+    .brand-mark i:nth-child(2) { background: var(--brand-orange); }
+    .brand-mark i:nth-child(3) { background: var(--brand-green); }
+    .brand strong { display: block; font-family: var(--brand-serif); font-size: 24px; line-height: 1; letter-spacing: -.015em; font-weight: 700; }
+    .brand small { display: block; margin-top: 3px; color: var(--muted); font-family: var(--brand-mono); font-size: 9px; line-height: 1.35; letter-spacing: .06em; text-transform: uppercase; }
+
+    /* Login */
+    #login-screen { min-height: 100dvh; display: grid; grid-template-columns: minmax(360px, 1fr) minmax(420px, 620px); }
+    .login-story { position: relative; display: flex; min-height: 100dvh; padding: 44px clamp(28px, 5vw, 78px); flex-direction: column; justify-content: space-between; overflow: hidden; border-inline-end: 1px solid var(--border); background-image: linear-gradient(oklch(86.3% 0.018 84 / .35) 1px, transparent 1px), linear-gradient(90deg, oklch(86.3% 0.018 84 / .28) 1px, transparent 1px); background-size: 38px 38px; }
+    .login-story::after { position: absolute; inset-inline-end: 8%; bottom: 15%; width: 78px; height: 78px; border: 10px solid var(--info); border-inline-end-color: var(--accent); content: ""; transform: rotate(8deg); }
+    .login-copy { max-width: 600px; }
+    .login-copy p:first-child { margin: 0 0 14px; font-family: var(--brand-mono); font-size: 11px; line-height: 1.4; letter-spacing: .06em; text-transform: uppercase; }
+    .login-copy h1 { max-width: 640px; margin: 0 0 22px; font-family: var(--brand-serif); font-size: clamp(42px, 5.5vw, 74px); line-height: 1.08; letter-spacing: -.025em; font-weight: 600; text-wrap: balance; }
+    .login-copy p:last-child { max-width: 54ch; margin: 0; color: var(--muted); font-family: var(--brand-sans); font-size: 17px; line-height: 1.65; }
+    .login-foot { max-width: 54ch; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-family: var(--brand-sans); font-size: 12px; line-height: 1.55; }
+    .login-form-wrap { display: grid; min-height: 100dvh; place-items: center; padding: 42px; background: var(--white); }
+    .login-panel { width: min(100%, 430px); }
+    .login-panel h2 { margin: 0 0 8px; font-size: 30px; line-height: 1.2; letter-spacing: 0; }
+    .login-panel > p { margin: 0 0 28px; color: var(--muted); }
+    .login-form { display: grid; gap: 18px; }
+    .login-actions { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+    .login-actions .btn.primary { min-width: 116px; }
+    .auth-links { display: flex; margin-top: 20px; padding-top: 20px; justify-content: space-between; border-top: 1px solid var(--border); }
+    .auth-links .link-button { font-size: 13px; }
+    .auth-message { display: none; padding: 12px 14px; border: 1px solid; border-radius: 6px; font-size: 13px; }
+    .auth-message.error { display: block; color: var(--danger); background: oklch(96% .02 28); }
+    .auth-message.warning { display: block; color: oklch(40% .09 65); background: oklch(95% .04 75); }
+
+    /* Application shell */
+    #app-screen { min-height: 100dvh; grid-template-columns: 236px minmax(0, 1fr); }
+    .sidebar { position: fixed; inset-block: 0; inset-inline-start: 0; z-index: 5; display: flex; width: 236px; padding: 24px 16px 16px; flex-direction: column; background: var(--fg); color: var(--white); }
+    .sidebar .brand { padding: 0 8px 24px; }
+    .sidebar .brand small { color: oklch(80% .01 88); }
+    .nav-group { display: grid; gap: 4px; margin-top: 18px; }
+    .nav-label { margin: 0 10px 6px; color: oklch(72% .01 88); font-family: var(--mono); font-size: 10px; line-height: 1.4; letter-spacing: .04em; text-transform: uppercase; }
+    .nav-btn { display: flex; min-height: 44px; padding: 9px 11px; align-items: center; gap: 11px; border: 0; border-radius: 6px; background: transparent; color: oklch(89% .01 88); text-align: start; font-weight: 500; line-height: 1.3; }
+    .nav-btn:hover { background: oklch(30% .01 264); color: var(--white); }
+    .nav-btn.active { background: oklch(28% .025 43); color: var(--white); box-shadow: inset 3px 0 var(--accent); }
+    .nav-btn:disabled { cursor: not-allowed; background: transparent; color: oklch(62% .01 88); }
+    .nav-glyph { width: 18px; font-family: var(--mono); font-size: 12px; text-align: center; }
+    .sidebar-foot { margin-top: auto; padding-top: 14px; border-top: 1px solid oklch(100% 0 0 / .15); }
+    .mobile-nav-toggle { display: none; min-width: 44px; min-height: 44px; padding: 8px 10px; border: 1px solid oklch(100% 0 0 / .25); border-radius: 6px; background: transparent; color: var(--white); font-weight: 600; }
+    .account-btn { width: 100%; display: flex; padding: 9px 8px; align-items: center; gap: 10px; border: 0; border-radius: 6px; background: transparent; color: var(--white); text-align: start; }
+    .account-btn:hover { background: oklch(30% .01 264); }
+    .account-menu { position: fixed; z-index: 12; inset-inline-start: 16px; bottom: 76px; width: 204px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); box-shadow: var(--shadow); color: var(--fg); }
+    .account-menu p { margin: 2px 4px 10px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+    .account-menu .btn { width: 100%; justify-content: flex-start; }
+    .avatar { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border: 1px solid oklch(100% 0 0 / .3); border-radius: 50%; background: oklch(25% .03 43); font-family: var(--mono); font-size: 12px; }
+    .account-copy { min-width: 0; }
+    .account-copy strong, .account-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .account-copy strong { font-size: 13px; }
+    .account-copy small { color: oklch(73% .01 88); font-family: var(--mono); font-size: 10px; }
+    .main { grid-column: 2; min-width: 0; margin-inline-start: 0; }
+    .topbar { position: sticky; top: 0; z-index: 4; display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 72px; padding: 12px 28px; align-items: center; gap: 20px; border-bottom: 1px solid var(--border); background: oklch(97.8% .01 88 / .95); backdrop-filter: blur(12px); }
+    .context-line { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .context-line .member-context { display: none; color: var(--info); font-size: 13px; font-weight: 600; }
+    .profile-trigger { position: relative; display: flex; width: min(360px, 100%); min-width: 0; min-height: 45px; padding: 6px 10px; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--fg); text-align: start; }
+    .profile-trigger:hover { border-color: var(--muted); }
+    .profile-trigger small, .profile-trigger strong { display: block; }
+    .profile-trigger small { color: var(--muted); font-family: var(--mono); font-size: 9px; line-height: 1.35; letter-spacing: .04em; text-transform: uppercase; }
+    .profile-trigger strong { font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+    .profile-menu { position: absolute; top: 62px; inset-inline-start: 28px; z-index: 10; width: min(390px, calc(100vw - 40px)); border: 1px solid var(--border); border-radius: 8px; background: var(--white); box-shadow: var(--shadow); }
+    .profile-menu-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+    .profile-menu-head strong { display: block; }
+    .profile-option { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto; padding: 12px 16px; gap: 14px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--fg); text-align: start; }
+    .profile-option:hover { background: var(--bg); }
+    .profile-option.selected { box-shadow: inset 3px 0 var(--accent); background: oklch(96% .02 43); }
+    .profile-option strong, .profile-option small { display: block; }
+    .profile-option small { margin-top: 2px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+    .profile-menu-actions { display: flex; padding: 10px; gap: 6px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .page { display: none; padding: 26px 28px 64px; }
+    .page.active { display: block; animation: page-in var(--motion-ui) var(--ease-out) both; }
+    @keyframes page-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .main.profile-exit .page.active, .main.profile-exit .topbar { opacity: .55; transform: translateY(-3px); transition: opacity 90ms ease, transform 90ms ease; }
+    .main.profile-enter .page.active, .main.profile-enter .topbar { animation: context-in var(--motion-context) var(--ease-out) both; }
+    @keyframes context-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .page-heading { display: flex; min-height: 56px; margin-bottom: 24px; align-items: flex-start; justify-content: space-between; gap: 18px 22px; flex-wrap: wrap; }
+    .page-heading h1 { margin: 0 0 4px; font-size: 32px; line-height: 1.2; letter-spacing: 0; overflow-wrap: anywhere; }
+    .page-heading p { margin: 0; color: var(--muted); }
+    .heading-actions { display: flex; gap: 8px; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; }
+    .notice { display: flex; padding: 12px 14px; align-items: flex-start; justify-content: space-between; gap: 12px 18px; flex-wrap: wrap; border: 1px solid; border-radius: 6px; font-size: 13px; line-height: 1.5; }
+    .notice.warning { border-color: oklch(57% .13 65 / .38); background: oklch(96% .04 75); color: oklch(39% .08 65); }
+    .notice.info { border-color: oklch(39% .11 258 / .28); background: oklch(96% .025 258); color: var(--info); }
+    .notice.success { border-color: oklch(48% .11 151 / .3); background: oklch(96% .025 151); color: oklch(38% .09 151); }
+
+    /* Dashboard */
+    .context-band { display: grid; grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, .7fr)); margin-bottom: 26px; border-block: 1px solid var(--border); }
+    .band-cell { min-height: 126px; padding: 20px; border-inline-end: 1px solid var(--border); }
+    .band-cell:last-child { border-inline-end: 0; }
+    .band-cell label, .band-cell .data-label { display: block; margin-bottom: 9px; color: var(--muted); font-family: var(--mono); font-size: 10px; line-height: 1.4; letter-spacing: .04em; text-transform: uppercase; }
+    .band-cell h2 { margin: 0 0 7px; font-family: var(--display); font-size: 28px; line-height: 1.2; overflow-wrap: anywhere; }
+    .metric { margin: 0; font-family: var(--mono); font-size: 28px; line-height: 1.2; }
+    .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(330px, .8fr); gap: 30px; }
+    .section-block { min-width: 0; }
+    .section-title { display: flex; margin-bottom: 12px; align-items: flex-start; justify-content: space-between; gap: 10px 18px; flex-wrap: wrap; }
+    .section-title h2 { margin: 0; font-size: 19px; line-height: 1.25; letter-spacing: 0; overflow-wrap: anywhere; }
+    .section-title a, .section-title button { color: var(--fg); }
+    .contribution-list { border-top: 1px solid var(--fg); }
+    .contribution-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(72px,auto) minmax(72px,auto); min-height: 47px; padding: 9px 4px; align-items: center; gap: 8px 12px; border-bottom: 1px solid var(--border); }
+    .contribution-row strong { font-size: 14px; }
+    .contribution-row .mono { text-align: end; font-size: 12px; }
+    .done { color: var(--success); }
+    .missing { color: var(--warn); }
+    .profile-summary-list { border-top: 1px solid var(--fg); }
+    .profile-summary { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto; padding: 13px 3px; gap: 16px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--fg); text-align: start; }
+    .profile-summary:hover { background: var(--surface); }
+    .profile-summary strong, .profile-summary small { display: block; }
+    .profile-summary small { color: var(--muted); margin-top: 2px; font-size: 12px; }
+
+    /* Workspace */
+    .workspace-grid { display: grid; grid-template-columns: minmax(160px, 210px) minmax(0, 1fr); gap: 28px; }
+    .section-nav { position: sticky; top: 98px; align-self: start; border-top: 1px solid var(--fg); }
+    .section-nav button { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto; min-height: 43px; padding: 9px 4px; align-items: center; gap: 10px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--fg); text-align: start; }
+    .section-nav button.active { color: var(--accent-dark); font-weight: 700; }
+    .section-nav button:hover { padding-inline-start: 8px; }
+    .section-nav .mono { font-size: 10px; }
+    .content-section { padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+    .content-section + .content-section { padding-top: 26px; }
+    .content-section h2 { margin: 0 0 5px; font-size: 21px; line-height: 1.25; overflow-wrap: anywhere; }
+    .content-section > p { margin: 0 0 18px; color: var(--muted); }
+    .fact-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 18px 22px; }
+    .fact label, .fact .data-label { display: block; margin-bottom: 4px; color: var(--muted); font-weight: 500; }
+    .fact p { margin: 0; }
+    .long-copy { max-width: 82ch; margin-top: 22px; }
+    .long-copy h3 { margin: 18px 0 5px; font-size: 14px; }
+    .long-copy p { margin: 0; color: var(--fg); line-height: 1.65; }
+    .record-list { border-top: 1px solid var(--fg); }
+    .record { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); padding: 16px 3px; gap: 10px 20px; border-bottom: 1px solid var(--border); }
+    .record h3 { margin: 0 0 4px; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+    .record p { margin: 0; color: var(--muted); }
+    .record-meta { font-family: var(--mono); font-size: 11px; line-height: 1.45; text-align: end; white-space: normal; overflow-wrap: anywhere; }
+    .skills-table, .member-table { width: 100%; border-collapse: collapse; }
+    th { padding: 10px 12px; border-block: 1px solid var(--fg); color: var(--muted); font-family: var(--mono); font-size: 10px; line-height: 1.4; font-weight: 600; letter-spacing: .03em; text-align: start; text-transform: uppercase; overflow-wrap: anywhere; }
+    td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.45; overflow-wrap: anywhere; }
+    tr:hover td { background: oklch(96% .01 88); }
+
+    /* Editor */
+    .editor-wrap { max-width: 1040px; margin: 0 auto; }
+    .editor-context { display: flex; margin-bottom: 22px; padding-bottom: 14px; align-items: flex-start; justify-content: space-between; gap: 12px 18px; flex-wrap: wrap; border-bottom: 1px solid var(--fg); }
+    .editor-context h1 { margin: 0; font-size: 27px; line-height: 1.22; overflow-wrap: anywhere; }
+    .form-section { padding: 22px 0; border-bottom: 1px solid var(--border); }
+    .form-section h2 { margin: 0 0 16px; font-size: 18px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+    .span-2 { grid-column: 1 / -1; }
+    .responsibility-lines { min-height: 180px; }
+    .description-area { min-height: 150px; }
+    .sticky-actions { position: sticky; bottom: 14px; z-index: 3; display: flex; margin: 28px 0 -48px; padding: 11px 12px; align-items: center; justify-content: space-between; gap: 10px 18px; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 9px; background: oklch(99.6% .003 88 / .9); box-shadow: 0 10px 28px oklch(18.4% .007 264 / .1); backdrop-filter: blur(14px); }
+    .unsaved { display: flex; align-items: center; gap: 8px; color: var(--warn); font-size: 13px; font-weight: 600; }
+    .unsaved.is-dirty { animation: dirty-once 520ms var(--ease-out) 1; }
+    .unsaved.is-saving { color: var(--info); }
+    .unsaved.is-saved { color: var(--success); }
+    @keyframes dirty-once { 45% { opacity: .55; transform: translateX(2px); } }
+    .editor-actions { display: flex; gap: 8px; }
+
+    /* Member management */
+    .query-builder { display: grid; gap: 12px; margin-bottom: 24px; padding: 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); }
+    .query-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+    .query-head h2 { margin: 0; font-size: 17px; }
+    .condition { display: grid; grid-template-columns: minmax(100px,115px) minmax(0,1fr) 22px minmax(0,1fr) 44px; gap: 10px; align-items: center; }
+    .condition .and { color: var(--muted); font-family: var(--mono); font-size: 10px; text-align: center; }
+    .condition button { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--muted); }
+    .condition button:hover { background: var(--surface); color: var(--fg); }
+    .query-actions { display: flex; padding-top: 12px; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; border-top: 1px solid var(--border); }
+    .query-actions > div { display: flex; gap: 8px; flex-wrap: wrap; }
+    .results-head { display: flex; margin-bottom: 12px; align-items: flex-start; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+    .results-head h2 { margin: 0; font-size: 18px; }
+    .member-table-wrap { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; border-top: 1px solid var(--fg); }
+    .member-table td:first-child strong, .member-table td:first-child small { display: block; }
+    .member-table td:first-child small { color: var(--muted); }
+    .table-skeleton td { height: 58px; }
+    .skeleton-line { display: block; width: 78%; height: 11px; border-radius: 3px; background: linear-gradient(100deg, var(--surface) 25%, var(--white) 44%, var(--surface) 63%); background-size: 220% 100%; animation: skeleton-sweep 1.45s ease-in-out infinite; }
+    .skeleton-line.short { width: 44%; }
+    .prototype-note { margin-top: 10px; color: var(--muted); font-size: 12px; }
+    .no-results { padding: 48px 20px; border-block: 1px solid var(--border); text-align: center; }
+    .no-results h3 { margin: 0 0 6px; }
+    .no-results p { margin: 0 0 18px; color: var(--muted); font-family: var(--brand-sans); }
+
+    /* Preview */
+    .preview-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 26px; }
+    .preview-tools { position: sticky; top: 98px; align-self: start; }
+    .preview-tools h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.25; }
+    .preview-tools p { margin: 0 0 18px; color: var(--muted); }
+    .export-stack { display: grid; gap: 8px; margin-top: 18px; }
+    .export-stack .btn { width: 100%; }
+    .export-help { margin-top: 10px; color: var(--muted); font-size: 12px; }
+    .document-stage { min-height: 700px; max-width: 100%; padding: 30px; background-color: var(--surface); background-image: linear-gradient(oklch(86.3% .018 84 / .45) 1px, transparent 1px), linear-gradient(90deg, oklch(86.3% .018 84 / .35) 1px, transparent 1px); background-size: 32px 32px; overflow: auto; overscroll-behavior: contain; }
+    .document-pages { display: grid; gap: 24px; justify-content: center; }
+    .cv-page { position: relative; display: flex; width: 720px; min-height: 1018px; padding: 58px 62px 42px; flex-direction: column; background: var(--white); color: oklch(18% .006 260); box-shadow: 0 12px 34px oklch(18% .006 260 / .16); font-family: var(--body); font-size: 13.5px; line-height: 1.58; overflow-wrap: break-word; }
+    .cv-header { display: grid; grid-template-columns: minmax(0,1fr) minmax(145px, max-content); padding-bottom: 18px; align-items: start; gap: 16px 24px; border-bottom: 3px solid var(--accent); }
+    .cv-header h1 { margin: 0; font-family: var(--display); font-size: 33px; line-height: 1.16; letter-spacing: 0; font-weight: 700; overflow-wrap: anywhere; }
+    .cv-header p { margin: 5px 0 0; font-size: 15px; font-weight: 600; }
+    .cv-contact { max-width: 190px; font-family: var(--mono); font-size: 9.5px; line-height: 1.45; text-align: end; overflow-wrap: anywhere; }
+    .cv-section { margin-top: 22px; }
+    .cv-section h2 { margin: 0 0 10px; font-family: var(--mono); font-size: 10px; line-height: 1.4; letter-spacing: .05em; text-transform: uppercase; }
+    .cv-section p { margin: 0 0 8px; }
+    .cv-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 28px; }
+    .cv-row { display: grid; grid-template-columns: minmax(108px,128px) minmax(0,1fr); padding: 4px 0; gap: 12px 16px; border-bottom: 1px solid oklch(90% .01 88); }
+    .cv-row strong { font-weight: 600; }
+    .cv-project { margin-top: 18px; break-inside: avoid; }
+    .cv-project-head { display: grid; grid-template-columns: minmax(0,1fr) minmax(110px,max-content); gap: 12px 18px; align-items: start; }
+    .cv-project h3 { margin: 0 0 3px; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+    .cv-project-head span { max-width: 145px; font-family: var(--mono); font-size: 9.5px; line-height: 1.45; text-align: end; overflow-wrap: anywhere; }
+    .cv-project ul { margin: 7px 0 8px; padding-inline-start: 18px; }
+    .cv-project li { margin-bottom: 3px; }
+    .cv-tech { color: var(--muted); font-size: 10.5px; }
+    .cv-footer { position: static; display: flex; margin-top: auto; padding-top: 12px; justify-content: space-between; gap: 16px; border-top: 1px solid oklch(86% .01 88); color: var(--muted); font-family: var(--mono); font-size: 9px; line-height: 1.4; }
+    .doc-skeleton { display: grid; width: 720px; min-height: 1018px; padding: 58px 62px; gap: 16px; background: var(--white); box-shadow: var(--shadow); }
+    .sk { height: 13px; background: linear-gradient(100deg, var(--surface) 25%, var(--white) 44%, var(--surface) 63%); background-size: 220% 100%; animation: skeleton-sweep 1.45s ease-in-out infinite; }
+    @keyframes skeleton-sweep { from { background-position: 180% 0; } to { background-position: -40% 0; } }
+    .member-table tbody tr.result-reveal { animation: result-in var(--motion-ui) var(--ease-out) both; }
+    @keyframes result-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .btn.is-busy { position: relative; pointer-events: none; }
+    .btn.is-busy::before { width: 13px; height: 13px; flex: 0 0 auto; border: 2px solid currentColor; border-inline-end-color: transparent; border-radius: 50%; content: ""; animation: spin 650ms linear infinite; }
+    .btn.is-success { color: var(--success); border-color: currentColor; background: oklch(96% .025 151); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .sk.wide { width: 100%; } .sk.medium { width: 68%; } .sk.short { width: 38%; } .sk.title { width: 54%; height: 34px; }
+
+    .toast { position: fixed; z-index: 30; inset-inline-end: 24px; bottom: 24px; width: min(360px, calc(100vw - 32px)); padding: 13px 15px; border: 1px solid oklch(48% .11 151 / .35); border-radius: 6px; background: var(--white); box-shadow: var(--shadow); color: oklch(35% .09 151); font-weight: 600; animation: toast-in 220ms var(--ease-out) both; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; padding: 20px; place-items: center; background: oklch(18% .006 260 / .48); }
+    .modal { width: min(500px, 100%); padding: 22px; border-radius: 8px; background: var(--white); box-shadow: var(--shadow); animation: modal-in 180ms var(--ease-out) both; }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(5px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .profile-menu:not(.hidden), .account-menu:not(.hidden) { animation: popover-in 150ms var(--ease-out) both; }
+    @keyframes popover-in { from { opacity: 0; transform: translateY(-4px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .modal h2 { margin: 0 0 8px; }
+    .modal p { margin: 0 0 20px; color: var(--muted); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+    .context-line, .top-actions, .profile-option, .profile-summary, .page-heading > div, .notice > *, .record > *, .editor-context > *, .query-actions > *, .results-head > *, .cv-header > *, .cv-project-head > * { min-width: 0; }
+    .workspace-grid > *, .workspace-grid > div > *, .content-section { min-width: 0; }
+    .content-section > div[style*="overflow-x:auto"] { max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; }
+    .context-line { flex-wrap: wrap; }
+    .profile-trigger > span:first-child, .profile-option > span:first-child, .profile-summary > span:first-child { min-width: 0; }
+    .profile-trigger > span:last-child { flex: 0 0 auto; min-width: max-content; }
+    .profile-option strong, .profile-option small, .profile-summary strong, .profile-summary small, .member-table td:first-child strong, .member-table td:first-child small { overflow-wrap: anywhere; }
+    .page-heading > div:first-child { flex: 1 1 360px; }
+    .page-heading p, .content-section > p, .record p, .preview-tools p, .prototype-note { line-height: 1.55; }
+    input, select, textarea { min-width: 0; }
+    .member-table { table-layout: auto; }
+    .member-table th:nth-child(1), .member-table td:nth-child(1) { min-width: 160px; }
+    .member-table th:nth-child(5), .member-table td:nth-child(5) { min-width: 230px; }
+    .member-table th:last-child, .member-table td:last-child { width: auto; min-width: 120px; white-space: normal; }
+    .member-table td:last-child .btn { white-space: nowrap; }
+    .skills-table th, .skills-table td { min-width: 110px; }
+    .empty-state { display: grid; gap: 12px; padding: 18px; border: 1px dashed var(--border); border-radius: 6px; background: oklch(99% .004 88); }
+    .empty-state p { margin: 0; color: var(--muted); font-family: var(--brand-sans); }
+    .empty-state .btn { width: fit-content; }
+    .record-actions { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+    .cv-section, .cv-grid > *, .cv-row > *, .cv-project, .cv-project > * { min-width: 0; }
+    .cv-project p, .cv-project li, .cv-tech { overflow-wrap: anywhere; }
+    .cv-footer > span { min-width: 0; overflow-wrap: anywhere; }
+
+    @media (max-width: 1050px) {
+      #app-screen { grid-template-columns: 76px minmax(0,1fr); }
+      .sidebar { width: 76px; padding-inline: 10px; }
+      .sidebar .brand-copy, .nav-btn span:last-child, .nav-label, .account-copy { display: none; }
+      .sidebar .brand { justify-content: center; padding-inline: 0; }
+      .nav-btn { justify-content: center; }
+      .main { grid-column: 2; margin-inline-start: 0; }
+      .context-band { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      .band-cell:first-child { grid-column: 1 / -1; border-bottom: 1px solid var(--border); }
+      .dashboard-grid, .preview-layout { grid-template-columns: 1fr; }
+      .preview-tools { position: static; }
+      .workspace-grid { grid-template-columns: minmax(145px,170px) minmax(0,1fr); }
+      .fact-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width: 800px) {
+      #login-screen { grid-template-columns: 1fr; }
+      .login-story { min-height: 330px; padding: 28px 22px; border-inline-end: 0; border-bottom: 1px solid var(--border); }
+      .login-copy h1 { font-size: 42px; }
+      .login-copy p:last-child, .login-foot { display: none; }
+      .login-story::after { width: 50px; height: 50px; border-width: 7px; }
+      .login-form-wrap { min-height: auto; padding: 34px 22px 52px; }
+      #app-screen { grid-template-columns: 1fr; }
+      .sidebar { position: sticky; top: 0; width: 100%; height: 64px; padding: 8px 14px; flex-direction: row; align-items: center; }
+      .sidebar .brand { padding: 0; }
+      .sidebar .brand-copy { display: block; }
+      .sidebar .brand small { display: none; }
+      .mobile-nav-toggle { display: inline-flex; margin-inline-start: auto; align-items: center; justify-content: center; }
+      .sidebar-nav { display: none; }
+      .sidebar-nav.open { position: fixed; inset: 64px 0 0; display: block; padding: 18px 14px 28px; overflow-y: auto; background: var(--fg); }
+      .sidebar-nav.open .nav-group { display: grid; }
+      .sidebar-nav.open .nav-label, .sidebar-nav.open .nav-btn span:last-child { display: block; }
+      .sidebar-nav.open .nav-btn { width: 100%; justify-content: flex-start; }
+      .sidebar-foot { margin: 0 0 0 8px; padding: 0; border: 0; }
+      .account-menu { inset-inline: auto 14px; top: 68px; bottom: auto; }
+      .main { grid-column: 1; margin-inline-start: 0; }
+      .topbar { position: static; grid-template-columns: 1fr; padding: 12px 16px; }
+      .top-actions { display: none; }
+      .context-line { flex-direction: column; align-items: stretch; }
+      .profile-trigger { width: 100%; min-width: 0; }
+      .profile-menu { top: 126px; inset-inline: 16px; width: auto; }
+      .page { padding: 22px 16px 72px; }
+      .page-heading { flex-direction: column; }
+      .page-heading > div:first-child { flex-basis: auto; }
+      .heading-actions { justify-content: flex-start; }
+      .notice { flex-direction: column; }
+      .context-band { grid-template-columns: 1fr 1fr; }
+      .band-cell { border-bottom: 1px solid var(--border); }
+      .band-cell:first-child { grid-column: 1 / -1; }
+      .dashboard-grid, .workspace-grid, .preview-layout { grid-template-columns: 1fr; }
+      .section-nav { position: static; display: flex; overflow-x: auto; border-bottom: 1px solid var(--fg); }
+      .section-nav button { min-width: 130px; border-bottom: 0; }
+      .fact-grid, .form-grid { grid-template-columns: 1fr; }
+      .span-2 { grid-column: auto; }
+      .condition { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 44px; }
+      .condition > :first-child { grid-column: 1 / -1; }
+      .condition .and { display: none; }
+      .query-actions, .editor-context, .sticky-actions { align-items: flex-start; flex-direction: column; }
+      .sticky-actions { position: static; margin-inline: 0; padding: 12px; }
+      .editor-actions { width: 100%; flex-wrap: wrap; }
+      .editor-actions .btn { flex: 1; }
+      .record { grid-template-columns: 1fr; gap: 8px; }
+      .record-meta { text-align: start; white-space: normal; }
+      .document-stage { padding: 18px; }
+      .document-pages { justify-content: start; transform-origin: top left; }
+      .cv-page, .doc-skeleton { width: 680px; }
+      .cv-header { grid-template-columns: minmax(0,1fr) minmax(132px,max-content); }
+      .cv-contact { max-width: 160px; }
+      .member-table { min-width: 760px; }
+    }
+    @media (max-width: 430px) {
+      .context-band { grid-template-columns: 1fr; }
+      .band-cell, .band-cell:first-child { grid-column: 1; border-inline-end: 0; }
+      .login-actions { align-items: stretch; flex-direction: column-reverse; }
+      .login-actions .btn.primary { width: 100%; }
+      .auth-links { align-items: flex-start; flex-direction: column; }
+      .login-copy h1 { font-size: clamp(36px, 11vw, 42px); line-height: 1.12; }
+      .query-actions > div { width: 100%; }
+      .query-actions > .btn { width: 100%; }
+      .query-actions > div .btn { flex: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+    @media print { body * { visibility: hidden; } .document-pages, .document-pages * { visibility: visible; } .document-pages { position: absolute; inset: 0; } .cv-page { box-shadow: none; page-break-after: always; } }
+  </style>
+</head>
+<body>
+  <section id="login-screen" data-od-id="login-screen">
+    <div class="login-story" data-od-id="login-brand-panel">
+      <button class="brand" type="button" data-support="homepage" aria-label="Return to iBOM Homepage">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="brand-copy"><strong>iBOM</strong><small>CV Management System</small></span>
+      </button>
+      <div class="login-copy">
+        <p>Profile workspace · secure access</p>
+        <h1 data-od-id="login-heading">One identity.<br>Several precise CVs.</h1>
+        <p>Maintain independent professional Profiles, verify each document, and prepare standardized exports for the work ahead.</p>
+      </div>
+      <div class="login-foot">A calm transition from the iBOM Homepage into daily profile work. Product controls remain direct, familiar, and keyboard accessible.</div>
+    </div>
+    <div class="login-form-wrap">
+      <div class="login-panel">
+        <h2>Sign in to iBOM</h2>
+        <p>Use your organization account to continue.</p>
+        <form class="login-form" id="login-form" data-od-id="login-form">
+          <div id="auth-message" class="auth-message" role="alert"></div>
+          <div class="field"><label for="email">Email</label><input id="email" type="email" value="minh.anh.nguyen@ibom.example" autocomplete="email" required></div>
+          <div class="field"><label for="password">Password</label><input id="password" type="password" value="prototype" autocomplete="current-password" aria-describedby="password-helper" required><span class="helper" id="password-helper">For manager review, use viet.dung.vo@ibom.example.</span></div>
+          <div class="login-actions"><button type="button" class="btn text" data-support="forgot-password">Forgot password?</button><button class="btn primary" id="login-submit" type="submit" data-od-id="login-submit">Sign in</button></div>
+        </form>
+        <div class="auth-links"><button class="link-button" type="button" data-support="registration">Create member account</button><button class="link-button" type="button" data-support="homepage">Return to Homepage</button></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="app-screen" class="hidden" data-od-id="authenticated-app-shell">
+    <aside class="sidebar" data-od-id="primary-navigation">
+      <button class="brand" type="button" data-page="dashboard" aria-label="iBOM Dashboard"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-copy"><strong>iBOM</strong><small>Workspace</small></span></button>
+      <button class="mobile-nav-toggle" id="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar-nav">Menu</button>
+      <nav class="sidebar-nav" id="sidebar-nav" aria-label="Application navigation">
+        <div class="nav-group"><p class="nav-label">Workspace</p><button class="nav-btn active" data-page="dashboard"><span class="nav-glyph">01</span><span>Dashboard</span></button><button class="nav-btn" data-page="workspace"><span class="nav-glyph">02</span><span>Profile Workspace</span></button><button class="nav-btn" data-page="preview"><span class="nav-glyph">03</span><span>CV Preview</span></button></div>
+        <div class="nav-group manager-only hidden"><p class="nav-label">Management</p><button class="nav-btn" data-page="members"><span class="nav-glyph">04</span><span>Member Management</span></button><button class="nav-btn" data-support="user-management"><span class="nav-glyph">05</span><span>User Management</span></button><button class="nav-btn" data-support="master-data"><span class="nav-glyph">06</span><span>Master Data</span></button></div>
+      </nav>
+      <div class="sidebar-foot"><button class="account-btn" id="account-btn" aria-expanded="false" aria-haspopup="menu"><span class="avatar" id="avatar">MN</span><span class="account-copy"><strong id="account-name">nguyenma</strong><small id="account-role">MEMBER</small></span></button></div>
+      <div class="account-menu hidden" id="account-menu" role="menu"><p id="account-email" role="none">minh.anh.nguyen@ibom.example</p><button class="btn text" id="sign-out" role="menuitem">Sign out</button></div>
+    </aside>
+    <main class="main">
+      <header class="topbar" data-od-id="profile-context-header">
+        <div class="context-line"><span class="member-context" id="member-context">Viewing Member: Minh Anh Nguyen</span><button class="profile-trigger" id="profile-trigger" data-od-id="profile-switcher" aria-expanded="false" aria-haspopup="menu" aria-controls="profile-menu"><span><small id="profile-context-scope">My Profile</small><strong id="active-profile-name" aria-live="polite">Java Backend CV</strong></span><span aria-hidden="true">⌄</span></button><button class="btn text hidden" id="exit-managed-member">Back to My Profiles</button></div>
+        <div class="top-actions"><span id="preview-status-top" class="status valid">Preview valid</span><button class="btn" data-page="preview">Preview CV</button></div>
+        <div id="profile-menu" class="profile-menu hidden" role="menu"><div class="profile-menu-head"><strong id="profile-menu-title">My Profiles</strong><span class="small muted" id="profile-menu-copy">Switch between your independent CV versions.</span></div><button class="profile-option selected" data-profile="java" role="menuitemradio" aria-checked="true"><span><strong>Java Backend CV</strong><small>Latest export 18 Aug 2026</small></span><span class="mono">100%</span></button><button class="profile-option" data-profile="fullstack" role="menuitemradio" aria-checked="false"><span><strong>Full-stack CV</strong><small>Preview invalidated after edit</small></span><span class="mono">82%</span></button><button class="profile-option" data-profile="pm" role="menuitemradio" aria-checked="false"><span><strong>Project Manager CV</strong><small>Not previewed · no export history</small></span><span class="mono">75%</span></button><div class="profile-menu-actions"><button class="btn text" id="create-profile">Create Profile</button><button class="btn text" data-support="profile-copy">Copy Profile</button></div></div>
+      </header>
+
+      <section class="page active" id="page-dashboard" data-od-id="member-dashboard">
+        <div class="page-heading"><div><h1 id="dashboard-title">Good morning, Minh Anh</h1><p>Continue the selected Profile or prepare its current document.</p></div><div class="heading-actions"><button class="btn" data-page="workspace">Open workspace</button><button class="btn primary" data-page="preview">Preview CV</button></div></div>
+        <div id="dashboard-notice" class="notice success"><span><strong>Document current.</strong> This Profile has a successful Preview and is ready for PDF or DOCX export.</span><button class="btn text" data-page="preview">Open document</button></div>
+        <div class="context-band" data-od-id="profile-context-band">
+          <div class="band-cell"><label>Selected Profile</label><h2 id="band-profile">Java Backend CV</h2><span class="small muted">Independent CV version for Senior Java Backend Engineer</span></div>
+          <div class="band-cell"><label>Completeness</label><p class="metric" id="band-completeness">100%</p><span class="small muted" id="band-completeness-note">All required sections present</span></div>
+          <div class="band-cell"><label>Preview state</label><span id="band-status" class="status valid">Preview valid</span></div>
+          <div class="band-cell"><label>Latest export</label><p class="mono small" id="band-export">2026-08-18<br>14:42 ICT</p></div>
+        </div>
+        <div class="dashboard-grid"><section class="section-block"><div class="section-title"><h2>Completeness by section</h2><button class="btn text" data-page="workspace">Review Profile</button></div><div class="contribution-list" id="contribution-list"></div></section><section class="section-block"><div class="section-title"><h2 id="profile-list-title">My Profiles</h2><button class="btn text" id="new-profile-secondary">Create</button></div><div class="profile-summary-list"><button class="profile-summary" data-profile="java"><span><strong>Java Backend CV</strong><small>Preview valid · exported 18 Aug</small></span><span class="mono">100%</span></button><button class="profile-summary" data-profile="fullstack"><span><strong>Full-stack CV</strong><small>Personality and Certificates missing</small></span><span class="mono">82%</span></button><button class="profile-summary" data-profile="pm"><span><strong>Project Manager CV</strong><small>Certificates and Skills missing</small></span><span class="mono">75%</span></button></div></section></div>
+      </section>
+
+      <section class="page" id="page-workspace" data-od-id="profile-workspace">
+        <div class="page-heading"><div><h1>Profile Workspace</h1><p id="workspace-subtitle">Java Backend CV · 100% complete · Preview valid</p></div><div class="heading-actions"><button class="btn" id="delete-profile" title="Available while more than one active Profile exists">Delete Profile</button><button class="btn primary" data-page="preview">Preview CV</button></div></div>
+        <div id="workspace-notice" class="notice info"><span><strong>Profile independence:</strong> edits here apply only to Java Backend CV.</span><button class="btn text" id="dismiss-workspace-note">Dismiss</button></div>
+        <div id="profile-workspace-content" class="workspace-grid" style="margin-top:24px">
+          <nav class="section-nav" id="workspace-section-nav" aria-label="Profile sections"></nav>
+          <div id="workspace-sections"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-editor" data-od-id="project-editor"><div class="editor-wrap"><div class="editor-context"><div><span class="mono small muted">JAVA BACKEND CV · PROJECT</span><h1>Edit Global Order Orchestration Platform</h1></div><span class="status info">ONGOING</span></div><div id="editor-message" class="notice warning"><span><strong>Unsaved changes.</strong> Saving this Project will invalidate the current CV Preview.</span><button class="btn text" data-page="workspace">Return without saving</button></div>
+        <form id="project-form"><section class="form-section"><h2>Project identity</h2><div class="form-grid"><div class="field span-2"><label for="project-name">Project Name</label><input id="project-name" value="Global Order Orchestration Platform" required></div><div class="field"><label for="project-position">Position</label><input id="project-position" value="Backend Technical Lead" required></div><div class="field"><label for="team-size">Team Size</label><input id="team-size" type="number" value="11" required></div></div></section><section class="form-section"><h2>Timeline and status</h2><div class="form-grid"><div class="field"><label for="start-date">Start Date</label><input id="start-date" type="month" value="2025-02" required></div><div class="field"><label for="completion-status">Completion Status</label><select id="completion-status"><option selected>ONGOING</option><option>COMPLETED</option></select></div><div class="field"><label for="end-date">End Date</label><input id="end-date" type="month" disabled><span class="helper">End Date is optional while status is ONGOING.</span></div></div></section><section class="form-section"><h2>Scope and contribution</h2><div class="form-grid"><div class="field span-2"><label for="description">Description</label><textarea id="description" class="description-area" required>Ongoing modernization of a regional order orchestration platform serving retail and partner channels in six markets. The program replaces tightly coupled batch integrations with independently deployable services and event-driven workflows while maintaining compatibility with warehouse, payment, and customer-service systems. Peak periods require predictable recovery, auditable state transitions, and safe incremental migration from legacy workloads.</textarea></div><div class="field span-2"><label for="responsibilities">Responsibilities</label><textarea id="responsibilities" class="responsibility-lines" required>Define service boundaries, integration contracts, and migration slices with product, architecture, and operations stakeholders.
+Lead implementation of order-state and fulfillment services, including idempotency, retry behavior, and distributed tracing.
+Review performance tests and production telemetry; coordinate remediation for database contention and consumer lag.
+Mentor five backend engineers through design reviews, pairing, and incident retrospectives.
+Maintain release-readiness criteria and support phased market rollout without interrupting existing order flows.</textarea><span class="helper">Use one responsibility per line. Long-form text is preserved in the generated document.</span></div></div></section><section class="form-section"><h2>Technology</h2><div class="form-grid"><div class="field"><label for="languages">Programming Languages</label><textarea id="languages">Java 21, SQL, Python</textarea><span class="helper">Free text specific to this Profile.</span></div><div class="field"><label for="tools">Tools / Technologies</label><textarea id="tools">Spring Boot 3, Apache Kafka, PostgreSQL, Redis, Kubernetes, Helm, OpenTelemetry, Grafana, GitLab CI</textarea><span class="helper">This is not constrained to Skill Master Data.</span></div></div></section></form><div class="sticky-actions"><span class="unsaved">● Unsaved changes</span><div class="editor-actions"><button class="btn" data-page="workspace">Cancel</button><button class="btn primary" id="save-project">Save project</button></div></div></div></section>
+
+      <section class="page" id="page-members" data-od-id="member-management"><div class="page-heading"><div><h1>Member Management</h1><p>Find unique Members using conditions that must match within the same Profile.</p></div></div><section class="query-builder" data-od-id="member-search-builder"><div class="query-head"><h2>Match all conditions</h2><span class="mono small muted">AND · SAME PROFILE</span></div><div class="condition" id="skill-condition"><strong>Skill + Seniority</strong><select id="skill-select"><option>Java</option><option>AWS</option><option>Angular</option></select><span class="and">+</span><select id="seniority-select"><option>Senior</option><option>Middle</option></select><button aria-label="Remove Skill condition">×</button></div><div class="condition" id="language-condition"><strong>Language + Level</strong><select id="language-select"><option>English</option><option>Japanese</option></select><span class="and">+</span><select id="level-select"><option>Advanced</option><option>Upper Intermediate</option><option>Intermediate</option></select><button aria-label="Remove Language condition">×</button></div><div class="condition"><strong>Status</strong><select id="status-select"><option>All</option><option>ACTIVE</option><option>INACTIVE</option></select><span></span><span></span><span></span></div><div class="query-actions"><button class="btn">Add condition</button><div><button class="btn text" id="clear-search">Clear</button><button class="btn primary" id="apply-search">Search Members</button></div></div></section><div class="results-head"><h2 id="results-count">1 unique Member</h2><span class="small muted">One row per Member, even when multiple Profiles match.</span></div><div id="member-results" class="member-table-wrap"><table class="member-table"><thead><tr><th>Member</th><th>Role</th><th>Status</th><th>Profiles</th><th>Matching Profile evidence</th><th></th></tr></thead><tbody id="member-tbody"></tbody></table></div><div id="no-results" class="no-results hidden"><h3>No Members match these conditions</h3><p>Your conditions are retained. Edit them or clear the query to search again.</p><button class="btn" id="edit-conditions">Edit conditions</button></div><p class="prototype-note">Member display name and job title are prototype-only labels. Their production source across multiple Profiles remains a Human decision.</p></section>
+
+      <section class="page" id="page-preview" data-od-id="cv-preview-export"><div class="page-heading"><div><h1>CV Preview / Export</h1><p id="preview-subtitle">Java Backend CV · proposed A4 prototype order for Human review</p></div><div class="heading-actions"><button class="btn" data-page="workspace">Return to Profile</button></div></div><div id="preview-banner" class="notice success"><span><strong>Preview valid.</strong> The document below reflects the current saved Profile.</span><span class="mono small">PREVIEWED 2026-08-18 · 14:38 ICT</span></div><div class="preview-layout" style="margin-top:24px"><aside class="preview-tools"><h2>Document controls</h2><p>Exports are enabled only after a successful Preview of current Profile data.</p><span id="preview-status-side" class="status valid">Preview valid</span><div class="export-stack"><button class="btn primary hidden" id="generate-preview">Preview CV</button><button class="btn" id="export-pdf">Export PDF</button><button class="btn" id="export-docx">Export DOCX</button></div><p class="export-help" id="export-help">Latest export: 2026-08-18 14:42 ICT</p><div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--border)"><strong class="small">Document direction</strong><p class="small">A4-first, single reading column, restrained iBOM identifier. Final section order and branding remain Human decisions.</p></div></aside><div class="document-stage"><div id="document-pages" class="document-pages"></div></div></div></section>
+    </main>
+  </div>
+
+  <div id="modal-backdrop" class="modal-backdrop hidden"><div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-copy" tabindex="-1"><h2 id="modal-title">Create another Profile?</h2><p id="modal-copy">Each Profile is an independent CV version with its own completeness and preview lifecycle.</p><div class="modal-actions"><button class="btn" id="modal-cancel">Cancel</button><button class="btn primary" id="modal-confirm">Continue</button></div></div></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      if (!document.fonts || !document.fonts.load) return;
+      let attempted = false;
+      const activateIBOMFonts = () => {
+        if (attempted) return;
+        attempted = true;
+
+        Promise.all([
+          document.fonts.load('400 16px "IBM Plex Sans"'),
+          document.fonts.load('600 16px "IBM Plex Sans"'),
+          document.fonts.load('400 14px "IBM Plex Mono"'),
+          document.fonts.load('600 14px "IBM Plex Mono"')
+        ]).then(groups => {
+          if (groups.every(group => group.length > 0)) document.documentElement.classList.add('fonts-ibm-ready');
+        }).catch(() => {});
+
+        Promise.all([
+          document.fonts.load('600 32px "Playfair Display"'),
+          document.fonts.load('700 24px "Playfair Display"'),
+          document.fonts.load('400 16px "Plus Jakarta Sans"'),
+          document.fonts.load('400 11px "JetBrains Mono"')
+        ]).then(groups => {
+          if (groups.every(group => group.length > 0)) document.documentElement.classList.add('fonts-brand-ready');
+        }).catch(() => {});
+      };
+      const fontLink = document.getElementById('ibom-fonts');
+      if (fontLink?.dataset.loaded === 'true') activateIBOMFonts();
+      else window.addEventListener('ibomfontscssloaded', activateIBOMFonts, { once: true });
+    })();
+
+    const profiles = {
+      java: { name: 'Java Backend CV', completeness: 100, status: 'valid', statusLabel: 'Preview valid', export: '2026-08-18<br>14:42 ICT', job: 'Senior Java Backend Engineer', note: 'All required sections present', contributions: [['About Me','Complete','20 / 20'],['Education','Complete','20 / 20'],['Languages','Complete','15 / 15'],['Certificates','Complete','15 / 15'],['Projects','Complete','20 / 20'],['Skills','Complete','10 / 10']] },
+      fullstack: { name: 'Full-stack CV', completeness: 82, status: 'warning', statusLabel: 'Preview invalidated', export: '2026-07-29<br>09:15 ICT', job: 'Full-stack Engineer', note: 'Personality and Certificates missing', contributions: [['About Me','5 of 6 fields','16.7 / 20'],['Education','Complete','20 / 20'],['Languages','Complete','15 / 15'],['Certificates','Missing','0 / 15'],['Projects','Complete','20 / 20'],['Skills','Complete','10 / 10']] },
+      pm: { name: 'Project Manager CV', completeness: 75, status: 'warning', statusLabel: 'Not previewed', export: 'No export yet', job: 'Technical Project Manager', note: 'Certificates and Skills missing', contributions: [['About Me','Complete','20 / 20'],['Education','Complete','20 / 20'],['Languages','Complete','15 / 15'],['Certificates','Missing','0 / 15'],['Projects','Complete','20 / 20'],['Skills','Missing','0 / 10']] }
+    };
+    const profileWorkspaceData = {
+      java: {
+        profileName: 'Java Backend CV',
+        about: {
+          firstName: 'Minh Anh', lastName: 'Nguyen', jobTitle: 'Senior Java Backend Engineer', years: '7.5',
+          personality: 'Methodical and dependable engineer who enjoys turning ambiguous operational problems into clear technical plans. Communicates trade-offs early, documents decisions, and supports teammates through practical reviews and pairing. Comfortable owning production incidents while remaining calm and evidence-led.',
+          technicalSummary: 'Backend engineer specializing in Java and Spring Boot services for high-volume enterprise platforms. Experienced with event-driven architecture, API design, relational data modeling, containerized delivery, observability, and production performance tuning. Has led service decomposition and migration work across distributed teams, with hands-on responsibility from discovery and design through release support.'
+        },
+        education: [
+          { title: 'Master of Science, Information Systems', institution: 'University of Engineering and Technology, VNU Hanoi', meta: '2024-09 · ONGOING' },
+          { title: 'Bachelor of Engineering, Computer Science', institution: 'Ho Chi Minh City University of Technology', meta: '2013-09 · 2017-06' }
+        ],
+        languages: [
+          { name: 'Vietnamese', level: 'Native' }, { name: 'English', level: 'Advanced' }, { name: 'Japanese', level: 'Intermediate' }
+        ],
+        certificates: [
+          { name: 'AWS Certified Solutions Architect, Associate', meta: 'ACTIVE' },
+          { name: 'Oracle Certified Professional: Java SE 17 Developer', meta: 'ACTIVE' },
+          { name: 'Professional Scrum Master I', meta: 'ACTIVE' }
+        ],
+        projects: [
+          { name: 'Global Order Orchestration Platform', position: 'Backend Technical Lead', teamSize: 11, start: '2025-02', end: '', status: 'ONGOING', summary: 'Ongoing modernization across six markets.', description: 'Ongoing modernization of a regional order orchestration platform serving retail and partner channels in six markets. The program replaces tightly coupled batch integrations with independently deployable services and event-driven workflows while maintaining compatibility with warehouse, payment, and customer-service systems.', responsibilities: 'Define service boundaries, integration contracts, and migration slices with product, architecture, and operations stakeholders.\nLead implementation of order-state and fulfillment services, including idempotency, retry behavior, and distributed tracing.\nReview performance tests and production telemetry; coordinate remediation for database contention and consumer lag.', languages: 'Java 21, SQL, Python', tools: 'Spring Boot 3, Apache Kafka, PostgreSQL, Redis, Kubernetes, Helm, OpenTelemetry, Grafana, GitLab CI' },
+          { name: 'Insurance Claims Integration Hub', position: 'Senior Backend Engineer', teamSize: 8, start: '2023-05', end: '2025-01', status: 'COMPLETED', summary: 'Completed January 2025.', description: 'Integration platform for claims processing and partner-system exchange.', responsibilities: 'Designed resilient REST and messaging integrations.\nImproved observability and failure recovery across partner workflows.', languages: 'Java, SQL', tools: 'Spring Boot, Kafka, PostgreSQL, Docker' },
+          { name: 'Developer Access Request Service', position: 'Backend Engineer', teamSize: 5, start: '2022-01', end: '2023-04', status: 'COMPLETED', summary: 'Completed April 2023.', description: 'Internal workflow service for controlled developer access requests.', responsibilities: 'Implemented approval APIs and audit trails.\nIntegrated identity and notification services.', languages: 'Java, SQL', tools: 'Spring Boot, PostgreSQL, Docker' },
+          { name: 'Telecom Usage Mediation Modernization', position: 'Software Engineer', teamSize: 14, start: '2020-02', end: '2021-12', status: 'COMPLETED', summary: 'Completed December 2021.', description: 'Modernization of telecom usage mediation workloads.', responsibilities: 'Maintained high-volume processing jobs.\nSupported migration and production stabilization.', languages: 'Java, SQL', tools: 'Spring, Oracle Database, Linux' }
+        ],
+        skills: [
+          { name: 'Java', category: 'Programming Language', experience: '7.5 years', lastUsed: '2026-08' },
+          { name: 'Spring Boot', category: 'Backend', experience: '6.5 years', lastUsed: '2026-08' },
+          { name: 'Apache Kafka', category: 'API, Messaging & Testing', experience: '5.0 years', lastUsed: '2026-08' },
+          { name: 'Kubernetes', category: 'Cloud & DevOps', experience: '3.5 years', lastUsed: '2026-08' },
+          { name: 'PostgreSQL', category: 'Database & Data', experience: '4.0 years', lastUsed: '2026-08' }
+        ]
+      },
+      fullstack: {
+        profileName: 'Full-stack CV',
+        about: {
+          firstName: 'Minh Anh', lastName: 'Nguyen', jobTitle: 'Full-stack Engineer', years: '5.0', personality: '',
+          technicalSummary: 'Full-stack engineer focused on Angular interfaces and Java service integration for internal enterprise products. Experienced in typed frontend architecture, API integration, accessible interaction patterns, SQL-backed workflows, and production support across distributed teams.'
+        },
+        education: [
+          { title: 'Bachelor of Engineering, Computer Science', institution: 'Ho Chi Minh City University of Technology', meta: '2013-09 · 2017-06' }
+        ],
+        languages: [
+          { name: 'Vietnamese', level: 'Native' }, { name: 'English', level: 'Upper Intermediate' }
+        ],
+        certificates: [],
+        projects: [
+          { name: 'Developer Access Request Service', position: 'Full-stack Engineer', teamSize: 5, start: '2024-01', end: '', status: 'ONGOING', summary: 'Expanded Angular responsibilities in this independent Profile.', description: 'Internal access-request product with Angular workflows and Spring Boot APIs.', responsibilities: 'Build typed Angular forms and reusable UI states.\nIntegrate frontend workflows with Spring Boot APIs.\nSupport validation, accessibility, and production troubleshooting.', languages: 'TypeScript, Java, SQL', tools: 'Angular, RxJS, Spring Boot, PostgreSQL, Docker' },
+          { name: 'Engineering Resource Portal', position: 'Software Engineer', teamSize: 7, start: '2022-08', end: '2023-12', status: 'COMPLETED', summary: 'Internal portal for engineering resource workflows.', description: 'Web portal supporting searchable engineering profiles and operational workflows.', responsibilities: 'Implemented Angular screens and API integrations.\nImproved responsive layouts and error-state handling.', languages: 'TypeScript, Java', tools: 'Angular, Spring Boot, PostgreSQL' }
+        ],
+        skills: [
+          { name: 'Angular', category: 'Frontend', experience: '4.0 years', lastUsed: '2026-08' },
+          { name: 'TypeScript', category: 'Programming Language', experience: '4.0 years', lastUsed: '2026-08' },
+          { name: 'Java', category: 'Programming Language', experience: '5.0 years', lastUsed: '2026-08' },
+          { name: 'Spring Boot', category: 'Backend', experience: '4.5 years', lastUsed: '2026-08' },
+          { name: 'PostgreSQL', category: 'Database & Data', experience: '3.5 years', lastUsed: '2026-08' }
+        ]
+      },
+      pm: {
+        profileName: 'Project Manager CV',
+        about: {
+          firstName: 'Minh Anh', lastName: 'Nguyen', jobTitle: 'Technical Project Manager', years: '4.5',
+          personality: 'Structured, calm, and transparent communicator who keeps decisions, ownership, risks, and milestones visible across engineering and business stakeholders.',
+          technicalSummary: 'Technical project manager experienced in delivery planning, cross-team dependency management, stakeholder communication, risk tracking, and release coordination for enterprise software programs.'
+        },
+        education: [
+          { title: 'Bachelor of Engineering, Computer Science', institution: 'Ho Chi Minh City University of Technology', meta: '2013-09 · 2017-06' }
+        ],
+        languages: [
+          { name: 'Vietnamese', level: 'Native' }, { name: 'English', level: 'Advanced' }, { name: 'Japanese', level: 'Intermediate' }
+        ],
+        certificates: [],
+        projects: [
+          { name: 'Regional Integration Program', position: 'Technical Project Manager', teamSize: 12, start: '2023-01', end: '', status: 'ONGOING', summary: 'Coordination-focused record covering risks, milestones, dependencies, and team size.', description: 'Regional integration program coordinating releases and dependencies across engineering teams.', responsibilities: 'Maintain delivery plans, milestones, and ownership.\nTrack cross-team dependencies and delivery risks.\nCoordinate release readiness and stakeholder communication.', languages: 'N/A', tools: 'Jira, Confluence, GitLab, reporting dashboards' },
+          { name: 'Claims Platform Delivery', position: 'Project Coordinator', teamSize: 9, start: '2021-08', end: '2022-12', status: 'COMPLETED', summary: 'Coordinated delivery planning and release readiness.', description: 'Cross-functional claims platform delivery program.', responsibilities: 'Facilitated planning and risk reviews.\nMaintained delivery status and escalation paths.', languages: 'N/A', tools: 'Jira, Confluence' },
+          { name: 'Operations Modernization Initiative', position: 'Delivery Lead', teamSize: 10, start: '2020-02', end: '2021-06', status: 'COMPLETED', summary: 'Managed phased modernization milestones.', description: 'Operational modernization across several internal teams.', responsibilities: 'Managed scope, milestones, and dependencies.\nCoordinated stakeholder demos and rollout checkpoints.', languages: 'N/A', tools: 'Jira, Confluence, Excel' }
+        ],
+        skills: []
+      }
+    };
+    let currentProfile = 'java';
+    let currentRole = 'MEMBER';
+    let managedMember = null;
+    let ownProfileBeforeManage = 'java';
+    let projectDirty = false;
+    let currentProjectIndex = 0;
+    let modalConfirmAction = null;
+
+    const $ = s => document.querySelector(s);
+    const $$ = s => [...document.querySelectorAll(s)];
+    let lastModalFocus = null;
+    $$('label:not([for])').forEach(label=>{ const span=document.createElement('span'); span.className='data-label'; span.innerHTML=label.innerHTML; label.replaceWith(span); });
+    [['skill-select','Skill'],['seniority-select','Seniority'],['language-select','Language'],['level-select','Language level'],['status-select','Account status']].forEach(([id,label])=>$('#'+id).setAttribute('aria-label',label));
+    [['#mobile-nav-toggle','mobile-navigation-toggle'],['#account-btn','account-menu-trigger'],['#sign-out','sign-out-action'],['#save-project','save-project-action'],['#apply-search','member-search-action'],['#generate-preview','generate-preview-action'],['#export-pdf','export-pdf-action'],['#export-docx','export-docx-action'],['#modal-confirm','dialog-confirm-action']].forEach(([selector,id])=>$(selector).setAttribute('data-od-id',id));
+    $$('#profile-menu .profile-menu-actions button').forEach(button=>button.setAttribute('role','menuitem'));
+    $('#profile-menu .profile-menu-head').setAttribute('role','none');
+    $('#profile-menu .profile-menu-actions').setAttribute('role','none');
+    function setHidden(el, hidden) { el.classList.toggle('hidden', hidden); }
+    const saveStateEl=$('.unsaved'); saveStateEl.id='save-state'; saveStateEl.setAttribute('role','status'); saveStateEl.setAttribute('aria-live','polite'); saveStateEl.classList.add('is-dirty');
+    function setSaveState(state){ saveStateEl.className=`unsaved is-${state}`; saveStateEl.textContent=state==='saving'?'Saving…':state==='saved'?'✓ Saved':'● Unsaved changes'; }
+    function toast(message) { const el=$('#toast'); el.textContent=message; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),2600); }
+    function closeMobileNav(){ $('#sidebar-nav').classList.remove('open'); $('#mobile-nav-toggle').setAttribute('aria-expanded','false'); $('#mobile-nav-toggle').textContent='Menu'; }
+    function showPage(name, force=false) {
+      if(!force && projectDirty && $('#page-editor').classList.contains('active') && name!=='editor'){
+        showModal('Leave without saving?',`Unsaved changes to Global Order Orchestration Platform will be discarded. ${profiles[currentProfile].name} remains unchanged.`,'Leave without saving',()=>{ projectDirty=false; showPage(name,true); });
+        return;
+      }
+      $$('.page').forEach(p=>p.classList.remove('active'));
+      $('#page-'+name).classList.add('active');
+      if(name==='editor') projectDirty=true;
+      $$('.nav-btn[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===name));
+      closeMobileNav();
+      localStorage.setItem('ibom-current-page',name);
+      window.scrollTo({top:0,behavior:'smooth'});
+      if(name==='preview') { renderPreview(); requestAnimationFrame(fitDocumentPages); }
+    }
+    $$('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+    $('#mobile-nav-toggle').addEventListener('click',()=>{ const open=!$('#sidebar-nav').classList.contains('open'); $('#sidebar-nav').classList.toggle('open',open); $('#mobile-nav-toggle').setAttribute('aria-expanded',String(open)); $('#mobile-nav-toggle').textContent=open?'Close':'Menu'; });
+
+    $('#login-form').addEventListener('submit', e => {
+      e.preventDefault(); const email=$('#email').value.trim().toLowerCase(); const password=$('#password').value;
+      const msg=$('#auth-message'); msg.className='auth-message'; msg.textContent='';
+      if(!email || !password){ msg.className='auth-message error'; msg.textContent='Enter both Email and Password.'; return; }
+      const submit=$('#login-submit'); submit.disabled=true; submit.textContent='Signing in...';
+      setTimeout(()=>{
+        submit.disabled=false; submit.textContent='Sign in';
+        if(email==='van.khanh.le@ibom.example'){ msg.className='auth-message warning'; msg.textContent='This account is inactive. Contact your iBOM administrator for access support.'; return; }
+        if(!['minh.anh.nguyen@ibom.example','viet.dung.vo@ibom.example'].includes(email)){ msg.className='auth-message error'; msg.textContent='Email or Password is incorrect.'; return; }
+        currentRole=email.startsWith('viet.')?'MANAGER':'MEMBER';
+        $('#account-name').textContent=currentRole==='MANAGER'?'vovd':'nguyenma'; $('#account-role').textContent=currentRole; $('#avatar').textContent=currentRole==='MANAGER'?'VD':'MN'; $('#account-email').textContent=email;
+        $('#dashboard-title').textContent=currentRole==='MANAGER'?'Good morning, Viet Dung':'Good morning, Minh Anh';
+        $$('.manager-only').forEach(el=>setHidden(el,currentRole==='MEMBER'));
+        setHidden($('#login-screen'),true); $('#app-screen').classList.remove('hidden'); $('#app-screen').style.display='grid'; const savedProfile=localStorage.getItem('ibom-current-profile'); if(savedProfile && profiles[savedProfile]) setProfile(savedProfile); const savedPage=localStorage.getItem('ibom-current-page'); const allowedPages=currentRole==='MEMBER'?['dashboard','workspace','preview']:['dashboard','workspace','preview','members']; showPage(allowedPages.includes(savedPage)?savedPage:'dashboard');
+      },420);
+    });
+    $('#account-btn').addEventListener('click',()=>{ const open=$('#account-menu').classList.contains('hidden'); $('#account-menu').classList.toggle('hidden',!open); $('#account-btn').setAttribute('aria-expanded',String(open)); if(open) $('#sign-out').focus(); });
+    function completeSignOut(){ projectDirty=false; setHidden($('#login-screen'),false); $('#app-screen').classList.add('hidden'); $('#app-screen').style.display=''; $('#account-menu').classList.add('hidden'); $('#account-btn').setAttribute('aria-expanded','false'); managedMember=null; $('#email').focus(); }
+    $('#sign-out').addEventListener('click',()=>{ if(projectDirty && $('#page-editor').classList.contains('active')) showModal('Sign out without saving?','Unsaved Project changes will be discarded before signing out.','Discard and sign out',completeSignOut); else completeSignOut(); });
+    $('#profile-trigger').addEventListener('click',()=>{ const open=$('#profile-menu').classList.contains('hidden'); $('#profile-menu').classList.toggle('hidden',!open); $('#profile-trigger').setAttribute('aria-expanded',String(open)); if(open) $('.profile-option').focus(); });
+
+    function renderContributions(){ const p=profiles[currentProfile]; $('#contribution-list').innerHTML=p.contributions.map(c=>`<div class="contribution-row"><strong>${c[0]}</strong><span class="${c[1]==='Missing'?'missing':'done'}">${c[1]}</span><span class="mono">${c[2]}</span></div>`).join(''); }
+    function updateProfileScopeUI(){
+      const isManaged=!!managedMember;
+      $('#member-context').style.display=isManaged?'inline':'none';
+      if(isManaged) $('#member-context').textContent=`Viewing Member: ${managedMember.name}`;
+      $('#profile-context-scope').textContent=isManaged?'Managed Member Profile':'My Profile';
+      $('#profile-menu-title').textContent=isManaged?'Managed Member Profiles':'My Profiles';
+      $('#profile-menu-copy').textContent=isManaged?`Switch Profiles for ${managedMember.name}. Member context stays fixed.`:'Switch between your independent CV versions.';
+      $('#profile-list-title').textContent=isManaged?'Managed Member Profiles':'My Profiles';
+      $('#exit-managed-member').classList.toggle('hidden',!isManaged);
+    }
+    function setProfile(key){
+      currentProfile=key;
+      if(!managedMember) localStorage.setItem('ibom-current-profile',key);
+      const p=profiles[key]; updateProfileScopeUI();
+      $('#active-profile-name').textContent=p.name; $('#band-profile').textContent=p.name; $('#band-completeness').textContent=p.completeness+'%'; $('#band-completeness-note').textContent=p.note; $('#band-export').innerHTML=p.export;
+      const ownerPrefix=managedMember?`${managedMember.name} · `:'';
+      $('#workspace-subtitle').textContent=`${ownerPrefix}${p.name} · ${p.completeness}% complete · ${p.statusLabel}`;
+      $('#workspace-notice').className='notice info';
+      $('#workspace-notice').innerHTML=managedMember?`<span><strong>Managed Member Profile:</strong> You are still viewing ${managedMember.name}. Changes, Preview, and export apply only to ${p.name}.</span>`:`<span><strong>Profile independence:</strong> edits here apply only to ${p.name}.</span>`;
+      $('#preview-subtitle').textContent=managedMember?`${managedMember.name} · ${p.name} · managed Member Profile`:`${p.name} · current Profile document`;
+      [$('#preview-status-top'),$('#band-status'),$('#preview-status-side')].forEach(el=>{el.className='status '+p.status;el.textContent=p.statusLabel});
+      const n=$('#dashboard-notice'); n.className='notice '+(p.status==='valid'?'success':'warning'); n.innerHTML=p.status==='valid'?'<span><strong>Document current.</strong> This Profile has a successful Preview and is ready for PDF or DOCX export.</span><button class="btn text" data-page="preview">Open document</button>':'<span><strong>Preview required.</strong> Current Profile data must be previewed successfully before PDF or DOCX export.</span><button class="btn text" data-page="preview">Preview now</button>'; n.querySelector('button').addEventListener('click',()=>showPage('preview'));
+      $$('.profile-option').forEach(o=>{const selected=o.dataset.profile===key;o.classList.toggle('selected',selected);o.setAttribute('aria-checked',String(selected));});
+      $('#profile-menu').classList.add('hidden'); $('#profile-trigger').setAttribute('aria-expanded','false'); renderContributions(); renderWorkspace(); renderPreview();
+      const main=$('.main'); main.classList.remove('profile-exit'); main.classList.add('profile-enter'); setTimeout(()=>main.classList.remove('profile-enter'),210);
+      toast(managedMember?`Switched ${managedMember.name} to ${p.name}. Member context preserved.`:`Switched to ${p.name}. My Profile context updated.`);
+    }
+    function workspaceScore(sectionName){
+      const contribution=profiles[currentProfile].contributions.find(item=>item[0]===sectionName);
+      return contribution ? contribution[2].replaceAll(' ','') : '—';
+    }
+    function renderRecordList(records, rowRenderer, emptyCopy, addLabel){
+      if(!records.length) return `<div class="empty-state"><p>${emptyCopy}</p><button class="btn" data-section-action="${addLabel}">${addLabel}</button></div>`;
+      return `<div class="record-list">${records.map(rowRenderer).join('')}</div>`;
+    }
+    function renderWorkspace(){
+      const p=profiles[currentProfile], data=profileWorkspaceData[currentProfile];
+      const sections=[['about','About Me'],['education','Education'],['languages','Languages'],['certificates','Certificates'],['projects','Projects'],['skills','Skills']];
+      $('#workspace-section-nav').innerHTML=sections.map(([id,label],index)=>`<button class="${index===0?'active':''}" data-workspace-section="${id}">${label} <span class="mono">${workspaceScore(label)}</span></button>`).join('');
+      const about=data.about;
+      const personality=about.personality
+        ? `<p>${about.personality}</p>`
+        : `<div class="empty-state"><p>Personality / Characteristic Description has not been added to this Profile yet.</p><button class="btn" data-section-action="Add personality">Add personality</button></div>`;
+      const education=renderRecordList(data.education,(item,index)=>`<div class="record"><div><h3>${item.title}</h3><p>${item.institution}</p></div><div class="record-meta"><div>${item.meta}</div><div class="record-actions"><button class="btn text" data-section-action="Edit education" data-record-index="${index}">Edit</button></div></div></div>`,'No Education records exist in this Profile.','Add education');
+      const languages=renderRecordList(data.languages,(item,index)=>`<div class="record"><div><h3>${item.name}</h3><p>${item.level}</p></div><div class="record-meta"><div>LANGUAGE</div><div class="record-actions"><button class="btn text" data-section-action="Edit language" data-record-index="${index}">Edit</button></div></div></div>`,'No Language records exist in this Profile.','Add language');
+      const certificates=renderRecordList(data.certificates,(item,index)=>`<div class="record"><div><h3>${item.name}</h3><p>Profile-specific certificate record</p></div><div class="record-meta"><div>${item.meta}</div><div class="record-actions"><button class="btn text" data-section-action="Edit certificate" data-record-index="${index}">Edit</button></div></div></div>`,'No Certificates exist in this Profile. Add one when it is relevant to this CV version.','Add certificate');
+      const projects=renderRecordList(data.projects,(item,index)=>`<div class="record"><div><h3>${item.name}</h3><p>${item.position} · ${item.teamSize} people · ${item.summary}</p></div><div class="record-meta"><button class="btn text" data-edit-project="${index}" aria-label="Edit ${item.name}">Edit</button></div></div>`,'No Project records exist in this Profile.','Add project');
+      const skills=data.skills.length
+        ? `<div style="overflow-x:auto"><table class="skills-table"><thead><tr><th>Skill</th><th>Category</th><th>Experience</th><th>Last used</th><th>Actions</th></tr></thead><tbody>${data.skills.map((skill,index)=>`<tr><td>${skill.name}</td><td>${skill.category}</td><td class="mono">${skill.experience}</td><td class="mono">${skill.lastUsed}</td><td><button class="btn text" data-section-action="Edit skill" data-record-index="${index}">Edit</button></td></tr>`).join('')}</tbody></table></div>`
+        : `<div class="empty-state"><p>No Skills exist in this Profile. Skills from another Profile are not inherited automatically.</p><button class="btn" data-section-action="Add skill">Add skill</button></div>`;
+      $('#workspace-sections').innerHTML=`
+        <section class="content-section" id="workspace-section-about" data-od-id="about-me-section"><div class="section-title"><h2>About Me</h2><button class="btn" data-section-action="Edit About Me">Edit</button></div><p>Identity, role, experience, and narrative summary used by this Profile.</p><div class="fact-grid"><div class="fact"><label>First Name</label><p>${about.firstName}</p></div><div class="fact"><label>Last Name</label><p>${about.lastName}</p></div><div class="fact"><label>Job Title</label><p>${p.job}</p></div><div class="fact"><label>Years of Experience</label><p class="mono">${about.years}</p></div></div><div class="long-copy"><h3>Personality / Characteristic Description</h3>${personality}<h3>Technical Summary</h3><p>${about.technicalSummary}</p></div></section>
+        <section class="content-section" id="workspace-section-education"><div class="section-title"><h2>Education</h2><button class="btn" data-section-action="Add education">Add education</button></div>${education}</section>
+        <section class="content-section" id="workspace-section-languages"><div class="section-title"><h2>Languages</h2><button class="btn" data-section-action="Add language">Add language</button></div>${languages}</section>
+        <section class="content-section" id="workspace-section-certificates"><div class="section-title"><h2>Certificates</h2><button class="btn" data-section-action="Add certificate">Add certificate</button></div>${certificates}</section>
+        <section class="content-section" id="workspace-section-projects" data-od-id="projects-section"><div class="section-title"><h2>Projects</h2><button class="btn" id="add-project">Add project</button></div><p>Long-form project records prove role, scope, responsibility, and technology depth.</p>${projects}</section>
+        <section class="content-section" id="workspace-section-skills"><div class="section-title"><h2>Skills</h2><button class="btn" data-section-action="Manage skills">Manage skills</button></div>${skills}</section>`;
+    }
+    function switchProfile(key,force=false){ if(!force && projectDirty && $('#page-editor').classList.contains('active')){ showModal('Switch Profile without saving?',`Unsaved Project changes will be discarded before switching to ${profiles[key].name}.`,'Discard and switch',()=>{ projectDirty=false; switchProfile(key,true); }); return; } $('.main').classList.add('profile-exit'); $('#active-profile-name').textContent='Switching Profile...'; $('#contribution-list').innerHTML='<div class="contribution-row"><strong>Loading Profile context</strong><span class="muted">Please wait</span><span class="mono">···</span></div><div class="contribution-row"><strong>Replacing Profile data</strong><span class="muted">Atomic update</span><span class="mono">···</span></div>'; setTimeout(()=>setProfile(key),120); }
+    $$('[data-profile]').forEach(b=>b.addEventListener('click',()=>switchProfile(b.dataset.profile)));
+    $('#exit-managed-member').addEventListener('click',()=>{ managedMember=null; setProfile(ownProfileBeforeManage); showPage('dashboard',true); toast('Returned to My Profiles.'); });
+    renderContributions();
+    renderWorkspace();
+
+    function showModal(title,copy,confirmText='Continue',onConfirm=null){ lastModalFocus=document.activeElement; modalConfirmAction=onConfirm; $('#modal-title').textContent=title; $('#modal-copy').textContent=copy; $('#modal-confirm').textContent=confirmText; $('#app-screen').inert=true; $('#login-screen').inert=true; $('#modal-backdrop').classList.remove('hidden'); requestAnimationFrame(()=>$('#modal').focus()); }
+    function closeModal(){ $('#modal-backdrop').classList.add('hidden'); $('#app-screen').inert=false; $('#login-screen').inert=false; modalConfirmAction=null; if(lastModalFocus) lastModalFocus.focus(); }
+    $('#modal-cancel').addEventListener('click',closeModal);
+    $('#modal-confirm').addEventListener('click',()=>{ const action=modalConfirmAction; closeModal(); if(action) action(); else toast('Prototype note recorded. Confirmed product behavior remains unchanged.'); });
+    $('#modal-backdrop').addEventListener('click',e=>{ if(e.target===$('#modal-backdrop')) closeModal(); });
+    ['#create-profile','#new-profile-secondary'].forEach(s=>$(s).addEventListener('click',()=>showModal('Create another Profile?','Each Profile is an independent CV version with its own completeness and preview lifecycle.')));
+    $('#delete-profile').addEventListener('click',()=>showModal(`Delete ${profiles[currentProfile].name}?`,'This removes the selected Profile only. The exact backend impact copy remains a Human decision.','Review consequence'));
+    $('#dismiss-workspace-note').addEventListener('click',()=>$('#workspace-notice').classList.add('hidden'));
+    const supportCopy={
+      homepage:['Existing Homepage','The existing Homepage is outside this prototype and remains unchanged. This control marks the handoff point back to it.'],
+      'forgot-password':['Forgot Password pattern','The supporting recovery flow reuses this authentication layout for Email, 6-digit code verification, new Password, and success feedback. Timing and resend policy remain unresolved.'],
+      registration:['Registration pattern','The supporting registration flow reuses this form language for Email, Username, Password, Confirm Password, and Verification Code. New accounts remain MEMBER.'],
+      'profile-copy':['Copy Profile','Copy creates an independent Profile version. The exact records and export metadata included in a copy remain a Human decision.'],
+      'user-management':['User Management pattern','User Management reuses the Member table language for Email, Username, Role, ACTIVE or INACTIVE status, and account actions. Self-deactivation remains unavailable.'],
+      'master-data':['Master Data pattern','Master Data reuses the compact table and form patterns for Languages, Skills, Seniority, and File Name Format. Skill Category remains a controlled classification within Skill.']
+    };
+    document.addEventListener('click',e=>{ const trigger=e.target.closest('[data-support]'); if(!trigger) return; const item=supportCopy[trigger.dataset.support]; if(item) showModal(item[0],item[1],'Understood'); });
+    function openProjectEditor(index){
+      const data=profileWorkspaceData[currentProfile];
+      const isNew=index<0;
+      const project=isNew?{name:'',position:'',teamSize:1,start:'',end:'',status:'ONGOING',description:'',responsibilities:'',languages:'',tools:''}:data.projects[index];
+      currentProjectIndex=index;
+      $('#page-editor .editor-context .mono.small.muted').textContent=`${profiles[currentProfile].name.toUpperCase()} · PROJECT`;
+      $('#page-editor .editor-context h1').textContent=isNew?'Add Project':`Edit ${project.name}`;
+      const editorStatus=$('#page-editor .editor-context .status'); editorStatus.textContent=project.status||'ONGOING'; editorStatus.className='status info';
+      $('#project-name').value=project.name||''; $('#project-position').value=project.position||''; $('#team-size').value=project.teamSize||1; $('#start-date').value=project.start||'';
+      $('#completion-status').value=project.status==='COMPLETED'?'COMPLETED':'ONGOING'; $('#end-date').disabled=project.status!=='COMPLETED'; $('#end-date').value=project.end||'';
+      $('#description').value=project.description||''; $('#responsibilities').value=project.responsibilities||''; $('#languages').value=project.languages||''; $('#tools').value=project.tools||'';
+      $('#editor-message').className='notice warning'; $('#editor-message').innerHTML='<span><strong>Unsaved changes.</strong> Saving this Project will invalidate the current CV Preview.</span><button class="btn text" data-page="workspace">Return without saving</button>'; $('#editor-message button').addEventListener('click',()=>showPage('workspace'));
+      setSaveState('dirty');
+      showPage('editor');
+    }
+    document.addEventListener('click',e=>{
+      const editProject=e.target.closest('[data-edit-project]');
+      if(editProject){ openProjectEditor(Number(editProject.dataset.editProject)); return; }
+      const addProject=e.target.closest('#add-project');
+      if(addProject){ openProjectEditor(-1); return; }
+      const action=e.target.closest('[data-section-action]');
+      if(action){
+        const label=action.dataset.sectionAction;
+        if(label==='Add project'){ openProjectEditor(-1); return; }
+        showModal('Profile section editor',`${label} uses the same full Profile editing pattern regardless of completeness. Saving section data belongs only to ${profiles[currentProfile].name} and invalidates its current Preview when applicable.`,'View pattern note');
+      }
+    });
+    document.addEventListener('click',e=>{
+      const button=e.target.closest('#workspace-section-nav button'); if(!button) return;
+      const target=$(`#workspace-section-${button.dataset.workspaceSection}`); if(!target) return;
+      $$('#workspace-section-nav button').forEach(item=>item.classList.remove('active')); button.classList.add('active');
+      window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top+window.scrollY-96),behavior:'smooth'});
+    });
+
+    $('#completion-status').addEventListener('change',e=>{ const completed=e.target.value==='COMPLETED'; $('#end-date').disabled=!completed; if(completed) $('#end-date').value='2026-08'; });
+    $('#save-project').addEventListener('click',e=>{
+      e.preventDefault(); if(!$('#project-form').reportValidity()) return;
+      setSaveState('saving'); $('#save-project').disabled=true;
+      const status=$('#completion-status').value;
+      const project={
+        name:$('#project-name').value.trim(), position:$('#project-position').value.trim(), teamSize:Number($('#team-size').value), start:$('#start-date').value, end:status==='COMPLETED'?$('#end-date').value:'', status,
+        summary:status==='COMPLETED'?`Completed ${$('#end-date').value||'date not set'}.`:'Ongoing project in this independent Profile.', description:$('#description').value.trim(), responsibilities:$('#responsibilities').value.trim(), languages:$('#languages').value.trim(), tools:$('#tools').value.trim()
+      };
+      const projects=profileWorkspaceData[currentProfile].projects;
+      if(currentProjectIndex<0) projects.push(project); else projects[currentProjectIndex]=project;
+      projectDirty=false; profiles[currentProfile].status='warning'; profiles[currentProfile].statusLabel='Preview invalidated';
+      $('#editor-message').className='notice success'; $('#editor-message').innerHTML='<span><strong>Project saved.</strong> The previous Preview is now invalid and exports are disabled until Preview succeeds again.</span>';
+      setTimeout(()=>{ setSaveState('saved'); $('#save-project').disabled=false; },260);
+      setTimeout(()=>{setProfile(currentProfile);showPage('workspace',true);toast('Project saved. Preview required before export.');},650);
+    });
+    $('#project-form').addEventListener('input',()=>{ if($('#page-editor').classList.contains('active')){ projectDirty=true; setSaveState('dirty'); } });
+
+    const memberDataset=[
+      {name:'Minh Anh Nguyen',meta:'nguyenma · Senior Java Backend Engineer',role:'MEMBER',status:'ACTIVE',profiles:[{name:'Java Backend CV',skills:[['Java','Senior']],languages:[['English','Advanced'],['Japanese','Intermediate']]},{name:'Full-stack CV',skills:[['Angular','Middle']],languages:[['English','Upper Intermediate']]},{name:'Project Manager CV',skills:[],languages:[['English','Advanced']]}]},
+      {name:'Hai Long Tran',meta:'tranhl · Frontend Engineer',role:'MEMBER',status:'ACTIVE',profiles:[{name:'Frontend CV',skills:[['Angular','Middle']],languages:[['English','Upper Intermediate']]},{name:'UI Platform CV',skills:[['Angular','Senior']],languages:[['English','Intermediate']]}]},
+      {name:'Van Khanh Le',meta:'levk · Cloud Engineer',role:'MEMBER',status:'INACTIVE',profiles:[{name:'Cloud Platform CV',skills:[['AWS','Senior']],languages:[['Japanese','Intermediate']]},{name:'Cloud Operations CV',skills:[['AWS','Middle']],languages:[['English','Intermediate']]}]},
+      {name:'Thu Ha Pham',meta:'phamth · QA Automation Engineer',role:'MEMBER',status:'ACTIVE',profiles:[{name:'QA Automation CV',skills:[['Playwright','Middle']],languages:[['English','Advanced']]}]},
+      {name:'Hoang Minh Do',meta:'dochm · Mobile Engineer',role:'MEMBER',status:'ACTIVE',profiles:[{name:'Mobile Engineering CV',skills:[['Kotlin','Senior']],languages:[['English','Intermediate']]}]},
+      {name:'Quynh Nhu Bui',meta:'buiqn · Data Engineer',role:'MEMBER',status:'ACTIVE',profiles:[{name:'Data Engineering CV',skills:[['Python','Middle']],languages:[['English','Advanced']]}]},
+      {name:'Thanh Phuc Nguyen',meta:'nguyentp · Backend Engineer',role:'MEMBER',status:'INACTIVE',profiles:[{name:'Backend CV',skills:[['Java','Middle']],languages:[['Japanese','Upper Intermediate']]}]},
+      {name:'Viet Dung Vo',meta:'vovd · Delivery Manager',role:'MANAGER',status:'ACTIVE',profiles:[{name:'Delivery Management CV',skills:[],languages:[['English','Advanced']]},{name:'Technical Delivery CV',skills:[['Java','Middle']],languages:[['English','Intermediate']]}]},
+      {name:'Lan Ngoc Hoang',meta:'hoangln · System Administrator',role:'ADMIN',status:'ACTIVE',profiles:[{name:'Administration CV',skills:[['AWS','Middle']],languages:[['English','Intermediate']]}]},
+      {name:'Mai Khoi Dang',meta:'dangmk · Engineering Manager',role:'MANAGER',status:'ACTIVE',profiles:[{name:'Java Leadership CV',skills:[['Java','Senior']],languages:[]},{name:'International Leadership CV',skills:[],languages:[['English','Advanced']]},{name:'People Management CV',skills:[],languages:[['Japanese','Intermediate']]}]}
+    ];
+    function pairMatches(list,first,second){ return list.some(pair=>pair[0]===first && pair[1]===second); }
+    function searchMembers(){ const useSkill=!$('#skill-condition').hidden, useLanguage=!$('#language-condition').hidden; const skill=$('#skill-select').value, seniority=$('#seniority-select').value, language=$('#language-select').value, level=$('#level-select').value, status=$('#status-select').value; return memberDataset.map(member=>{ if(status!=='All' && member.status!==status) return null; const matchingProfiles=member.profiles.filter(profile=>(!useSkill || pairMatches(profile.skills,skill,seniority)) && (!useLanguage || pairMatches(profile.languages,language,level))); return matchingProfiles.length?{...member,matchingProfiles}:null; }).filter(Boolean); }
+    function renderMembers(rows){ $('#member-results').setAttribute('aria-busy','false'); $('#member-tbody').innerHTML=rows.map((member,i)=>{ const names=member.matchingProfiles.map(p=>p.name).join(', '); const evidence=[]; if(!$('#skill-condition').hidden) evidence.push(`${$('#skill-select').value} / ${$('#seniority-select').value}`); if(!$('#language-condition').hidden) evidence.push(`${$('#language-select').value} / ${$('#level-select').value}`); return `<tr class="result-reveal" style="animation-delay:${i*35}ms"><td><strong>${member.name}</strong><small>${member.meta}</small></td><td>${member.role}</td><td><span class="status ${member.status==='ACTIVE'?'active':'inactive'}">${member.status}</span></td><td class="mono">${member.profiles.length}</td><td><strong>${names}</strong><br><span class="small muted">${evidence.length?evidence.join(' AND '):'Profile matched active conditions'}</span></td><td><button class="btn" data-open-member="${i}" aria-label="Open Member ${member.name}">Open Member</button></td></tr>`; }).join(''); $('#results-count').textContent=`${rows.length} unique Member${rows.length===1?'':'s'}`; $$('[data-open-member]').forEach(b=>b.addEventListener('click',()=>openMember(rows[+b.dataset.openMember]))); }
+    function renderMemberLoading(){ $('#member-results').setAttribute('aria-busy','true'); $('#results-count').textContent='Searching Members...'; $('#member-tbody').innerHTML=Array.from({length:4},()=>'<tr class="table-skeleton" aria-hidden="true"><td><span class="skeleton-line"></span><br><span class="skeleton-line short"></span></td><td><span class="skeleton-line short"></span></td><td><span class="skeleton-line"></span></td><td><span class="skeleton-line short"></span></td><td><span class="skeleton-line"></span></td><td><span class="skeleton-line short"></span></td></tr>').join(''); }
+    function openMember(member){ if(!member.meta.startsWith('nguyenma')){ showModal('Member detail data not defined',`The canonical dataset defines ${member.name} for search evidence and account-state review, but it does not define that Member's detailed Profile fields. The prototype will not invent them.`,'Keep search context'); return; } ownProfileBeforeManage=currentProfile; managedMember={name:member.name}; const firstMatch=member.matchingProfiles.find(p=>p.name==='Java Backend CV')||member.matchingProfiles[0]; const key=Object.keys(profiles).find(k=>profiles[k].name===firstMatch.name)||'java'; setProfile(key); showPage('workspace'); toast(`Opened ${member.name}. Managed Member context stays active while Profiles switch.`); }
+    renderMembers(searchMembers());
+    $('#apply-search').addEventListener('click',()=>{ $('#member-results').classList.remove('hidden'); $('#no-results').classList.add('hidden'); renderMemberLoading(); setTimeout(()=>{ const rows=searchMembers(); if(rows.length) renderMembers(rows); else { $('#member-results').classList.add('hidden'); $('#no-results').classList.remove('hidden'); $('#results-count').textContent='0 unique Members'; } const parts=[]; if(!$('#skill-condition').hidden) parts.push(`${$('#skill-select').value} + ${$('#seniority-select').value}`); if(!$('#language-condition').hidden) parts.push(`${$('#language-select').value} + ${$('#level-select').value}`); toast(`Search applied: ${parts.join(' AND ')||'all active conditions'} within the same Profile.`); },520); });
+    $('#clear-search').addEventListener('click',()=>{ $('#skill-condition').hidden=false; $('#language-condition').hidden=false; $('#skill-select').value='Java'; $('#seniority-select').value='Senior'; $('#language-select').value='English'; $('#level-select').value='Advanced'; $('#status-select').value='All'; renderMembers(searchMembers()); $('#member-results').classList.remove('hidden'); $('#no-results').classList.add('hidden'); toast('Search reset to Java + Senior AND English + Advanced.'); });
+    $('#edit-conditions').addEventListener('click',()=>window.scrollTo({top:Math.max(0,$('.query-builder').getBoundingClientRect().top+window.scrollY-90),behavior:'smooth'}));
+    $$('.condition button[aria-label^="Remove"]').forEach(button=>button.addEventListener('click',()=>{ button.closest('.condition').hidden=true; toast('Condition removed. Search results are unchanged until you search again.'); }));
+    const addCondition=$('.query-actions > .btn'); addCondition.addEventListener('click',()=>{ const hidden=$$('.condition').find(row=>row.hidden); if(hidden){ hidden.hidden=false; toast('Condition restored.'); } else showModal('Add condition','This representative query already shows both confirmed paired condition types. Additional condition types are not defined in the product brief.','Keep current query'); });
+
+    document.addEventListener('click',e=>{
+      if(!$('#profile-menu').classList.contains('hidden') && !e.target.closest('#profile-menu') && !e.target.closest('#profile-trigger')){ $('#profile-menu').classList.add('hidden'); $('#profile-trigger').setAttribute('aria-expanded','false'); }
+      if(!$('#account-menu').classList.contains('hidden') && !e.target.closest('#account-menu') && !e.target.closest('#account-btn')){ $('#account-menu').classList.add('hidden'); $('#account-btn').setAttribute('aria-expanded','false'); }
+    });
+    document.addEventListener('keydown',e=>{
+      const modalOpen=!$('#modal-backdrop').classList.contains('hidden');
+      if(e.key==='Escape'){
+        if(modalOpen){ closeModal(); return; }
+        if(!$('#profile-menu').classList.contains('hidden')){ $('#profile-menu').classList.add('hidden'); $('#profile-trigger').setAttribute('aria-expanded','false'); $('#profile-trigger').focus(); }
+        if(!$('#account-menu').classList.contains('hidden')){ $('#account-menu').classList.add('hidden'); $('#account-btn').setAttribute('aria-expanded','false'); $('#account-btn').focus(); }
+        closeMobileNav();
+      }
+      if(modalOpen && e.key==='Tab'){
+        const focusable=$$('#modal button:not([disabled])'); const first=focusable[0], last=focusable[focusable.length-1];
+        if(e.shiftKey && (document.activeElement===first || document.activeElement===$('#modal'))){ e.preventDefault(); last.focus(); }
+        else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+      }
+      if(!$('#profile-menu').classList.contains('hidden') && ['ArrowDown','ArrowUp'].includes(e.key)){
+        const items=$$('#profile-menu [role="menuitemradio"]'); const index=items.indexOf(document.activeElement); if(index<0) return; e.preventDefault(); const next=e.key==='ArrowDown'?(index+1)%items.length:(index-1+items.length)%items.length; items[next].focus();
+      }
+    });
+
+    function escapeCvHtml(value){
+      return String(value ?? '').replace(/[&<>"']/g,char=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[char]));
+    }
+    function cvText(value){ return escapeCvHtml(value).replace(/\r?\n/g,'<br>'); }
+    function cvPeriod(project){
+      const start=project.start||'';
+      const end=project.status==='ONGOING'?'PRESENT':(project.end||'');
+      return [start,end].filter(Boolean).join(' to ');
+    }
+    function cvCollectionSection(title,body){
+      return body ? `<section class="cv-section"><h2>${title}</h2>${body}</section>` : '';
+    }
+    function cvProjectMarkup(project){
+      const responsibilities=String(project.responsibilities||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+      const description=String(project.description||'').trim();
+      const tech=[
+        project.languages ? `Languages: ${project.languages}` : '',
+        project.tools ? `Tools: ${project.tools}` : ''
+      ].filter(Boolean).join(' · ');
+      return `<section class="cv-project"><div class="cv-project-head"><div><h3>${escapeCvHtml(project.name)}</h3><b>${escapeCvHtml(project.position)}${project.teamSize?` · Team of ${escapeCvHtml(project.teamSize)}`:''}</b></div><span>${escapeCvHtml(cvPeriod(project))}</span></div>${description?`<p>${cvText(description)}</p>`:''}${responsibilities.length?`<ul>${responsibilities.map(item=>`<li>${escapeCvHtml(item)}</li>`).join('')}</ul>`:''}${tech?`<p class="cv-tech">${escapeCvHtml(tech)}</p>`:''}</section>`;
+    }
+    function cvPages(){
+      const data=profileWorkspaceData[currentProfile];
+      const about=data.about||{};
+      const profileName=data.profileName||'Current Profile';
+      const fullName=[about.firstName,about.lastName].filter(Boolean).join(' ')||'Profile Owner';
+      const jobTitle=about.jobTitle||'';
+      const experience=about.years?`${about.years} YEARS EXPERIENCE`:'';
+      const headerContact=[experience,`PROFILE: ${profileName.toUpperCase()}`].filter(Boolean).join('<br>');
+
+      const aboutSections=[
+        about.technicalSummary ? cvCollectionSection('Professional Summary',`<p>${cvText(about.technicalSummary)}</p>`) : '',
+        about.personality ? cvCollectionSection('Professional Character',`<p>${cvText(about.personality)}</p>`) : ''
+      ].join('');
+
+      const skillsBody=(data.skills||[]).map(skill=>`<div class="cv-row"><strong>${escapeCvHtml(skill.name)}</strong><span>${[skill.category,skill.experience,skill.lastUsed?`Last used ${skill.lastUsed}`:''].filter(Boolean).map(escapeCvHtml).join(' · ')}</span></div>`).join('');
+      const languagesBody=(data.languages||[]).map(item=>`<div class="cv-row"><strong>${escapeCvHtml(item.name)}</strong><span>${escapeCvHtml(item.level)}</span></div>`).join('');
+      const educationBody=(data.education||[]).map(item=>`<div class="cv-row"><strong>${escapeCvHtml(item.meta||'')}</strong><span><b>${escapeCvHtml(item.title)}</b>${item.institution?`<br>${escapeCvHtml(item.institution)}`:''}</span></div>`).join('');
+      const certificatesBody=(data.certificates||[]).map(item=>`<div class="cv-row"><strong>${escapeCvHtml(item.meta||'')}</strong><span><b>${escapeCvHtml(item.name)}</b></span></div>`).join('');
+
+      const profileBody=[
+        aboutSections,
+        cvCollectionSection('Technical Skills',skillsBody),
+        cvCollectionSection('Languages',languagesBody),
+        cvCollectionSection('Education',educationBody),
+        cvCollectionSection('Certificates',certificatesBody)
+      ].join('');
+
+      const projects=data.projects||[];
+      const projectsPerPage=2;
+      const projectGroups=[];
+      for(let i=0;i<projects.length;i+=projectsPerPage) projectGroups.push(projects.slice(i,i+projectsPerPage));
+
+      const totalPages=1+projectGroups.length;
+      const pages=[];
+      pages.push(`<article class="cv-page"><header class="cv-header"><div><h1>${escapeCvHtml(fullName)}</h1>${jobTitle?`<p>${escapeCvHtml(jobTitle)}</p>`:''}</div><div class="cv-contact">${headerContact}</div></header>${profileBody}<footer class="cv-footer"><span>iBOM · CURRENT PROFILE PREVIEW</span><span>1 / ${totalPages}</span></footer></article>`);
+
+      projectGroups.forEach((group,index)=>{
+        const pageNumber=index+2;
+        pages.push(`<article class="cv-page"><header class="cv-header"><div><h1>Projects</h1><p>${escapeCvHtml(fullName)} · ${escapeCvHtml(profileName)}</p></div><div class="cv-contact">REVERSE CHRONOLOGICAL<br>PAGE ${pageNumber} OF ${totalPages}</div></header>${group.map(cvProjectMarkup).join('')}<footer class="cv-footer"><span>iBOM · CURRENT PROFILE PREVIEW</span><span>${pageNumber} / ${totalPages}</span></footer></article>`);
+      });
+
+      return pages.join('');
+    }
+    function fitDocumentPages(){ const stage=$('.document-stage'), pages=$('#document-pages'); if(!stage || !pages) return; const hasPage=pages.querySelector('.cv-page,.doc-skeleton'); pages.style.zoom=hasPage?String(Math.min(1,Math.max(.4,(stage.clientWidth-60)/720))):'1'; }
+    function renderPreview(){ const p=profiles[currentProfile], valid=p.status==='valid', owner=managedMember?managedMember.name:null; $('#preview-subtitle').textContent=owner?`${owner} · ${p.name} · managed Member Profile`:`${p.name} · current Profile document`; $('#document-pages').innerHTML=valid?cvPages():''; $('#generate-preview').classList.toggle('hidden',valid); $('#export-pdf').disabled=!valid; $('#export-docx').disabled=!valid; const exportText=p.export.replace('<br>',' '); $('#export-help').textContent=valid?(p.export==='No export yet'?'No export has been created from this Preview yet.':`Latest export: ${exportText}`):'A successful Preview of this current Profile is required before export.'; $('#preview-banner').className='notice '+(valid?'success':'warning'); $('#preview-banner').innerHTML=valid?`<span><strong>Preview valid for ${p.name}.</strong> The document below is rendered from the current saved Profile${owner?` for ${owner}`:''}.</span><span class="mono small">CURRENT PROFILE</span>`:`<span><strong>Preview required for ${p.name}.</strong> No current document is available for this Profile. Generate a new Preview to enable export.</span><span class="mono small">EXPORT DISABLED</span>`; if(!valid) $('#document-pages').innerHTML=`<div class="no-results" style="width:min(720px,100%);background:var(--white)"><h3>No current document for ${p.name}</h3><p>Preview validity belongs to this Profile only. Switching Profiles never reuses another Profile's document.</p></div>`; requestAnimationFrame(fitDocumentPages); }
+    $('#generate-preview').addEventListener('click',()=>{ const previewKey=currentProfile, previewMember=managedMember?managedMember.name:null; $('#generate-preview').disabled=true; $('#generate-preview').textContent='Generating preview...'; $('#preview-banner').className='notice info'; $('#preview-banner').innerHTML=`<span><strong>Generating Preview.</strong> Preparing ${profiles[previewKey].name}${previewMember?` for ${previewMember}`:''} from its saved Profile data.</span>`; $('#document-pages').innerHTML='<div class="doc-skeleton"><div class="sk title"></div><div class="sk medium"></div><div class="sk wide"></div><div class="sk wide"></div><div class="sk short"></div><div class="sk wide"></div></div>'; setTimeout(()=>{ if(currentProfile!==previewKey || (managedMember?managedMember.name:null)!==previewMember){ $('#generate-preview').disabled=false; $('#generate-preview').textContent='Preview CV'; renderPreview(); toast('Profile context changed before Preview completed. Generate Preview again for the current Profile.'); return; } profiles[previewKey].status='valid'; profiles[previewKey].statusLabel='Preview valid'; $('#generate-preview').disabled=false; $('#generate-preview').textContent='Preview CV'; setProfile(previewKey); showPage('preview'); toast(`Preview complete for ${profiles[previewKey].name}. PDF and DOCX exports are enabled.`); },1100); });
+    function runExport(button,format){ if(button.disabled || button.classList.contains('is-busy')) return; const label=`Export ${format}`, profileKey=currentProfile; button.disabled=true; button.classList.add('is-busy'); button.textContent='Exporting…'; setTimeout(()=>{ button.classList.remove('is-busy'); button.classList.add('is-success'); button.textContent='✓ Exported'; toast(`${format} export completed for ${profiles[profileKey].name}.`); setTimeout(()=>{ button.classList.remove('is-success'); button.textContent=label; button.disabled=profiles[currentProfile].status!=='valid'; },900); },520); }
+    $('#export-pdf').addEventListener('click',()=>runExport($('#export-pdf'),'PDF'));
+    $('#export-docx').addEventListener('click',()=>runExport($('#export-docx'),'DOCX'));
+    window.addEventListener('resize',fitDocumentPages);
+    renderPreview();
+  </script>
+</body>
+</html>

@@ -264,7 +264,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
           trigger: heroScene,
           start: () => `top top+=${siteHeader.offsetHeight}`,
           end: '+=1400',
-          scrub: 0.7,
+          scrub: 0.8,
           pin: true,
           anticipatePin: 1,
           invalidateOnRefresh: true,
