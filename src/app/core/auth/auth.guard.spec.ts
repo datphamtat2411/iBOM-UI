@@ -1,22 +1,38 @@
+import { signal, WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { of } from 'rxjs';
 
 import { authGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
 describe('authGuard', () => {
-  beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
+  let auth: {
+    isRestored: WritableSignal<boolean>;
+    isAuthenticated: WritableSignal<boolean>;
+    restoration$: AuthService['restoration$'];
+  };
+
+  beforeEach(() => {
+    auth = {
+      isRestored: signal(false),
+      isAuthenticated: signal(false),
+      restoration$: () => of(true),
+    };
+
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: AuthService, useValue: auth }],
+    });
+  });
 
   it('allows an authenticated restored session', () => {
-    const auth = TestBed.inject(AuthService);
-    auth.setSession({ accessToken: 'token', user: { id: '1', email: 'a@b.test', username: 'a', role: 'USER' } });
     auth.isRestored.set(true);
+    auth.isAuthenticated.set(true);
 
     expect(TestBed.runInInjectionContext(() => authGuard({} as never, {} as never))).toBeTrue();
   });
 
   it('redirects after restoration when no session exists', () => {
-    const auth = TestBed.inject(AuthService);
     auth.isRestored.set(true);
     const result = TestBed.runInInjectionContext(() => authGuard({} as never, {} as never));
 
