@@ -20,17 +20,37 @@ Backend responses use the common wrapper:
 }
 ```
 
-Business errors may additionally include a stable machine-readable `errorCode`.
+Error responses may additionally include a stable machine-readable `errorCode`:
 
-Frontend transport models should preserve this shape instead of inventing feature-specific envelopes.
+```json
+{
+  "code": 401,
+  "errorCode": "AUTH_INVALID_CREDENTIALS",
+  "message": "Invalid email or password",
+  "data": null,
+  "timestamp": "..."
+}
+```
+
+`errorCode` is optional at the transport level and is included when the backend provides a stable application error classification.
+
+Frontend transport models should preserve this common wrapper instead of inventing feature-specific envelopes.
 
 ## Error Handling
 
 Use backend `message` for backend-owned user-facing error feedback when appropriate.
 
+Do not duplicate or reinterpret backend error messages unless the frontend owns that copy, such as client-side validation or UI guidance.
+
 Do not branch application behavior on human-readable `message`.
 
-Programmatic behavior should use stable signals such as HTTP status, `errorCode`, or explicit response data.
+Programmatic behavior must use stable signals such as:
+
+* HTTP status;
+* `errorCode`;
+* explicit response data.
+
+When the backend returns structured validation details in `data`, feature code may map those details to the relevant form fields.
 
 Frontend-owned validation and UI guidance may use frontend-owned copy.
 
@@ -47,6 +67,7 @@ Keep the access token in application session state, not `localStorage` or `sessi
 Refresh tokens use the backend-defined HttpOnly cookie flow and are not read directly by frontend code.
 
 Cookie-dependent authentication requests must send credentials as required by the backend.
+
 Refresh and logout requests must follow the backend CSRF contract.
 
 ## HTTP Ownership

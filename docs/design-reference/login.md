@@ -23,11 +23,13 @@ Do not read the full prototype.
 ### Styles
 
 Search:
+
 - `/* Login */`
 
 ### Markup
 
 Search only as relevant:
+
 - `#login-screen`
 - `[data-od-id="login-brand-panel"]`
 - `[data-od-id="login-heading"]`
@@ -39,14 +41,44 @@ Search only as relevant:
 ### Behavior
 
 Search only as relevant:
+
 - `#login-form` submit handler
 - Login success transition into `#app-screen`
 
 ### Responsive
 
 Inspect Login-related rules only in:
+
 - `@media (max-width: 800px)`
 - `@media (max-width: 430px)`
+
+## Supporting Authentication Flows
+
+Registration and Forgot Password do not have complete standalone screens in the approved prototype.
+
+They reuse the approved Login authentication visual language and form patterns.
+
+When a task involves Registration or Forgot Password, PLAN may inspect only the relevant supporting authentication evidence together with the routed Login regions required to preserve visual consistency.
+
+Relevant prototype support may include:
+
+- Registration support/reference content when present.
+- Forgot Password support/reference content when present.
+- Login form composition and authentication layout.
+- Shared authentication field, action, feedback, spacing, and responsive patterns.
+
+Do not treat Login field structure or prototype helper/support content as an exact Registration or Forgot Password production screen specification.
+
+For these supporting flows:
+
+- visual language may be derived from Login;
+- exact fields come from the active task and implemented backend contract;
+- exact step flow comes from the active task and confirmed requirements;
+- validation behavior comes from the active task and backend contract;
+- API interaction comes from the implemented backend contract;
+- navigation and success behavior remain task-specific.
+
+If the prototype does not contain exact visual evidence for a required supporting-authentication state, preserve the established authentication visual language rather than inventing a separate design system.
 
 ## Boundary
 
