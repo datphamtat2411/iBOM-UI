@@ -38,24 +38,6 @@ Current and planned frontend capabilities include:
 * GSAP
 * Jasmine / Karma
 
-## Project Structure
-
-```text
-src/
-├── app/
-│   ├── core/
-│   ├── features/
-│   ├── models/
-│   ├── shared/
-│   ├── app.component.ts
-│   ├── app.config.ts
-│   └── app.routes.ts
-│
-├── assets/
-├── main.ts
-└── styles.scss
-```
-
 ## Getting Started
 
 ### Prerequisites
