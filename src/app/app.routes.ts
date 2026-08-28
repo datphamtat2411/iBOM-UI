@@ -15,4 +15,11 @@ export const routes: Routes = [
         (component) => component.LoginComponent,
       ),
   },
+  {
+    path: 'registration',
+    loadComponent: () =>
+      import('./features/auth/pages/registration/registration.component').then(
+        (component) => component.RegistrationComponent,
+      ),
+  },
 ];

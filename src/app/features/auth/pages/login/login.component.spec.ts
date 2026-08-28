@@ -28,6 +28,10 @@ describe('LoginComponent', () => {
     expect(fixture.nativeElement.querySelector('#login-submit').textContent).toContain('Sign in');
   });
 
+  it('links the registration entry point to Registration', () => {
+    expect(fixture.nativeElement.querySelector('a[routerLink="/registration"]')).toBeTruthy();
+  });
+
   it('prevents invalid submission and shows field feedback', () => {
     fixture.nativeElement.querySelector('#login-form').dispatchEvent(new Event('submit'));
     fixture.detectChanges();
