@@ -69,7 +69,8 @@
               "buildTarget": "ibom-ui:build:production"
             },
             "development": {
-              "buildTarget": "ibom-ui:build:development"
+              "buildTarget": "ibom-ui:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"

@@ -8,4 +8,11 @@ export const routes: Routes = [
         (component) => component.HomeComponent,
       ),
   },
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./features/auth/pages/login/login.component').then(
+        (component) => component.LoginComponent,
+      ),
+  },
 ];

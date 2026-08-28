@@ -2,10 +2,10 @@ import { HttpClient, HttpContext } from '@angular/common/http';
 import { computed, Injectable, signal } from '@angular/core';
 import { BehaviorSubject, catchError, filter, finalize, firstValueFrom, map, Observable, of, shareReplay, take, tap, throwError } from 'rxjs';
 
-import { REFRESH_TOKEN_PATH } from '../http/api.config';
+import { LOGIN_PATH, REFRESH_TOKEN_PATH } from '../http/api.config';
 import { ApiResponse } from '../http/api.models';
 import { IS_REFRESH_REQUEST } from '../http/http-context.tokens';
-import { AuthenticatedUser, LoginResponse } from './auth.models';
+import { AuthenticatedUser, LoginRequest, LoginResponse } from './auth.models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -22,6 +22,13 @@ export class AuthService {
   setSession(session: LoginResponse): void {
     this.accessToken.set(session.accessToken);
     this.user.set(session.user);
+  }
+
+  login(request: LoginRequest): Observable<LoginResponse> {
+    return this.http.post<ApiResponse<LoginResponse>>(LOGIN_PATH, request, { withCredentials: true }).pipe(
+      map((response) => this.normalizeSession(response.data)),
+      tap((session) => this.setSession(session)),
+    );
   }
 
   clearSession(): void {
@@ -41,7 +48,7 @@ export class AuthService {
           },
         )
         .pipe(
-          map((response) => response.data),
+           map((response) => this.normalizeSession(response.data)),
           tap((session) => this.setSession(session)),
           catchError((error: unknown) => {
             this.clearSession();
@@ -74,5 +81,15 @@ export class AuthService {
       filter(Boolean),
       take(1),
     );
+  }
+
+  private normalizeSession(session: LoginResponse): LoginResponse {
+    return {
+      ...session,
+      user: {
+        ...session.user,
+        id: String(session.user.id),
+      },
+    };
   }
 }

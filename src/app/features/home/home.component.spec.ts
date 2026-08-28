@@ -31,4 +31,11 @@ describe('HomeComponent', () => {
     jasmine.clock().tick(1000);
     expect(fixture.componentInstance.localTime).toBe('09:41:29');
   });
+
+  it('exposes the Login entry point at /login', () => {
+    fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.login-control').getAttribute('href')).toBe('/login');
+  });
 });
