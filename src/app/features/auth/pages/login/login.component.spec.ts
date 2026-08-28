@@ -32,6 +32,10 @@ describe('LoginComponent', () => {
     expect(fixture.nativeElement.querySelector('a[routerLink="/registration"]')).toBeTruthy();
   });
 
+  it('links the Forgot Password entry point to recovery', () => {
+    expect(fixture.nativeElement.querySelector('a[routerLink="/forgot-password"]')).toBeTruthy();
+  });
+
   it('prevents invalid submission and shows field feedback', () => {
     fixture.nativeElement.querySelector('#login-form').dispatchEvent(new Event('submit'));
     fixture.detectChanges();

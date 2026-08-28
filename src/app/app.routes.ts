@@ -22,4 +22,11 @@ export const routes: Routes = [
         (component) => component.RegistrationComponent,
       ),
   },
+  {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./features/auth/pages/forgot-password/forgot-password.component').then(
+        (component) => component.ForgotPasswordComponent,
+      ),
+  },
 ];

@@ -34,7 +34,7 @@
           }
         </div>
         <div class="login-actions">
-          <button type="button" class="btn text" disabled>Forgot password?</button>
+          <a class="btn text" routerLink="/forgot-password">Forgot password?</a>
           <button class="btn primary" id="login-submit" data-od-id="login-submit" type="submit" [disabled]="isSubmitting">{{ isSubmitting ? 'Signing in...' : 'Sign in' }}</button>
         </div>
       </form>
