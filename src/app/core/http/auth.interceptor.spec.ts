@@ -38,6 +38,18 @@ describe('authInterceptor', () => {
     publicRequest.flush({});
   });
 
+  it('attaches bearer credentials to protected auth requests', () => {
+    client.put('/api/auth/change-username', { username: 'updated-user' }).subscribe();
+    const usernameRequest = http.expectOne('/api/auth/change-username');
+    expect(usernameRequest.request.headers.get('Authorization')).toBe('Bearer token');
+    usernameRequest.flush({});
+
+    client.put('/api/auth/change-password', { currentPassword: 'old', newPassword: 'New1!' }).subscribe();
+    const passwordRequest = http.expectOne('/api/auth/change-password');
+    expect(passwordRequest.request.headers.get('Authorization')).toBe('Bearer token');
+    passwordRequest.flush({});
+  });
+
   it('coordinates concurrent unauthorized requests through one refresh', () => {
     client.get('/api/one').subscribe();
     client.get('/api/two').subscribe();

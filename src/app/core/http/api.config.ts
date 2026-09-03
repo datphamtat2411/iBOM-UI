@@ -7,10 +7,19 @@ export const FORGOT_PASSWORD_PATH = `${API_BASE_URL}/auth/forgot-password`;
 export const FORGOT_PASSWORD_VERIFY_PATH = `${FORGOT_PASSWORD_PATH}/verify`;
 export const RESET_PASSWORD_PATH = `${API_BASE_URL}/auth/reset-password`;
 
+const PUBLIC_AUTH_PATHS = new Set([
+  LOGIN_PATH,
+  REGISTRATION_CODE_PATH,
+  REGISTRATION_PATH,
+  FORGOT_PASSWORD_PATH,
+  FORGOT_PASSWORD_VERIFY_PATH,
+  RESET_PASSWORD_PATH,
+]);
+
 export function isApiRequest(url: string): boolean {
   return url === API_BASE_URL || url.startsWith(`${API_BASE_URL}/`);
 }
 
 export function isPublicAuthRequest(url: string): boolean {
-  return isApiRequest(url) && url.startsWith(`${API_BASE_URL}/auth/`) && url !== REFRESH_TOKEN_PATH;
+  return PUBLIC_AUTH_PATHS.has(url);
 }
