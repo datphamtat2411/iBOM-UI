@@ -1,0 +1,22 @@
+<section class="account-settings-page" aria-labelledby="account-settings-heading">
+  <div class="page-heading"><div><h1 id="account-settings-heading">Account Settings</h1><p>Manage your authenticated account details and password.</p></div></div>
+  @if (message) { <div class="notice" [class.success]="messageTone === 'success'" role="alert">{{ message }}</div> }
+  <div class="settings-grid">
+    <section class="settings-section" aria-labelledby="username-heading">
+      <div class="section-title"><h2 id="username-heading">Change Username</h2><p>Update the name shown across your workspace.</p></div>
+      <form [formGroup]="usernameForm" (ngSubmit)="submitUsername()" novalidate>
+        <div class="field"><label for="username">Username</label><input id="username" type="text" formControlName="username" autocomplete="username" [attr.aria-invalid]="usernameForm.controls.username.invalid && usernameForm.controls.username.touched" aria-describedby="username-error">@if (usernameForm.controls.username.touched && usernameForm.controls.username.errors) { <span class="field-error" id="username-error">{{ usernameForm.controls.username.errors['backend'] || (usernameForm.controls.username.errors['required'] ? 'Username is required.' : 'Username must be 100 characters or fewer.') }}</span> }</div>
+        <button class="btn primary" type="submit" [disabled]="isChangingUsername">{{ isChangingUsername ? 'Saving...' : 'Save Username' }}</button>
+      </form>
+    </section>
+    <section class="settings-section" aria-labelledby="password-heading">
+      <div class="section-title"><h2 id="password-heading">Change Password</h2><p>Use a strong password to protect your account.</p></div>
+      <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>
+        <div class="field"><label for="current-password">Current Password</label><input id="current-password" type="password" formControlName="currentPassword" autocomplete="current-password" [attr.aria-invalid]="passwordForm.controls.currentPassword.invalid && passwordForm.controls.currentPassword.touched" aria-describedby="current-password-error">@if (passwordForm.controls.currentPassword.touched && passwordForm.controls.currentPassword.errors) { <span class="field-error" id="current-password-error">{{ passwordForm.controls.currentPassword.errors['backend'] || 'Current Password is required.' }}</span> }</div>
+        <div class="field"><label for="new-password">New Password</label><input id="new-password" type="password" formControlName="password" autocomplete="new-password" [attr.aria-invalid]="passwordForm.controls.password.invalid && passwordForm.controls.password.touched" aria-describedby="password-requirements password-error">@if (passwordForm.controls.password.touched && passwordForm.controls.password.errors) { <span class="field-error" id="password-error">Password does not meet the requirements.</span> }<div id="password-requirements" class="requirements"><span [class.met]="passwordValue.length >= 8 && passwordValue.length <= 72">8–72 characters</span><span [class.met]="hasUppercase()">Uppercase</span><span [class.met]="hasLowercase()">Lowercase</span><span [class.met]="hasDigit()">Digit</span><span [class.met]="hasSpecialCharacter()">Special character</span></div></div>
+        <div class="field"><label for="confirm-password">Confirm New Password</label><input id="confirm-password" type="password" formControlName="confirmPassword" autocomplete="new-password" [attr.aria-invalid]="passwordForm.controls.confirmPassword.invalid && passwordForm.controls.confirmPassword.touched" aria-describedby="confirm-password-error">@if (passwordForm.controls.confirmPassword.touched && passwordForm.controls.confirmPassword.errors) { <span class="field-error" id="confirm-password-error">{{ passwordForm.controls.confirmPassword.errors['required'] ? 'Confirm New Password is required.' : 'Passwords do not match.' }}</span> }</div>
+        <button class="btn primary" type="submit" [disabled]="isChangingPassword">{{ isChangingPassword ? 'Saving...' : 'Save Password' }}</button>
+      </form>
+    </section>
+  </div>
+</section>

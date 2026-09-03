@@ -42,7 +42,7 @@ export class LoginComponent {
     this.isSubmitting = true;
     const { email, password } = this.loginForm.getRawValue();
     this.authService.login({ email: email.trim().toLowerCase(), password }).subscribe({
-      next: () => void this.router.navigate(['/']),
+      next: () => void this.router.navigate(['/dashboard']),
       error: (error: unknown) => this.handleError(error),
       complete: () => { this.isSubmitting = false; },
     });

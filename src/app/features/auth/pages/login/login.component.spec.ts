@@ -68,7 +68,7 @@ describe('LoginComponent', () => {
     request.next({ accessToken: 'token', user: { id: '1', email: 'user@example.com', username: 'member', role: 'MEMBER' } });
     request.complete();
     await fixture.whenStable();
-    expect(router.navigate).toHaveBeenCalledWith(['/']);
+    expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
   });
 
   it('renders inactive-account backend feedback as a warning', () => {

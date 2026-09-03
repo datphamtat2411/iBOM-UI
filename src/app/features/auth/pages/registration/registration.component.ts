@@ -1,24 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
 import { RegistrationService } from '../../services/registration.service';
+import { matchingPassword, strongPassword } from '../../validators/password.validators';
 
 type MessageTone = 'error' | 'warning';
-
-function strongPassword(control: AbstractControl): ValidationErrors | null {
-  const value = String(control.value ?? '');
-  return value.length >= 8 && value.length <= 72 && /[A-Z]/.test(value) && /[a-z]/.test(value)
-    && /\d/.test(value) && /[^A-Za-z0-9\s]/.test(value) ? null : { strongPassword: true };
-}
-
-function matchingPassword(control: AbstractControl): ValidationErrors | null {
-  const group = control.parent;
-  return group && control.value !== group.get('password')?.value ? { passwordMismatch: true } : null;
-}
 
 @Component({
   selector: 'app-registration',

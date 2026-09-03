@@ -1,0 +1,58 @@
+<div class="application-shell">
+  <aside class="sidebar" aria-label="Application sidebar">
+    <a class="brand" routerLink="/dashboard" aria-label="iBOM Dashboard">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="brand-copy"><strong>iBOM</strong><small>Workspace</small></span>
+    </a>
+
+    <button
+      class="mobile-nav-toggle"
+      type="button"
+      [attr.aria-expanded]="navigationOpen"
+      aria-controls="sidebar-nav"
+      (click)="toggleNavigation()"
+    >
+      Menu
+    </button>
+
+    <nav id="sidebar-nav" class="sidebar-nav" [class.open]="navigationOpen" aria-label="Application navigation">
+      <div class="nav-group">
+        <p class="nav-label">Workspace</p>
+        <a class="nav-btn active" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="navigationOpen = false">
+          <span class="nav-glyph">01</span><span>Dashboard</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-foot" aria-label="Current account">
+      <button class="account-btn" type="button" aria-haspopup="menu" [attr.aria-expanded]="accountMenuOpen" (click)="toggleAccountMenu()">
+        <span class="avatar">{{ avatarInitials() }}</span>
+        <span class="account-copy">
+          <strong>{{ user()?.username }}</strong>
+          <small>{{ user()?.role }}</small>
+        </span>
+      </button>
+      <span class="account-email">{{ user()?.email }}</span>
+      @if (accountMenuOpen) {
+        <div class="account-menu" role="menu">
+          <p role="none">{{ user()?.email }}</p>
+          <a class="menu-item" routerLink="/dashboard/account-settings" role="menuitem" (click)="closeAccountMenu()">Account Settings</a>
+          <button class="menu-item" type="button" role="menuitem">Sign out</button>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="context-line">
+        <span class="context-kicker">Authenticated workspace</span>
+         <span class="context-title">{{ contextTitle }}</span>
+      </div>
+      <div class="top-actions" aria-label="Session status">
+        <span class="session-status">Session active</span>
+      </div>
+    </header>
+    <div class="page-content"><router-outlet /></div>
+  </main>
+</div>

@@ -24,6 +24,10 @@ export class AuthService {
     this.user.set(session.user);
   }
 
+  updateUser(user: AuthenticatedUser): void {
+    this.user.set({ ...user, id: String(user.id) });
+  }
+
   login(request: LoginRequest): Observable<LoginResponse> {
     return this.http.post<ApiResponse<LoginResponse>>(LOGIN_PATH, request, { withCredentials: true }).pipe(
       map((response) => this.normalizeSession(response.data)),

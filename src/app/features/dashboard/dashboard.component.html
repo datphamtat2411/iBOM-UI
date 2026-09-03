@@ -1,0 +1,24 @@
+<section class="dashboard-page" data-od-id="member-dashboard" aria-labelledby="dashboard-title">
+  <div class="page-heading">
+    <div><h1 id="dashboard-title">Welcome, {{ user()?.username }}</h1><p>Your authenticated iBOM workspace.</p></div>
+  </div>
+
+  <div class="notice success"><span><strong>Session available.</strong> Your authenticated session is active and ready to use.</span></div>
+
+  <div class="context-band" data-od-id="profile-context-band">
+    <div class="band-cell"><label>Account</label><h2>{{ user()?.username }}</h2><span class="muted">Current authenticated user</span></div>
+    <div class="band-cell"><label>Role</label><p class="metric">{{ user()?.role }}</p><span class="muted">Access role</span></div>
+    <div class="band-cell"><label>Session state</label><span class="status valid">Authenticated</span></div>
+  </div>
+
+  <div class="dashboard-grid">
+    <section class="section-block" aria-labelledby="session-heading">
+      <div class="section-title"><h2 id="session-heading">Session details</h2></div>
+      <div class="detail-list"><div><span>Email</span><strong>{{ user()?.email }}</strong></div><div><span>Username</span><strong>{{ user()?.username }}</strong></div><div><span>Account role</span><strong>{{ user()?.role }}</strong></div></div>
+    </section>
+    <section class="section-block" aria-labelledby="next-heading">
+      <div class="section-title"><h2 id="next-heading">Workspace status</h2></div>
+      <div class="status-surface"><strong>Authenticated landing screen</strong><p>Additional workspace features will appear here when supported.</p></div>
+    </section>
+  </div>
+</section>
