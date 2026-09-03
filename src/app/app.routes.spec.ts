@@ -9,4 +9,10 @@ describe('application routes', () => {
     expect(dashboard?.children?.[0].path).toBe('');
     expect(dashboard?.children?.[0].loadComponent).toEqual(jasmine.any(Function));
   });
+
+  it('protects authentication pages from an existing session', () => {
+    for (const path of ['login', 'registration', 'forgot-password']) {
+      expect(routes.find((route) => route.path === path)?.canActivate).toEqual(jasmine.any(Array));
+    }
+  });
 });

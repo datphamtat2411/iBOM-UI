@@ -38,6 +38,8 @@ export class RegistrationComponent {
   codeRequested = false;
   isRequestingCode = false;
   isSubmitting = false;
+  showPassword = false;
+  showConfirmPassword = false;
   message = '';
   messageTone: MessageTone = 'error';
 
@@ -56,6 +58,8 @@ export class RegistrationComponent {
   hasLowercase(): boolean { return /[a-z]/.test(this.passwordValue); }
   hasDigit(): boolean { return /\d/.test(this.passwordValue); }
   hasSpecialCharacter(): boolean { return /[^A-Za-z0-9\s]/.test(this.passwordValue); }
+  togglePasswordVisibility(): void { this.showPassword = !this.showPassword; }
+  toggleConfirmPasswordVisibility(): void { this.showConfirmPassword = !this.showConfirmPassword; }
   get initialFormInvalid(): boolean {
     return this.registrationForm.controls.email.invalid || this.registrationForm.controls.username.invalid
       || this.registrationForm.controls.password.invalid || this.registrationForm.controls.confirmPassword.invalid;

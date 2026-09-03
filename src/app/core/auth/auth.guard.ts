@@ -11,3 +11,11 @@ export const authGuard: CanActivateFn = () => {
 
   return authService.isRestored() ? decision() : authService.restoration$().pipe(map(decision));
 };
+
+export const guestGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+  const decision = () => authService.isAuthenticated() ? router.parseUrl('/') : true;
+
+  return authService.isRestored() ? decision() : authService.restoration$().pipe(map(decision));
+};

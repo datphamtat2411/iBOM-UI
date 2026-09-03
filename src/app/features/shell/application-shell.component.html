@@ -1,6 +1,6 @@
 <div class="application-shell">
   <aside class="sidebar" aria-label="Application sidebar">
-    <a class="brand" routerLink="/dashboard" aria-label="iBOM Dashboard">
+    <a class="brand" routerLink="/" aria-label="iBOM Homepage">
       <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
       <span class="brand-copy"><strong>iBOM</strong><small>Workspace</small></span>
     </a>
@@ -48,9 +48,6 @@
       <div class="context-line">
         <span class="context-kicker">Authenticated workspace</span>
          <span class="context-title">{{ contextTitle }}</span>
-      </div>
-      <div class="top-actions" aria-label="Session status">
-        <span class="session-status">Session active</span>
       </div>
     </header>
     <div class="page-content"><router-outlet /></div>

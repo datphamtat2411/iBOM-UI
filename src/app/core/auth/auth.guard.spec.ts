@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 
-import { authGuard } from './auth.guard';
+import { authGuard, guestGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
 describe('authGuard', () => {
@@ -44,5 +44,18 @@ describe('authGuard', () => {
     auth.isAuthenticated.set(false);
 
     expect(TestBed.runInInjectionContext(() => authGuard({} as never, {} as never))).toEqual(TestBed.inject(Router).parseUrl('/login'));
+  });
+
+  it('redirects an authenticated user away from guest pages', () => {
+    auth.isRestored.set(true);
+    auth.isAuthenticated.set(true);
+
+    expect(TestBed.runInInjectionContext(() => guestGuard({} as never, {} as never))).toEqual(TestBed.inject(Router).parseUrl('/'));
+  });
+
+  it('allows a signed-out user to open guest pages', () => {
+    auth.isRestored.set(true);
+
+    expect(TestBed.runInInjectionContext(() => guestGuard({} as never, {} as never))).toBeTrue();
   });
 });

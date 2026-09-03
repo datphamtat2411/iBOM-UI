@@ -26,6 +26,7 @@ describe('ApplicationShellComponent', () => {
 
   it('renders the authenticated identity without duplicating the email below the avatar', () => {
     const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.session-status')).toBeNull();
     expect(element.querySelector('.avatar')?.textContent?.trim()).toBe('MA');
     expect(element.querySelector('.account-copy strong')?.textContent?.trim()).toBe('Minh Anh');
     expect(element.querySelector('.account-copy small')?.textContent?.trim()).toBe('MEMBER');
@@ -34,6 +35,13 @@ describe('ApplicationShellComponent', () => {
     (element.querySelector('.account-btn') as HTMLButtonElement).click();
     fixture.detectChanges();
     expect(element.querySelector('.account-menu p')?.textContent?.trim()).toBe('minh@example.com');
+  });
+
+  it('links the workspace logo to the homepage', () => {
+    const brand = fixture.nativeElement.querySelector('.brand') as HTMLAnchorElement;
+
+    expect(brand.getAttribute('href')).toBe('/');
+    expect(brand.getAttribute('aria-label')).toBe('iBOM Homepage');
   });
 
   it('opens and closes mobile navigation from the labeled control', () => {

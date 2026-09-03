@@ -8,6 +8,8 @@ import {
   PLATFORM_ID,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { computed, HostListener, inject } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -15,6 +17,7 @@ import {
   ProfileCardComponent,
   ProfileCardData,
 } from './profile-card/profile-card.component';
+import { AuthService } from '../../core/auth/auth.service';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -101,13 +104,24 @@ const PROFILE_VERSIONS: readonly ProfileCardData[] = [
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [ProfileCardComponent],
+  imports: [ProfileCardComponent, RouterLink],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
 export class HomeComponent implements AfterViewInit, OnDestroy {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
   readonly sourceProfile = SOURCE_PROFILE;
   readonly profileVersions = PROFILE_VERSIONS;
+  readonly user = this.authService.user;
+  readonly isAuthenticated = this.authService.isAuthenticated;
+  readonly logoutError = this.authService.logoutError;
+  readonly avatarInitials = computed(() => {
+    const username = this.user()?.username?.trim() || this.user()?.email || 'User';
+    const words = username.split(/[\s._-]+/).filter(Boolean);
+    return words.slice(0, 2).map((word) => word[0]).join('').toUpperCase();
+  });
   readonly marqueeItems = [
     '100% profile independence',
     'independent profile versions',
@@ -117,6 +131,8 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   ] as const;
 
   localTime = '';
+  accountMenuOpen = false;
+  logoutInProgress = false;
 
   private readonly isBrowser: boolean;
   private clockInterval?: ReturnType<typeof setInterval>;
@@ -158,6 +174,30 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
       this.clockInterval = setInterval(() => this.updateClock(), 1000);
     }
   }
+
+  toggleAccountMenu(): void { this.accountMenuOpen = !this.accountMenuOpen; }
+  closeAccountMenu(): void { this.accountMenuOpen = false; }
+
+  signOut(): void {
+    if (this.logoutInProgress) return;
+    this.logoutInProgress = true;
+    this.closeAccountMenu();
+    this.authService.logout().subscribe({
+      next: () => void this.router.navigateByUrl('/'),
+      error: () => { this.logoutInProgress = false; },
+    });
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (this.accountMenuOpen && !target.closest('.home-account-menu') && !target.closest('.home-account-btn')) {
+      this.closeAccountMenu();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void { if (this.accountMenuOpen) this.closeAccountMenu(); }
 
   ngAfterViewInit(): void {
     if (!this.isBrowser) {

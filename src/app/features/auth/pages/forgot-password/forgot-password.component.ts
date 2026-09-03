@@ -48,6 +48,8 @@ export class ForgotPasswordComponent {
   isRequesting = false;
   isVerifying = false;
   isResetting = false;
+  showPassword = false;
+  showConfirmPassword = false;
   message = '';
   messageTone: MessageTone = 'error';
   private normalizedEmail = '';
@@ -61,6 +63,8 @@ export class ForgotPasswordComponent {
   hasLowercase(): boolean { return /\p{Ll}/u.test(this.passwordValue); }
   hasDigit(): boolean { return /\p{Nd}/u.test(this.passwordValue); }
   hasSpecialCharacter(): boolean { return /[^\p{L}\p{N}\s]/u.test(this.passwordValue); }
+  togglePasswordVisibility(): void { this.showPassword = !this.showPassword; }
+  toggleConfirmPasswordVisibility(): void { this.showConfirmPassword = !this.showConfirmPassword; }
 
   requestCode(): void {
     this.clearMessage();

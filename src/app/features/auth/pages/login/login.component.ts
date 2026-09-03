@@ -27,8 +27,11 @@ export class LoginComponent {
   });
 
   isSubmitting = false;
+  showPassword = false;
   message = '';
   messageTone: MessageTone = 'error';
+
+  togglePasswordVisibility(): void { this.showPassword = !this.showPassword; }
 
   submit(): void {
     this.message = '';

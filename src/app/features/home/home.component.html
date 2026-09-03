@@ -34,12 +34,24 @@
         </span>
       </a>
 
-      <a
-        class="login-control"
-        href="/login"
-      >
-        Login -&gt;
-      </a>
+      @if (isAuthenticated()) {
+        <div class="home-account">
+          <button class="home-account-btn" type="button" aria-haspopup="menu" [attr.aria-expanded]="accountMenuOpen" (click)="toggleAccountMenu()">
+            <span class="home-avatar">{{ avatarInitials() }}</span>
+            <span class="home-account-name">{{ user()?.username }}</span>
+          </button>
+          @if (accountMenuOpen) {
+            <div class="home-account-menu" role="menu">
+              <p role="none">{{ user()?.email }}</p>
+              <a class="home-menu-item" routerLink="/dashboard" role="menuitem" (click)="closeAccountMenu()">Workspace</a>
+              <button class="home-menu-item" type="button" role="menuitem" [disabled]="logoutInProgress" [attr.aria-busy]="logoutInProgress" (click)="signOut()">{{ logoutInProgress ? 'Signing out...' : 'Logout' }}</button>
+            </div>
+          }
+          @if (logoutError()) { <p class="home-logout-error" role="alert">{{ logoutError() }}</p> }
+        </div>
+      } @else {
+        <a class="login-control" routerLink="/login">Login -&gt;</a>
+      }
     </nav>
   </div>
 

@@ -28,6 +28,10 @@
 .field input:-webkit-autofill:hover,
 .field input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px var(--login-white) inset; -webkit-text-fill-color: var(--login-fg); caret-color: var(--login-fg); }
 .field input[aria-invalid="true"] { border-color: var(--login-danger); }
+.password-input { position: relative; }
+.password-input input { padding-inline-end: 60px; }
+.password-toggle { position: absolute; inset-inline-end: 6px; top: 50%; z-index: 1; min-height: 32px; padding: 4px 9px; transform: translateY(-50%); border: 1px solid color-mix(in srgb, var(--login-border) 75%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--login-bg) 78%, transparent); color: var(--login-info); font-family: var(--font-mono); font-size: 10px; font-weight: 700; cursor: pointer; }
+.password-toggle:focus-visible { outline: 2px solid var(--login-accent); outline-offset: 2px; }
 .field-error { color: var(--login-danger); font-size: 12px; }
 .login-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .login-actions .btn.text { font-size: 15px; font-weight: 700; }

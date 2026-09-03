@@ -34,6 +34,9 @@ export class AccountSettingsComponent {
 
   isChangingUsername = false;
   isChangingPassword = false;
+  showCurrentPassword = false;
+  showPassword = false;
+  showConfirmPassword = false;
   message = '';
   messageTone: MessageTone = 'error';
 
@@ -47,6 +50,9 @@ export class AccountSettingsComponent {
   hasLowercase(): boolean { return /[a-z]/.test(this.passwordValue); }
   hasDigit(): boolean { return /\d/.test(this.passwordValue); }
   hasSpecialCharacter(): boolean { return /[^A-Za-z0-9\s]/.test(this.passwordValue); }
+  toggleCurrentPasswordVisibility(): void { this.showCurrentPassword = !this.showCurrentPassword; }
+  togglePasswordVisibility(): void { this.showPassword = !this.showPassword; }
+  toggleConfirmPasswordVisibility(): void { this.showConfirmPassword = !this.showConfirmPassword; }
 
   submitUsername(): void {
     if (this.isChangingUsername) return;
@@ -120,8 +126,9 @@ export class AccountSettingsComponent {
       if (!violation || typeof violation !== 'object') continue;
       const field = (violation as { field?: unknown }).field;
       const text = (violation as { message?: unknown }).message;
-      if (typeof field === 'string' && field in form.controls && typeof text === 'string') {
-        this.setFieldError(form.controls[field as keyof typeof form.controls], text);
+      const controlField = field === 'newPassword' ? 'password' : field;
+      if (typeof controlField === 'string' && controlField in form.controls && typeof text === 'string') {
+        this.setFieldError(form.controls[controlField as keyof typeof form.controls], text);
       }
     }
   }

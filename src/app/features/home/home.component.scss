@@ -214,6 +214,99 @@
   }
 }
 
+.home-account {
+  position: relative;
+}
+
+.home-account-btn {
+  display: flex;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.35rem;
+  align-items: center;
+  gap: 0.6rem;
+  border: 2px solid var(--fpt-black);
+  background: #fff;
+  box-shadow: 3px 3px 0 var(--fpt-black);
+  color: var(--fpt-black);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.home-account-btn:hover,
+.home-account-btn:focus-visible {
+  background: #f3eee3;
+}
+
+.home-avatar {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--fpt-black);
+  border-radius: 50%;
+  background: var(--fpt-black);
+  color: #fff;
+  font-size: 0.65rem;
+}
+
+.home-account-name {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-account-menu {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  width: 13rem;
+  padding: 0.65rem;
+  border: 1px solid var(--grid-border);
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--fpt-black);
+  color: var(--fpt-black);
+}
+
+.home-account-menu p {
+  margin: 0.15rem 0.3rem 0.6rem;
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.55rem 0.65rem;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--fpt-black);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+}
+
+.home-menu-item:hover,
+.home-menu-item:focus-visible {
+  background: #f3eee3;
+  outline: none;
+}
+
+.home-menu-item:disabled { cursor: not-allowed; opacity: 0.55; }
+.home-logout-error { position: absolute; top: calc(100% + 0.75rem); right: 0; width: 13rem; margin: 0; padding: 0.55rem; border: 1px solid #b42318; background: #fff; color: #b42318; font-size: 0.65rem; }
+
 .hero-scene {
   position: relative;
   overflow: hidden;
@@ -654,6 +747,8 @@ h1 {
   .login-control {
     padding-inline: 0.875rem;
   }
+
+  .home-account-name { display: none; }
 
   .hero-pin-wrapper {
     padding: 2.5rem 1rem 3rem;

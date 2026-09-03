@@ -30,7 +30,10 @@
         </div>
         <div class="field">
           <label for="password">Password</label>
-          <input id="password" type="password" formControlName="password" autocomplete="current-password" [attr.aria-invalid]="loginForm.controls.password.invalid && loginForm.controls.password.touched" [attr.aria-describedby]="loginForm.controls.password.touched ? 'password-helper password-error' : 'password-helper'">
+          <div class="password-input">
+            <input id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" autocomplete="current-password" [attr.aria-invalid]="loginForm.controls.password.invalid && loginForm.controls.password.touched" [attr.aria-describedby]="loginForm.controls.password.touched ? 'password-error' : null">
+            <button class="password-toggle" type="button" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" (click)="togglePasswordVisibility()">{{ showPassword ? 'Hide' : 'Show' }}</button>
+          </div>
           @if (loginForm.controls.password.touched && loginForm.controls.password.errors) {
             <span class="field-error" id="password-error">{{ loginForm.controls.password.errors['backend'] || 'Password is required.' }}</span>
           }

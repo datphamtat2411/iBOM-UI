@@ -4,6 +4,7 @@
 
 .account-settings-page {
   max-width: 1100px;
+  margin-inline: auto;
   padding: 26px 28px 64px;
 }
 
@@ -199,4 +200,35 @@ input[aria-invalid='true'] {
     grid-template-columns: 1fr;
     gap: 30px;
   }
+}
+
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  padding-inline-end: 68px;
+}
+
+.password-toggle {
+  position: absolute;
+  inset-inline-end: 6px;
+  top: 50%;
+  z-index: 1;
+  min-height: 32px;
+  padding: 4px 7px;
+  transform: translateY(-50%);
+  border: 1px solid rgba(216, 210, 196, .8);
+  border-radius: 6px;
+  background: #f9f7f1;
+  color: var(--fpt-blue);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--fpt-orange);
+  outline-offset: 2px;
 }

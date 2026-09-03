@@ -35,6 +35,34 @@ describe('RegistrationComponent', () => {
     expect(fixture.nativeElement.querySelector('#verification-code')).toBeNull();
   });
 
+  it('toggles password visibility independently without changing values', () => {
+    fillInitial();
+    const inputs = fixture.nativeElement.querySelectorAll('.password-input input') as NodeListOf<HTMLInputElement>;
+    const buttons = fixture.nativeElement.querySelectorAll('.password-toggle') as NodeListOf<HTMLButtonElement>;
+    expect(inputs[0].type).toBe('password');
+    expect(inputs[1].type).toBe('password');
+    expect(buttons[0].type).toBe('button');
+    expect(buttons[0].getAttribute('aria-label')).toBe('Show password');
+
+    buttons[0].click();
+    fixture.detectChanges();
+    expect(inputs[0].type).toBe('text');
+    expect(inputs[1].type).toBe('password');
+    expect(buttons[0].getAttribute('aria-label')).toBe('Hide password');
+    expect(fixture.componentInstance.registrationForm.getRawValue().password).toBe('Strong1!');
+    expect(fixture.componentInstance.registrationForm.getRawValue().confirmPassword).toBe('Strong1!');
+
+    buttons[1].click();
+    fixture.detectChanges();
+    expect(inputs[0].type).toBe('text');
+    expect(inputs[1].type).toBe('text');
+    expect(buttons[1].getAttribute('aria-label')).toBe('Hide confirm password');
+    buttons[0].click();
+    fixture.detectChanges();
+    expect(inputs[0].type).toBe('password');
+    expect(inputs[1].type).toBe('text');
+  });
+
   it('updates password requirement indicators live', () => {
     const password = fixture.componentInstance.registrationForm.controls.password;
     password.setValue('weak');

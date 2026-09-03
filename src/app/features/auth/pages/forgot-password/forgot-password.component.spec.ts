@@ -31,6 +31,25 @@ describe('ForgotPasswordComponent', () => {
     expect(fixture.componentInstance.message).toContain('If an account exists');
   });
 
+  it('toggles reset passwords independently without changing values', () => {
+    fixture.componentInstance.step = 'reset';
+    fixture.componentInstance.resetForm.setValue({ password: 'Strong1!', confirmPassword: 'Strong1!' });
+    fixture.detectChanges();
+    const inputs = fixture.nativeElement.querySelectorAll('.password-input input') as NodeListOf<HTMLInputElement>;
+    const buttons = fixture.nativeElement.querySelectorAll('.password-toggle') as NodeListOf<HTMLButtonElement>;
+    expect(inputs[0].type).toBe('password');
+    expect(inputs[1].type).toBe('password');
+    expect(buttons[0].type).toBe('button');
+    expect(buttons[0].getAttribute('aria-label')).toBe('Show password');
+
+    buttons[1].click();
+    fixture.detectChanges();
+    expect(inputs[0].type).toBe('password');
+    expect(inputs[1].type).toBe('text');
+    expect(buttons[1].getAttribute('aria-label')).toBe('Hide confirm password');
+    expect(fixture.componentInstance.resetForm.getRawValue()).toEqual({ password: 'Strong1!', confirmPassword: 'Strong1!' });
+  });
+
   it('ignores duplicate requests while loading and verifies a six-digit code', () => {
     const pending = new Subject<void>();
     service.requestCode.and.returnValue(pending.asObservable());

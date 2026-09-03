@@ -36,6 +36,22 @@ describe('LoginComponent', () => {
     expect(fixture.nativeElement.querySelector('a[routerLink="/forgot-password"]')).toBeTruthy();
   });
 
+  it('toggles password visibility without changing the value', () => {
+    const password = fixture.nativeElement.querySelector('#password') as HTMLInputElement;
+    const toggle = fixture.nativeElement.querySelector('.password-toggle') as HTMLButtonElement;
+    password.value = 'secret';
+    password.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(password.type).toBe('password');
+    expect(toggle.getAttribute('aria-label')).toBe('Show password');
+    toggle.click();
+    fixture.detectChanges();
+    expect(password.type).toBe('text');
+    expect(toggle.getAttribute('aria-label')).toBe('Hide password');
+    expect(fixture.componentInstance.loginForm.controls.password.value).toBe('secret');
+  });
+
   it('prevents invalid submission and shows field feedback', () => {
     fixture.nativeElement.querySelector('#login-form').dispatchEvent(new Event('submit'));
     fixture.detectChanges();
