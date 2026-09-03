@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
@@ -9,6 +9,11 @@ import { RegistrationService } from '../../services/registration.service';
 import { matchingPassword, strongPassword } from '../../validators/password.validators';
 
 type MessageTone = 'error' | 'warning';
+
+function trimmedEmail(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  return value ? Validators.email({ value } as AbstractControl) : { email: true };
+}
 
 @Component({
   selector: 'app-registration',
@@ -23,7 +28,7 @@ export class RegistrationComponent {
   private readonly router = inject(Router);
 
   readonly registrationForm = this.formBuilder.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
+    email: ['', [Validators.required, trimmedEmail]],
     username: ['', [Validators.required, Validators.maxLength(100)]],
     password: ['', [Validators.required, strongPassword]],
     confirmPassword: ['', [Validators.required, matchingPassword]],

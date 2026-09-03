@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { signal } from '@angular/core';
 import { of, Subject } from 'rxjs';
 
@@ -48,19 +48,28 @@ describe('ApplicationShellComponent', () => {
     const pendingLogout = new Subject<void>();
     auth.logout.and.returnValue(pendingLogout);
     const component = fixture.componentInstance;
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
     component.accountMenuOpen = true;
     fixture.detectChanges();
 
-    const button = fixture.nativeElement.querySelector('.menu-item') as HTMLButtonElement;
-    button.click();
+    const button = fixture.nativeElement.querySelector('button.menu-item') as HTMLButtonElement;
     button.click();
     fixture.detectChanges();
 
     expect(auth.logout).toHaveBeenCalledTimes(1);
     expect(component.accountMenuOpen).toBeFalse();
-    expect(button.disabled).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.account-menu')).toBeNull();
+
+    component.accountMenuOpen = true;
+    fixture.detectChanges();
+    const pendingButton = fixture.nativeElement.querySelector('button.menu-item') as HTMLButtonElement;
+    expect(pendingButton.disabled).toBeTrue();
+    pendingButton.click();
+    expect(auth.logout).toHaveBeenCalledTimes(1);
     pendingLogout.next();
     pendingLogout.complete();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/login');
   });
 
   it('re-enables sign out after a failed logout', () => {
@@ -69,12 +78,12 @@ describe('ApplicationShellComponent', () => {
     const component = fixture.componentInstance;
     component.accountMenuOpen = true;
     fixture.detectChanges();
-    (fixture.nativeElement.querySelector('.menu-item') as HTMLButtonElement).click();
+    (fixture.nativeElement.querySelector('button.menu-item') as HTMLButtonElement).click();
     failedLogout.error(new Error('failed'));
     fixture.detectChanges();
 
     component.accountMenuOpen = true;
     fixture.detectChanges();
-    expect((fixture.nativeElement.querySelector('.menu-item') as HTMLButtonElement).disabled).toBeFalse();
+    expect((fixture.nativeElement.querySelector('button.menu-item') as HTMLButtonElement).disabled).toBeFalse();
   });
 });

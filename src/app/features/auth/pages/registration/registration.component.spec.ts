@@ -39,7 +39,8 @@ describe('RegistrationComponent', () => {
     const password = fixture.componentInstance.registrationForm.controls.password;
     password.setValue('weak');
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.requirements span.met')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.requirements span.met').length).toBe(1);
+    expect(fixture.nativeElement.querySelectorAll('.requirements span')[2].classList).toContain('met');
     password.setValue('Strong1!');
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelectorAll('.requirements span.met').length).toBe(5);

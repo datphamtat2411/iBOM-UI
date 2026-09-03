@@ -17,6 +17,7 @@ describe('ForgotPasswordComponent', () => {
     service.resetPassword.and.returnValue(of(undefined));
     await TestBed.configureTestingModule({ imports: [ForgotPasswordComponent], providers: [provideRouter([]), { provide: PasswordResetService, useValue: service }] }).compileComponents();
     fixture = TestBed.createComponent(ForgotPasswordComponent);
+    spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
     fixture.detectChanges();
   });
 
@@ -70,7 +71,6 @@ describe('ForgotPasswordComponent', () => {
 
   it('navigates to Login after reset success', async () => {
     const router = TestBed.inject(Router);
-    spyOn(router, 'navigate').and.resolveTo(true);
     fixture.componentInstance.requestForm.controls.email.setValue('user@example.com');
     fixture.componentInstance.requestCode();
     fixture.componentInstance.verifyForm.controls.verificationCode.setValue('123456');

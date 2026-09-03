@@ -30,6 +30,7 @@
 .field input[aria-invalid="true"] { border-color: var(--login-danger); }
 .field-error { color: var(--login-danger); font-size: 12px; }
 .login-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.login-actions .btn.text { font-size: 15px; font-weight: 700; }
 .btn, .link-button { border: 0; cursor: pointer; }
 .btn { border: 0; cursor: pointer; }
 .btn.primary { padding: 12px 18px; border: 2px solid var(--fpt-black); background: var(--fpt-orange); box-shadow: 4px 4px 0 var(--fpt-black); color: #fff; font-family: var(--font-mono); font-size: 12px; font-weight: 700; }

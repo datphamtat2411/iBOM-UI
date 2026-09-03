@@ -20,6 +20,11 @@ function matchingPassword(control: AbstractControl): ValidationErrors | null {
   return control.parent && control.value !== control.parent.get('password')?.value ? { passwordMismatch: true } : null;
 }
 
+function trimmedEmail(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  return value ? Validators.email({ value } as AbstractControl) : { email: true };
+}
+
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
@@ -32,7 +37,7 @@ export class ForgotPasswordComponent {
   private readonly passwordResetService = inject(PasswordResetService);
   private readonly router = inject(Router);
 
-  readonly requestForm = this.formBuilder.nonNullable.group({ email: ['', [Validators.required, Validators.email]] });
+  readonly requestForm = this.formBuilder.nonNullable.group({ email: ['', [Validators.required, trimmedEmail]] });
   readonly verifyForm = this.formBuilder.nonNullable.group({ verificationCode: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]] });
   readonly resetForm = this.formBuilder.nonNullable.group({
     password: ['', [Validators.required, strongPassword]],
