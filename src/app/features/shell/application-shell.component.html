@@ -32,12 +32,12 @@
           <small>{{ user()?.role }}</small>
         </span>
       </button>
-      <span class="account-email">{{ user()?.email }}</span>
+      @if (logoutError()) { <p class="logout-error" role="alert">{{ logoutError() }}</p> }
       @if (accountMenuOpen) {
         <div class="account-menu" role="menu">
           <p role="none">{{ user()?.email }}</p>
           <a class="menu-item" routerLink="/dashboard/account-settings" role="menuitem" (click)="closeAccountMenu()">Account Settings</a>
-          <button class="menu-item" type="button" role="menuitem">Sign out</button>
+           <button class="menu-item" type="button" role="menuitem" [disabled]="logoutInProgress" [attr.aria-busy]="logoutInProgress" (click)="signOut()">Sign out</button>
         </div>
       }
     </div>

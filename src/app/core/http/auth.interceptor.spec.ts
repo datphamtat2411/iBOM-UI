@@ -50,6 +50,15 @@ describe('authInterceptor', () => {
     passwordRequest.flush({});
   });
 
+  it('does not attach the access token or retry logout', () => {
+    client.post('/api/auth/logout', null).subscribe();
+    const request = http.expectOne('/api/auth/logout');
+    expect(request.request.headers.has('Authorization')).toBeFalse();
+    expect(request.request.withCredentials).toBeTrue();
+    request.flush({});
+    expect(http.match('/api/auth/refresh-token')).toHaveSize(0);
+  });
+
   it('coordinates concurrent unauthorized requests through one refresh', () => {
     client.get('/api/one').subscribe();
     client.get('/api/two').subscribe();

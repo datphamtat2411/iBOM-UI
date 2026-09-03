@@ -38,4 +38,11 @@ describe('authGuard', () => {
 
     expect(result).toEqual(TestBed.inject(Router).parseUrl('/login'));
   });
+
+  it('does not permit the dashboard after local logout clears the session', () => {
+    auth.isRestored.set(true);
+    auth.isAuthenticated.set(false);
+
+    expect(TestBed.runInInjectionContext(() => authGuard({} as never, {} as never))).toEqual(TestBed.inject(Router).parseUrl('/login'));
+  });
 });

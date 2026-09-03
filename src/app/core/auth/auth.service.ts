@@ -1,10 +1,10 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { computed, Injectable, signal } from '@angular/core';
-import { BehaviorSubject, catchError, filter, finalize, firstValueFrom, map, Observable, of, shareReplay, take, tap, throwError } from 'rxjs';
+import { BehaviorSubject, catchError, concatMap, defer, filter, finalize, firstValueFrom, map, Observable, of, shareReplay, take, tap, throwError } from 'rxjs';
 
-import { LOGIN_PATH, REFRESH_TOKEN_PATH } from '../http/api.config';
-import { ApiResponse } from '../http/api.models';
-import { IS_REFRESH_REQUEST } from '../http/http-context.tokens';
+import { LOGIN_PATH, LOGOUT_PATH, REFRESH_TOKEN_PATH } from '../http/api.config';
+import { ApiErrorResponse, ApiResponse } from '../http/api.models';
+import { IS_LOGOUT_REQUEST, IS_REFRESH_REQUEST } from '../http/http-context.tokens';
 import { AuthenticatedUser, LoginRequest, LoginResponse } from './auth.models';
 
 @Injectable({ providedIn: 'root' })
@@ -12,9 +12,12 @@ export class AuthService {
   readonly accessToken = signal<string | null>(null);
   readonly user = signal<AuthenticatedUser | null>(null);
   readonly isRestored = signal(false);
+  readonly logoutError = signal<string | null>(null);
   readonly isAuthenticated = computed(() => this.accessToken() !== null && this.user() !== null);
 
   private refreshRequest$: Observable<LoginResponse> | null = null;
+  private refreshGeneration = 0;
+  private logoutActive = false;
   private readonly restorationState$ = new BehaviorSubject(false);
 
   constructor(private readonly http: HttpClient) {}
@@ -35,14 +38,45 @@ export class AuthService {
     );
   }
 
+  logout(): Observable<void> {
+    this.logoutActive = true;
+    this.refreshGeneration++;
+    this.logoutError.set(null);
+
+    const refreshRequest = this.refreshRequest$;
+    const logoutRequest$ = defer(() => this.http.post<ApiResponse<void>>(LOGOUT_PATH, null, {
+      context: new HttpContext().set(IS_LOGOUT_REQUEST, true),
+      withCredentials: true,
+    })).pipe(
+      tap(() => this.clearSession()),
+      map(() => undefined),
+      catchError((error: unknown) => {
+        const response = error as ApiErrorResponse & { error?: ApiErrorResponse };
+        this.logoutError.set(response.error?.message || response.message || 'Unable to sign out. Please try again.');
+        return throwError(() => error);
+      }),
+      finalize(() => { this.logoutActive = false; }),
+    );
+
+    return refreshRequest
+      ? refreshRequest.pipe(catchError(() => of(null)), concatMap(() => logoutRequest$))
+      : logoutRequest$;
+  }
+
   clearSession(): void {
     this.accessToken.set(null);
     this.user.set(null);
   }
 
   refreshAccessToken(): Observable<LoginResponse> {
+    if (this.logoutActive) {
+      return throwError(() => new Error('Logout is in progress'));
+    }
+
     if (!this.refreshRequest$) {
-      this.refreshRequest$ = this.http
+      const generation = this.refreshGeneration;
+      let refreshRequest$: Observable<LoginResponse>;
+      refreshRequest$ = this.http
         .post<ApiResponse<LoginResponse>>(
           REFRESH_TOKEN_PATH,
           null,
@@ -53,16 +87,19 @@ export class AuthService {
         )
         .pipe(
            map((response) => this.normalizeSession(response.data)),
-          tap((session) => this.setSession(session)),
-          catchError((error: unknown) => {
-            this.clearSession();
-            return throwError(() => error);
-          }),
-          finalize(() => {
-            this.refreshRequest$ = null;
-          }),
-          shareReplay({ bufferSize: 1, refCount: false }),
-        );
+           tap((session) => {
+             if (!this.logoutActive && generation === this.refreshGeneration) this.setSession(session);
+           }),
+           catchError((error: unknown) => {
+             if (!this.logoutActive && generation === this.refreshGeneration) this.clearSession();
+             return throwError(() => error);
+           }),
+           finalize(() => {
+             if (this.refreshRequest$ === refreshRequest$) this.refreshRequest$ = null;
+           }),
+           shareReplay({ bufferSize: 1, refCount: false }),
+         );
+      this.refreshRequest$ = refreshRequest$;
     }
 
     return this.refreshRequest$!;

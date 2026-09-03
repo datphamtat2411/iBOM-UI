@@ -6,10 +6,12 @@
     </a>
     <div class="login-copy">
       <p>Profile workspace · secure access</p>
-      <h1 id="login-heading" data-od-id="login-heading">One identity.<br>Several precise CVs.</h1>
+        <h1 id="login-heading" data-od-id="login-heading">
+          One identity.<br>
+          Several precise CVs.
+      </h1>
       <p>Maintain independent professional Profiles, verify each document, and prepare standardized exports for the work ahead.</p>
     </div>
-    <div class="login-foot">A calm transition from the iBOM Homepage into daily profile work. Product controls remain direct, familiar, and keyboard accessible.</div>
   </div>
   <div class="login-form-wrap">
     <div class="login-panel">
@@ -28,7 +30,7 @@
         </div>
         <div class="field">
           <label for="password">Password</label>
-          <input id="password" type="password" formControlName="password" autocomplete="current-password" [attr.aria-invalid]="loginForm.controls.password.invalid && loginForm.controls.password.touched" [attr.aria-describedby]="loginForm.controls.password.touched ? 'password-error' : null">
+          <input id="password" type="password" formControlName="password" autocomplete="current-password" [attr.aria-invalid]="loginForm.controls.password.invalid && loginForm.controls.password.touched" [attr.aria-describedby]="loginForm.controls.password.touched ? 'password-helper password-error' : 'password-helper'">
           @if (loginForm.controls.password.touched && loginForm.controls.password.errors) {
             <span class="field-error" id="password-error">{{ loginForm.controls.password.errors['backend'] || 'Password is required.' }}</span>
           }

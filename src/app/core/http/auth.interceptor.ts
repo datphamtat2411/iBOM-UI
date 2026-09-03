@@ -3,8 +3,8 @@ import { inject } from '@angular/core';
 import { catchError, switchMap, throwError } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
-import { isApiRequest, isPublicAuthRequest, REFRESH_TOKEN_PATH } from './api.config';
-import { HAS_RETRIED_REQUEST, IS_REFRESH_REQUEST } from './http-context.tokens';
+import { isApiRequest, isPublicAuthRequest, LOGOUT_PATH, REFRESH_TOKEN_PATH } from './api.config';
+import { HAS_RETRIED_REQUEST, IS_LOGOUT_REQUEST, IS_REFRESH_REQUEST } from './http-context.tokens';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   if (!isApiRequest(request.url)) {
@@ -13,7 +13,8 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
   const authService = inject(AuthService);
   const isRefreshRequest = request.context.get(IS_REFRESH_REQUEST) || request.url === REFRESH_TOKEN_PATH;
-  const eligible = !isRefreshRequest && !isPublicAuthRequest(request.url);
+  const isLogoutRequest = request.context.get(IS_LOGOUT_REQUEST) || request.url === LOGOUT_PATH;
+  const eligible = !isRefreshRequest && !isLogoutRequest && !isPublicAuthRequest(request.url);
   const token = authService.accessToken();
   const preparedRequest = request.clone({
     withCredentials: true,

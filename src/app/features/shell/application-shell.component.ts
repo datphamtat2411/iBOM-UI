@@ -16,6 +16,7 @@ export class ApplicationShellComponent {
   private readonly router = inject(Router);
 
   readonly user = this.authService.user;
+  readonly logoutError = this.authService.logoutError;
   readonly avatarInitials = computed(() => {
     const username = this.user()?.username?.trim() || this.user()?.email || 'User';
     const words = username.split(/[\s._-]+/).filter(Boolean);
@@ -24,6 +25,7 @@ export class ApplicationShellComponent {
 
   navigationOpen = false;
   accountMenuOpen = false;
+  logoutInProgress = false;
 
   constructor() {
     this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe(() => this.accountMenuOpen = false);
@@ -35,6 +37,15 @@ export class ApplicationShellComponent {
 
   toggleAccountMenu(): void { this.accountMenuOpen = !this.accountMenuOpen; }
   closeAccountMenu(): void { this.accountMenuOpen = false; }
+  signOut(): void {
+    if (this.logoutInProgress) return;
+    this.logoutInProgress = true;
+    this.closeAccountMenu();
+    this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/login'),
+      error: () => { this.logoutInProgress = false; },
+    });
+  }
   get contextTitle(): string { return this.router.url.includes('/account-settings') ? 'Account Settings' : 'Dashboard'; }
 
   @HostListener('document:click', ['$event'])

@@ -1,6 +1,7 @@
 export const API_BASE_URL = '/api';
 export const REFRESH_TOKEN_PATH = `${API_BASE_URL}/auth/refresh-token`;
 export const LOGIN_PATH = `${API_BASE_URL}/auth/login`;
+export const LOGOUT_PATH = `${API_BASE_URL}/auth/logout`;
 export const REGISTRATION_CODE_PATH = `${API_BASE_URL}/auth/registration-code`;
 export const REGISTRATION_PATH = `${API_BASE_URL}/auth/register`;
 export const FORGOT_PASSWORD_PATH = `${API_BASE_URL}/auth/forgot-password`;
@@ -9,6 +10,7 @@ export const RESET_PASSWORD_PATH = `${API_BASE_URL}/auth/reset-password`;
 
 const PUBLIC_AUTH_PATHS = new Set([
   LOGIN_PATH,
+  LOGOUT_PATH,
   REGISTRATION_CODE_PATH,
   REGISTRATION_PATH,
   FORGOT_PASSWORD_PATH,
