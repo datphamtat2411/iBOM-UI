@@ -18,7 +18,7 @@ describe('AccountSettingsService', () => {
 
   it('changes the username through the expected endpoint and maps the response data', () => {
     const payload = { username: 'updated-user' };
-    const user = { id: '1', email: 'user@example.com', username: 'updated-user', role: 'MEMBER' };
+    const user = { id: 1, email: 'user@example.com', username: 'updated-user', role: 'MEMBER' };
 
     service.changeUsername(payload).subscribe((result) => expect(result).toEqual(user));
 

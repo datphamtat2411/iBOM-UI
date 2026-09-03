@@ -33,6 +33,6 @@ describe('AuthService login', () => {
     });
 
     expect(service.accessToken()).toBe('access-token');
-    expect(service.user()?.id).toBe('1');
+    expect(service.user()?.id).toBe(1);
   });
 });

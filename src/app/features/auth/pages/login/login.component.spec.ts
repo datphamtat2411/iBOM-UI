@@ -12,7 +12,7 @@ describe('LoginComponent', () => {
 
   beforeEach(async () => {
     auth = jasmine.createSpyObj<AuthService>('AuthService', ['login']);
-    auth.login.and.returnValue(of({ accessToken: 'token', user: { id: '1', email: 'user@example.com', username: 'member', role: 'MEMBER' } }));
+    auth.login.and.returnValue(of({ accessToken: 'token', user: { id: 1, email: 'user@example.com', username: 'member', role: 'MEMBER' } }));
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
       providers: [provideRouter([]), { provide: AuthService, useValue: auth }],
@@ -81,7 +81,7 @@ describe('LoginComponent', () => {
     expect(fixture.nativeElement.querySelector('#login-submit').disabled).toBeTrue();
     expect(fixture.nativeElement.querySelector('#login-submit').textContent).toContain('Signing in');
 
-    request.next({ accessToken: 'token', user: { id: '1', email: 'user@example.com', username: 'member', role: 'MEMBER' } });
+    request.next({ accessToken: 'token', user: { id: 1, email: 'user@example.com', username: 'member', role: 'MEMBER' } });
     request.complete();
     await fixture.whenStable();
     expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);

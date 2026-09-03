@@ -28,12 +28,12 @@ export class AuthService {
   }
 
   updateUser(user: AuthenticatedUser): void {
-    this.user.set({ ...user, id: String(user.id) });
+    this.user.set(user);
   }
 
   login(request: LoginRequest): Observable<LoginResponse> {
     return this.http.post<ApiResponse<LoginResponse>>(LOGIN_PATH, request, { withCredentials: true }).pipe(
-      map((response) => this.normalizeSession(response.data)),
+      map((response) => response.data),
       tap((session) => this.setSession(session)),
     );
   }
@@ -86,7 +86,7 @@ export class AuthService {
           },
         )
         .pipe(
-           map((response) => this.normalizeSession(response.data)),
+           map((response) => response.data),
            tap((session) => {
              if (!this.logoutActive && generation === this.refreshGeneration) this.setSession(session);
            }),
@@ -124,13 +124,4 @@ export class AuthService {
     );
   }
 
-  private normalizeSession(session: LoginResponse): LoginResponse {
-    return {
-      ...session,
-      user: {
-        ...session.user,
-        id: String(session.user.id),
-      },
-    };
-  }
 }

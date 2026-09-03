@@ -12,7 +12,7 @@ describe('AccountSettingsComponent', () => {
   let service: jasmine.SpyObj<AccountSettingsService>;
   let auth: jasmine.SpyObj<AuthService>;
 
-  const user = { id: '1', email: 'user@example.com', username: 'member', role: 'MEMBER' };
+  const user = { id: 1, email: 'user@example.com', username: 'member', role: 'MEMBER' };
 
   beforeEach(async () => {
     service = jasmine.createSpyObj<AccountSettingsService>('AccountSettingsService', ['changeUsername', 'changePassword']);

@@ -9,7 +9,7 @@ describe('DashboardComponent', () => {
 
   beforeEach(async () => {
     const auth = {
-      user: signal({ id: '1', email: 'member@example.com', username: 'member', role: 'MEMBER' }),
+      user: signal({ id: 1, email: 'member@example.com', username: 'member', role: 'MEMBER' }),
     };
     await TestBed.configureTestingModule({
       imports: [DashboardComponent],

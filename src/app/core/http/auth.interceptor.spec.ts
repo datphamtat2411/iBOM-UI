@@ -20,7 +20,7 @@ describe('authInterceptor', () => {
     client = TestBed.inject(HttpClient);
     http = TestBed.inject(HttpTestingController);
     auth = TestBed.inject(AuthService);
-    auth.setSession({ accessToken: 'token', user: { id: '1', email: 'a@b.test', username: 'a', role: 'USER' } });
+    auth.setSession({ accessToken: 'token', user: { id: 1, email: 'a@b.test', username: 'a', role: 'USER' } });
   });
 
   afterEach(() => http.verify());
@@ -67,7 +67,7 @@ describe('authInterceptor', () => {
 
     const refresh = http.expectOne('/api/auth/refresh-token');
     expect(http.match('/api/auth/refresh-token').length).toBe(0);
-    refresh.flush({ data: { accessToken: 'new-token', user: { id: '1', email: 'a@b.test', username: 'a', role: 'USER' } }, code: 200, message: 'ok', timestamp: 'now' });
+    refresh.flush({ data: { accessToken: 'new-token', user: { id: 1, email: 'a@b.test', username: 'a', role: 'USER' } }, code: 200, message: 'ok', timestamp: 'now' });
 
     const retries = http.match((request) => request.url === '/api/one' || request.url === '/api/two');
     expect(retries.length).toBe(2);

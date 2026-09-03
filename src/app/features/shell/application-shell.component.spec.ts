@@ -12,7 +12,7 @@ describe('ApplicationShellComponent', () => {
 
   beforeEach(async () => {
     auth = {
-      user: signal({ id: '1', email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' }),
+      user: signal({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' }),
       logoutError: signal<string | null>(null),
       logout: jasmine.createSpy('logout').and.returnValue(of(undefined)),
     };

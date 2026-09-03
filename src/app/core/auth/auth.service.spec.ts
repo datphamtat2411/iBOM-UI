@@ -11,7 +11,7 @@ describe('AuthService', () => {
   let http: HttpTestingController;
   const session: LoginResponse = {
     accessToken: 'access-token',
-    user: { id: '1', email: 'user@example.com', username: 'user', role: 'USER' },
+    user: { id: 1, email: 'user@example.com', username: 'user', role: 'USER' },
   };
 
   beforeEach(() => {

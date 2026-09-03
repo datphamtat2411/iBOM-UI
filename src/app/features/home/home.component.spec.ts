@@ -59,7 +59,7 @@ describe('HomeComponent', () => {
   });
 
   it('replaces Login with the authenticated user menu', () => {
-    auth.user.set({ id: '1', email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' });
+    auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' });
     auth.isAuthenticated.set(true);
     fixture = TestBed.createComponent(HomeComponent);
     fixture.detectChanges();
@@ -75,7 +75,7 @@ describe('HomeComponent', () => {
   });
 
   it('logs out from the homepage and returns to the root route', () => {
-    auth.user.set({ id: '1', email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' });
+    auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' });
     auth.isAuthenticated.set(true);
     const pendingLogout = new Subject<void>();
     auth.logout.and.returnValue(pendingLogout);
