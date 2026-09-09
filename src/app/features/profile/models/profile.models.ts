@@ -5,6 +5,7 @@ export interface ProfileSummary {
   lastName: string;
   jobTitle: string;
   updatedAt: string;
+  completeness?: number;
 }
 
 export interface ProfileDetail extends ProfileSummary {

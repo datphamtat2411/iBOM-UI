@@ -46,10 +46,6 @@ export class ProfileWorkspaceComponent {
     void this.router.navigate(['/profiles', profileId]);
   }
 
-  createProfile(): void {
-    void this.router.navigate(['/profiles/new']);
-  }
-
   scrollToSection(sectionId: string): void {
     this.activeSection = sectionId;
     document.getElementById(`workspace-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

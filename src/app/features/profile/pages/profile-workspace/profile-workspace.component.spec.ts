@@ -41,14 +41,12 @@ describe('ProfileWorkspaceComponent', () => {
     expect(context.beginSelection).not.toHaveBeenCalledWith(null);
   });
 
-  it('navigates to Create Profile from the empty workspace state', () => {
+  it('directs empty workspace users to the Profile menu in the shared shell', () => {
     params.next(convertToParamMap({}));
-    const router = TestBed.inject(Router);
     context.summaries.set([]);
     fixture.detectChanges();
 
-    (fixture.nativeElement.querySelector('.create-profile') as HTMLButtonElement).click();
-
-    expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
+    expect(fixture.nativeElement.querySelector('.create-profile')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Use the Profile menu above to create one.');
   });
 });

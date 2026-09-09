@@ -100,25 +100,33 @@ describe('ApplicationShellComponent', () => {
     expect((fixture.nativeElement.querySelector('button.menu-item') as HTMLButtonElement).disabled).toBeFalse();
   });
 
-  it('renders no Profile selector when no Profiles exist', () => {
+  it('renders the Profile selector and Create Profile action when no Profiles exist', () => {
     const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
     spyOnProperty(router, 'url', 'get').and.returnValue('/profiles');
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.profile-switcher')).toBeNull();
+    const trigger = fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('Select a Profile');
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.profile-option').length).toBe(0);
+    (fixture.nativeElement.querySelector('.profile-menu-actions button') as HTMLButtonElement).click();
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
   });
 
-  it('renders a static current-Profile label when one Profile exists', () => {
+  it('renders an operable Profile selector when one Profile exists', () => {
     const router = TestBed.inject(Router);
     profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
     profileContext.selectedId.set('1');
     spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
     fixture.detectChanges();
 
-    const label = fixture.nativeElement.querySelector('.profile-trigger') as HTMLElement;
-    expect(label.tagName).toBe('DIV');
-    expect(label.textContent).toContain('Backend CV');
-    expect(fixture.nativeElement.querySelector('#profile-menu')).toBeNull();
+    const trigger = fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('Backend CV');
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.profile-option').length).toBe(1);
   });
 
   it('renders the Profile switcher for multiple Profiles and navigates on selection', () => {
