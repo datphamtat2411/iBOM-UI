@@ -4,7 +4,7 @@ import { map, Observable } from 'rxjs';
 
 import { ApiResponse } from '../../../core/http/api.models';
 import { API_BASE_URL } from '../../../core/http/api.config';
-import { ProfileDetail, ProfileSummary } from '../models/profile.models';
+import { CreateProfileRequest, ProfileDetail, ProfileSummary } from '../models/profile.models';
 
 @Injectable({ providedIn: 'root' })
 export class ProfileService {
@@ -18,6 +18,12 @@ export class ProfileService {
 
   get(profileId: string): Observable<ProfileDetail> {
     return this.http.get<ApiResponse<ProfileDetail>>(`${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}`).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  create(profile: CreateProfileRequest): Observable<ProfileDetail> {
+    return this.http.post<ApiResponse<ProfileDetail>>(`${API_BASE_URL}/profiles`, profile).pipe(
       map((response) => response.data),
     );
   }

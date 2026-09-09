@@ -9,6 +9,13 @@ export const profileRoutes: Routes = [
       ),
   },
   {
+    path: 'new',
+    loadComponent: () =>
+      import('./pages/profile-create/profile-create.component').then(
+        (component) => component.ProfileCreateComponent,
+      ),
+  },
+  {
     path: ':profileId',
     loadComponent: () =>
       import('./pages/profile-workspace/profile-workspace.component').then(

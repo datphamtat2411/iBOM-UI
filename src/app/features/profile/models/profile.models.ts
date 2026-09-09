@@ -15,3 +15,13 @@ export interface ProfileDetail extends ProfileSummary {
   version: number;
   createdAt: string;
 }
+
+export interface CreateProfileRequest {
+  profileName: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
+  yearsOfExperience: number;
+  personality: string;
+  technicalSummary: string;
+}

@@ -5,6 +5,7 @@
 .page-heading p, .workspace-state p, .content-section > p { margin: 0; color: var(--shell-muted, #6b675f); }
 .workspace-state { padding: 72px 24px; border-block: 1px solid var(--shell-border, #d8d2c4); }
 .workspace-state.error { border-color: #b33b2d; }
+.create-profile { min-height: 42px; margin-top: 20px; padding: 9px 14px; border: 2px solid var(--shell-ink, #17191d); background: var(--shell-accent, #d85a18); box-shadow: 3px 3px 0 var(--shell-ink, #17191d); color: #fff; font-weight: 700; cursor: pointer; }
 .workspace-grid { display: grid; grid-template-columns: minmax(160px, 210px) minmax(0, 1fr); gap: 28px; }
 .section-nav { position: sticky; top: 98px; align-self: start; border-top: 1px solid var(--shell-ink, #17191d); }
 .section-nav button { width: 100%; min-height: 43px; padding: 9px 4px; border: 0; border-bottom: 1px solid var(--shell-border, #d8d2c4); background: transparent; color: var(--shell-ink, #17191d); text-align: start; cursor: pointer; }

@@ -40,4 +40,15 @@ describe('ProfileWorkspaceComponent', () => {
     expect(context.loadDetail).toHaveBeenCalledWith('2');
     expect(context.beginSelection).not.toHaveBeenCalledWith(null);
   });
+
+  it('navigates to Create Profile from the empty workspace state', () => {
+    params.next(convertToParamMap({}));
+    const router = TestBed.inject(Router);
+    context.summaries.set([]);
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('.create-profile') as HTMLButtonElement).click();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
+  });
 });

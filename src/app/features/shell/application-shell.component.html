@@ -62,10 +62,11 @@
             @if (profileMenuOpen) {
               <div class="profile-menu" id="profile-menu" role="menu" aria-label="Select Profile">
                 <div class="profile-menu-head"><strong>My Profiles</strong><span>Switch between your Profiles.</span></div>
-                @for (profile of profileContext.summaries(); track profile.id) {
-                  <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small></span></button>
-                }
-              </div>
+                 @for (profile of profileContext.summaries(); track profile.id) {
+                   <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small></span></button>
+                 }
+                 <div class="profile-menu-actions"><button type="button" (click)="createProfile()">Create Profile</button></div>
+               </div>
             }
           </div>
           }

@@ -20,7 +20,8 @@ describe('application routes', () => {
     const profiles = routes.find((route) => route.path === 'profiles');
 
     expect(profiles?.canActivate).toBeTruthy();
-    expect(profiles?.children?.map((route) => route.path)).toEqual(['', ':profileId']);
+    expect(profiles?.children?.map((route) => route.path)).toEqual(['', 'new', ':profileId']);
+    expect(profiles?.children?.[1].path).toBe('new');
     expect(profiles?.children?.every((route) => route.loadComponent)).toBeTrue();
   });
 });

@@ -9,13 +9,13 @@ import { ProfileContextService } from './profile-context.service';
 describe('ProfileContextService', () => {
   let service: ProfileContextService;
   let sessionEnded: Subject<void>;
-  let profiles: { list: jasmine.Spy; get: jasmine.Spy };
+  let profiles: { list: jasmine.Spy; get: jasmine.Spy; create: jasmine.Spy };
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: null, technicalSummary: null, hasPreviewed: false, version: 1, createdAt: '2026-01-01' };
 
   beforeEach(() => {
     sessionEnded = new Subject<void>();
-    profiles = { list: jasmine.createSpy('list'), get: jasmine.createSpy('get') };
+    profiles = { list: jasmine.createSpy('list'), get: jasmine.createSpy('get'), create: jasmine.createSpy('create') };
     TestBed.configureTestingModule({
       providers: [
         ProfileContextService,
@@ -87,5 +87,15 @@ describe('ProfileContextService', () => {
     expect(service.selectedId()).toBe('2');
     expect(service.detail()?.profileName).toBe('Frontend CV');
     expect(service.detailError()).toBeNull();
+  });
+
+  it('refreshes summaries and selects the newly created Profile', () => {
+    const refreshed = new Subject<ProfileSummary[]>();
+    profiles.list.and.returnValue(refreshed);
+    service.refreshSummariesAndSelect(2).subscribe();
+    refreshed.next([summary, { ...summary, id: 2, profileName: 'Frontend CV' }]);
+
+    expect(service.summaries().map((item) => item.id)).toEqual([1, 2]);
+    expect(service.selectedId()).toBe('2');
   });
 });

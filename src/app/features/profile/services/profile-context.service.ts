@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, shareReplay, Subject, takeUntil } from 'rxjs';
+import { filter, map, Observable, shareReplay, Subject, takeUntil, tap } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { ProfileDetail, ProfileSummary } from '../models/profile.models';
@@ -80,6 +80,33 @@ export class ProfileContextService {
         if (this.detailGeneration === generation && this.selectedId() === profileId) { this.detailError.set(error); this.detailLoading.set(false); }
       },
     });
+  }
+
+  refreshSummariesAndSelect(profileId: number | string): Observable<void> {
+    this.summariesGeneration++;
+    const generation = this.summariesGeneration;
+    this.summariesRequest = undefined;
+    this.summariesLoading.set(true);
+    this.summariesError.set(null);
+    return this.profileService.list().pipe(
+      tap({
+        next: (summaries) => {
+          if (generation === this.summariesGeneration) {
+            this.summaries.set(summaries);
+            this.summariesLoading.set(false);
+            this.beginSelection(String(profileId));
+          }
+        },
+        error: (error) => {
+          if (generation === this.summariesGeneration) {
+            this.summariesError.set(error);
+            this.summariesLoading.set(false);
+          }
+        },
+      }),
+      filter(() => generation === this.summariesGeneration),
+      map(() => undefined),
+    );
   }
 
   private reset(): void {

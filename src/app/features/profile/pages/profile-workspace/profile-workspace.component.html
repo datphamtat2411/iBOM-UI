@@ -4,7 +4,7 @@
   } @else if (context.summariesError()) {
     <div class="workspace-state error" role="alert"><h1>Unable to load Profiles</h1><p>We could not load your Profile list. Please try again later.</p></div>
   } @else if (!context.summaries().length) {
-    <div class="workspace-state"><h1 id="workspace-title">Profile Workspace</h1><p>You do not have any active Profiles yet.</p></div>
+    <div class="workspace-state"><h1 id="workspace-title">Profile Workspace</h1><p>You do not have any active Profiles yet.</p><button class="create-profile" type="button" (click)="createProfile()">Create Profile</button></div>
   } @else if (context.detailError()) {
     <div class="workspace-state error" role="alert">
       @if (context.isNotFound(context.detailError())) { <h1>Profile not found</h1><p>This Profile is not available to your account.</p> }

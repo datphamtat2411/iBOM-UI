@@ -28,4 +28,13 @@ describe('ProfileService', () => {
     expect(request.request.method).toBe('GET');
     request.flush({ data: { id: 'profile-1', profileName: 'Backend CV' } });
   });
+
+  it('creates a Profile with the backend field names and unwraps the response', () => {
+    const profile = { profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java' };
+    service.create(profile).subscribe((created) => expect(created.id).toBe(2));
+    const request = http.expectOne('/api/profiles');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(profile);
+    request.flush({ data: { id: 2, ...profile } });
+  });
 });

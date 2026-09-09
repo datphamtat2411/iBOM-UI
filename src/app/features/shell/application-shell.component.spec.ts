@@ -138,4 +138,24 @@ describe('ApplicationShellComponent', () => {
 
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
   });
+
+  it('opens Create Profile from the Profile menu without changing the selected Profile', () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
+    profileContext.summaries.set([
+      { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+      { id: 2, profileName: 'Frontend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+    ]);
+    profileContext.selectedId.set('1');
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const action = fixture.nativeElement.querySelector('.profile-menu-actions button') as HTMLButtonElement;
+    action.click();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
+    expect(profileContext.selectedId()).toBe('1');
+  });
 });

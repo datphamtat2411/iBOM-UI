@@ -33,7 +33,7 @@ export class ApplicationShellComponent {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart && event.url.startsWith('/profiles')) {
         const profileId = event.url.split('/')[2]?.split('?')[0] || null;
-        this.profileContext.beginSelection(profileId);
+        if (profileId !== 'new') this.profileContext.beginSelection(profileId);
       }
       if (event instanceof NavigationEnd) this.accountMenuOpen = false;
     });
@@ -72,6 +72,10 @@ export class ApplicationShellComponent {
   selectProfile(id: number | string): void {
     this.closeProfileMenu();
     void this.router.navigate(['/profiles', id]);
+  }
+  createProfile(): void {
+    this.closeProfileMenu();
+    void this.router.navigate(['/profiles/new']);
   }
   isSelectedProfile(id: number | string): boolean { return String(id) === this.profileContext.selectedId(); }
 
