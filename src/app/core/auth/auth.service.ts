@@ -1,6 +1,6 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { computed, Injectable, signal } from '@angular/core';
-import { BehaviorSubject, catchError, concatMap, defer, filter, finalize, firstValueFrom, map, Observable, of, shareReplay, take, tap, throwError } from 'rxjs';
+import { BehaviorSubject, catchError, concatMap, defer, filter, finalize, firstValueFrom, map, Observable, of, shareReplay, Subject, take, tap, throwError } from 'rxjs';
 
 import { LOGIN_PATH, LOGOUT_PATH, REFRESH_TOKEN_PATH } from '../http/api.config';
 import { ApiErrorResponse, ApiResponse } from '../http/api.models';
@@ -19,6 +19,7 @@ export class AuthService {
   private refreshGeneration = 0;
   private logoutActive = false;
   private readonly restorationState$ = new BehaviorSubject(false);
+  private readonly sessionEndState$ = new Subject<void>();
 
   constructor(private readonly http: HttpClient) {}
 
@@ -66,6 +67,7 @@ export class AuthService {
   clearSession(): void {
     this.accessToken.set(null);
     this.user.set(null);
+    this.sessionEndState$.next();
   }
 
   refreshAccessToken(): Observable<LoginResponse> {
@@ -122,6 +124,10 @@ export class AuthService {
       filter(Boolean),
       take(1),
     );
+  }
+
+  sessionEnded$(): Observable<void> {
+    return this.sessionEndState$.asObservable();
   }
 
 }

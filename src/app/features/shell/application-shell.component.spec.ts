@@ -99,4 +99,43 @@ describe('ApplicationShellComponent', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement.querySelector('button.menu-item') as HTMLButtonElement).disabled).toBeFalse();
   });
+
+  it('renders no Profile selector when no Profiles exist', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.profile-switcher')).toBeNull();
+  });
+
+  it('renders a static current-Profile label when one Profile exists', () => {
+    const router = TestBed.inject(Router);
+    profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.selectedId.set('1');
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    fixture.detectChanges();
+
+    const label = fixture.nativeElement.querySelector('.profile-trigger') as HTMLElement;
+    expect(label.tagName).toBe('DIV');
+    expect(label.textContent).toContain('Backend CV');
+    expect(fixture.nativeElement.querySelector('#profile-menu')).toBeNull();
+  });
+
+  it('renders the Profile switcher for multiple Profiles and navigates on selection', () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
+    profileContext.summaries.set([
+      { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+      { id: 2, profileName: 'Frontend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+    ]);
+    profileContext.selectedId.set('1');
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+  });
 });

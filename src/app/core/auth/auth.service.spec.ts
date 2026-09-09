@@ -42,6 +42,8 @@ describe('AuthService', () => {
   });
 
   it('sends one credentialed logout and clears the session only after success', () => {
+    const sessionEnded = jasmine.createSpy('sessionEnded');
+    service.sessionEnded$().subscribe(sessionEnded);
     service.setSession(session);
     service.logout().subscribe();
 
@@ -54,6 +56,7 @@ describe('AuthService', () => {
 
     expect(service.accessToken()).toBeNull();
     expect(service.user()).toBeNull();
+    expect(sessionEnded).toHaveBeenCalledTimes(1);
   });
 
   it('waits for refresh and ignores its result once logout starts', () => {
@@ -83,6 +86,8 @@ describe('AuthService', () => {
   });
 
   it('preserves the session and exposes retryable logout failure', () => {
+    const sessionEnded = jasmine.createSpy('sessionEnded');
+    service.sessionEnded$().subscribe(sessionEnded);
     service.setSession(session);
     service.logout().subscribe({ error: () => undefined });
     http.expectOne('/api/auth/logout').flush({ message: 'Logout service unavailable' }, { status: 503, statusText: 'Unavailable' });
@@ -90,19 +95,24 @@ describe('AuthService', () => {
     expect(service.accessToken()).toBe(session.accessToken);
     expect(service.user()).toEqual(session.user);
     expect(service.logoutError()).toBe('Logout service unavailable');
+    expect(sessionEnded).not.toHaveBeenCalled();
 
     service.logout().subscribe();
     http.expectOne('/api/auth/logout').flush({ code: 200, data: null, message: 'ok', timestamp: 'now' });
     expect(service.logoutError()).toBeNull();
+    expect(sessionEnded).toHaveBeenCalledTimes(1);
   });
 
   it('clears the session when refresh fails', () => {
+    const sessionEnded = jasmine.createSpy('sessionEnded');
+    service.sessionEnded$().subscribe(sessionEnded);
     service.setSession(session);
     service.refreshAccessToken().subscribe({ error: () => undefined });
     http.expectOne('/api/auth/refresh-token').flush({ errorCode: 'AUTH_INVALID_REFRESH_TOKEN' }, { status: 401, statusText: 'Unauthorized' });
 
     expect(service.accessToken()).toBeNull();
     expect(service.user()).toBeNull();
+    expect(sessionEnded).toHaveBeenCalledTimes(1);
   });
 
   it('resolves restoration after a failed refresh', async () => {
