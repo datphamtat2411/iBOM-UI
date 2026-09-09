@@ -4,11 +4,13 @@ import { signal } from '@angular/core';
 import { of, Subject } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
+import { ProfileContextService } from '../profile/services/profile-context.service';
 import { ApplicationShellComponent } from './application-shell.component';
 
 describe('ApplicationShellComponent', () => {
   let fixture: ComponentFixture<ApplicationShellComponent>;
   let auth: { user: ReturnType<typeof signal>; logoutError: ReturnType<typeof signal>; logout: jasmine.Spy };
+  let profileContext: { summaries: ReturnType<typeof signal>; summariesLoading: ReturnType<typeof signal>; summariesError: ReturnType<typeof signal>; selectedId: ReturnType<typeof signal>; detail: ReturnType<typeof signal>; detailLoading: ReturnType<typeof signal>; loadSummaries: jasmine.Spy };
 
   beforeEach(async () => {
     auth = {
@@ -16,9 +18,12 @@ describe('ApplicationShellComponent', () => {
       logoutError: signal<string | null>(null),
       logout: jasmine.createSpy('logout').and.returnValue(of(undefined)),
     };
+    profileContext = {
+      summaries: signal([]), summariesLoading: signal(false), summariesError: signal(null), selectedId: signal(null), detail: signal(null), detailLoading: signal(false), loadSummaries: jasmine.createSpy('loadSummaries'),
+    };
     await TestBed.configureTestingModule({
       imports: [ApplicationShellComponent],
-      providers: [provideRouter([]), { provide: AuthService, useValue: auth }],
+      providers: [provideRouter([]), { provide: AuthService, useValue: auth }, { provide: ProfileContextService, useValue: profileContext }],
     }).compileComponents();
     fixture = TestBed.createComponent(ApplicationShellComponent);
     fixture.detectChanges();

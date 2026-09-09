@@ -1,0 +1,23 @@
+:host { display: block; }
+.profile-page { padding: 26px 28px 64px; }
+.page-heading { display: flex; min-height: 56px; margin-bottom: 24px; align-items: flex-start; }
+.page-heading h1, .workspace-state h1 { margin: 0 0 4px; font-size: 32px; line-height: 1.2; }
+.page-heading p, .workspace-state p, .content-section > p { margin: 0; color: var(--shell-muted, #6b675f); }
+.workspace-state { padding: 72px 24px; border-block: 1px solid var(--shell-border, #d8d2c4); }
+.workspace-state.error { border-color: #b33b2d; }
+.workspace-grid { display: grid; grid-template-columns: minmax(160px, 210px) minmax(0, 1fr); gap: 28px; }
+.section-nav { position: sticky; top: 98px; align-self: start; border-top: 1px solid var(--shell-ink, #17191d); }
+.section-nav button { width: 100%; min-height: 43px; padding: 9px 4px; border: 0; border-bottom: 1px solid var(--shell-border, #d8d2c4); background: transparent; color: var(--shell-ink, #17191d); text-align: start; cursor: pointer; }
+.section-nav button.active { color: var(--shell-accent, #d85a18); font-weight: 700; }
+.content-section { padding-bottom: 28px; border-bottom: 1px solid var(--shell-border, #d8d2c4); scroll-margin-top: 98px; }
+.content-section + .content-section { padding-top: 26px; }
+.content-section h2 { margin: 0 0 5px; font-size: 21px; }
+.fact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 22px; margin-top: 22px; }
+.fact-grid label, .fact-grid + label, .fact-grid div > label { display: block; margin-bottom: 4px; color: var(--shell-muted, #6b675f); font-size: 12px; font-weight: 600; }
+.fact-grid p { margin: 0; }
+.long-copy { max-width: 82ch; margin-top: 22px; }
+.long-copy h3 { margin: 18px 0 5px; font-size: 14px; }
+.long-copy p { margin: 0; line-height: 1.65; }
+.structural-placeholder { margin-top: 18px; padding: 18px; border: 1px dashed var(--shell-border, #d8d2c4); color: var(--shell-muted, #6b675f); }
+@media (max-width: 1050px) { .workspace-grid { grid-template-columns: minmax(145px, 170px) minmax(0, 1fr); } .fact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 800px) { .profile-page { padding: 22px 16px 72px; } .workspace-grid { display: block; } .section-nav { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 28px; } .section-nav button { padding-inline: 8px; } }

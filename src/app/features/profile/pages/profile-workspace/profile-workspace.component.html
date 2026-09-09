@@ -1,0 +1,31 @@
+<section class="profile-page" aria-labelledby="workspace-title">
+  @if (context.summariesLoading() && !context.summaries().length) {
+    <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profiles</h1><p>Loading your Profile workspace.</p></div>
+  } @else if (context.summariesError()) {
+    <div class="workspace-state error" role="alert"><h1>Unable to load Profiles</h1><p>We could not load your Profile list. Please try again later.</p></div>
+  } @else if (!context.summaries().length) {
+    <div class="workspace-state"><h1 id="workspace-title">Profile Workspace</h1><p>You do not have any active Profiles yet.</p></div>
+  } @else if (context.detailError()) {
+    <div class="workspace-state error" role="alert">
+      @if (context.isNotFound(context.detailError())) { <h1>Profile not found</h1><p>This Profile is not available to your account.</p> }
+      @else { <h1>Unable to load Profile</h1><p>We could not load this Profile. Please try again later.</p> }
+    </div>
+  } @else if (context.detailLoading() || !context.detail()) {
+    <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading {{ profileName() }}.</p></div>
+  } @else {
+    @if (context.detail(); as profile) {
+      <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · read-only Profile details</p></div></div>
+      <div class="workspace-grid">
+        <nav class="section-nav" aria-label="Profile sections">
+          @for (section of sections; track section[0]) {
+            <button type="button" [class.active]="activeSection === section[0]" [attr.aria-current]="activeSection === section[0] ? 'true' : null" (click)="scrollToSection(section[0])">{{ section[1] }}</button>
+          }
+        </nav>
+        <div class="workspace-sections">
+          <section class="content-section" id="workspace-section-about" aria-labelledby="about-title"><h2 id="about-title">About Me</h2><p>Identity and narrative details for this Profile.</p><div class="fact-grid"><div><label>Profile Name</label><p>{{ profile.profileName }}</p></div><div><label>First Name</label><p>{{ profile.firstName }}</p></div><div><label>Last Name</label><p>{{ profile.lastName }}</p></div><div><label>Job Title</label><p>{{ profile.jobTitle }}</p></div><div><label>Years of Experience</label><p>{{ profile.yearsOfExperience }}</p></div></div><div class="long-copy"><h3>Personality / Characteristic Description</h3><p>{{ profile.personality || 'Not provided.' }}</p><h3>Technical Summary</h3><p>{{ profile.technicalSummary || 'Not provided.' }}</p></div></section>
+          @for (section of sections.slice(1); track section[0]) { <section class="content-section" [id]="'workspace-section-' + section[0]" [attr.aria-labelledby]="section[0] + '-title'"><h2 [id]="section[0] + '-title'">{{ section[1] }}</h2><p>No {{ section[1] }} data is available in this read-only workspace.</p><div class="structural-placeholder">Section structure reserved for Profile data.</div></section> }
+        </div>
+      </div>
+    }
+  }
+</section>

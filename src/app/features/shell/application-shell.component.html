@@ -18,8 +18,11 @@
     <nav id="sidebar-nav" class="sidebar-nav" [class.open]="navigationOpen" aria-label="Application navigation">
       <div class="nav-group">
         <p class="nav-label">Workspace</p>
-        <a class="nav-btn active" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="navigationOpen = false">
+        <a class="nav-btn" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="navigationOpen = false">
           <span class="nav-glyph">01</span><span>Dashboard</span>
+        </a>
+        <a class="nav-btn" routerLink="/profiles" routerLinkActive="active" (click)="navigationOpen = false">
+          <span class="nav-glyph">02</span><span>Profile Workspace</span>
         </a>
       </div>
     </nav>
@@ -46,8 +49,21 @@
   <main class="main">
     <header class="topbar">
       <div class="context-line">
-        <span class="context-kicker">Authenticated workspace</span>
-         <span class="context-title">{{ contextTitle }}</span>
+        @if (contextTitle === 'Profile Workspace') {
+          <div class="profile-switcher">
+            <button class="profile-trigger" type="button" aria-haspopup="menu" [attr.aria-expanded]="profileMenuOpen" aria-controls="profile-menu" (click)="toggleProfileMenu()">
+              <span><small>My Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span><span aria-hidden="true">⌄</span>
+            </button>
+            @if (profileMenuOpen) {
+              <div class="profile-menu" id="profile-menu" role="menu" aria-label="Select Profile">
+                <div class="profile-menu-head"><strong>My Profiles</strong><span>Switch between your Profiles.</span></div>
+                @for (profile of profileContext.summaries(); track profile.id) {
+                  <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small></span></button>
+                }
+              </div>
+            }
+          </div>
+        } @else { <span class="context-title">{{ contextTitle }}</span> }
       </div>
     </header>
     <div class="page-content"><router-outlet /></div>

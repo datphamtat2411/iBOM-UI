@@ -15,4 +15,12 @@ describe('application routes', () => {
       expect(routes.find((route) => route.path === path)?.canActivate).toEqual(jasmine.any(Array));
     }
   });
+
+  it('protects Profile routes and keeps the canonical workspace children', () => {
+    const profiles = routes.find((route) => route.path === 'profiles');
+
+    expect(profiles?.canActivate).toBeTruthy();
+    expect(profiles?.children?.map((route) => route.path)).toEqual(['', ':profileId']);
+    expect(profiles?.children?.every((route) => route.loadComponent)).toBeTrue();
+  });
 });

@@ -1,8 +1,8 @@
 import { Component, computed, HostListener, inject } from '@angular/core';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter } from 'rxjs';
+import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
+import { ProfileContextService } from '../profile/services/profile-context.service';
 
 @Component({
   selector: 'app-application-shell',
@@ -14,6 +14,7 @@ import { AuthService } from '../../core/auth/auth.service';
 export class ApplicationShellComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  readonly profileContext = inject(ProfileContextService);
 
   readonly user = this.authService.user;
   readonly logoutError = this.authService.logoutError;
@@ -28,7 +29,14 @@ export class ApplicationShellComponent {
   logoutInProgress = false;
 
   constructor() {
-    this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe(() => this.accountMenuOpen = false);
+    this.profileContext.loadSummaries();
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationStart && event.url.startsWith('/profiles')) {
+        const profileId = event.url.split('/')[2]?.split('?')[0] || null;
+        this.profileContext.beginSelection(profileId);
+      }
+      if (event instanceof NavigationEnd) this.accountMenuOpen = false;
+    });
   }
 
   toggleNavigation(): void {
@@ -46,14 +54,34 @@ export class ApplicationShellComponent {
       error: () => { this.logoutInProgress = false; },
     });
   }
-  get contextTitle(): string { return this.router.url.includes('/account-settings') ? 'Account Settings' : 'Dashboard'; }
+  get contextTitle(): string {
+    if (this.router.url.startsWith('/profiles')) return 'Profile Workspace';
+    return this.router.url.includes('/account-settings') ? 'Account Settings' : 'Dashboard';
+  }
+
+  get selectedProfileName(): string {
+    const detail = this.profileContext.detail();
+    if (detail) return detail.profileName;
+    const selected = this.profileContext.summaries().find((summary) => String(summary.id) === this.profileContext.selectedId());
+    return selected?.profileName ?? 'Select a Profile';
+  }
+
+  toggleProfileMenu(): void { this.profileMenuOpen = !this.profileMenuOpen; }
+  closeProfileMenu(): void { this.profileMenuOpen = false; }
+  profileMenuOpen = false;
+  selectProfile(id: number | string): void {
+    this.closeProfileMenu();
+    void this.router.navigate(['/profiles', id]);
+  }
+  isSelectedProfile(id: number | string): boolean { return String(id) === this.profileContext.selectedId(); }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
-    if (this.accountMenuOpen && !target.closest('.account-menu') && !target.closest('.account-btn')) this.closeAccountMenu();
+     if (this.accountMenuOpen && !target.closest('.account-menu') && !target.closest('.account-btn')) this.closeAccountMenu();
+     if (this.profileMenuOpen && !target.closest('.profile-menu') && !target.closest('.profile-trigger')) this.closeProfileMenu();
   }
 
   @HostListener('document:keydown.escape')
-  onEscape(): void { if (this.accountMenuOpen) this.closeAccountMenu(); }
+  onEscape(): void { if (this.accountMenuOpen) this.closeAccountMenu(); if (this.profileMenuOpen) this.closeProfileMenu(); }
 }

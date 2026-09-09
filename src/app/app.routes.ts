@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard, guestGuard } from './core/auth/auth.guard';
+import { profileRoutes } from './features/profile/profile.routes';
 
 export const routes: Routes = [
   {
@@ -41,6 +42,15 @@ export const routes: Routes = [
           ),
       },
     ],
+  },
+  {
+    path: 'profiles',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/shell/application-shell.component').then(
+        (component) => component.ApplicationShellComponent,
+      ),
+    children: profileRoutes,
   },
   {
     path: 'registration',

@@ -58,6 +58,13 @@ describe('HomeComponent', () => {
     expect(fixture.nativeElement.querySelector('.login-control').getAttribute('href')).toBe('/login');
   });
 
+  it('keeps the homepage logo as an Angular route link', () => {
+    fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.brand').getAttribute('href')).toBe('/');
+  });
+
   it('replaces Login with the authenticated user menu', () => {
     auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' });
     auth.isAuthenticated.set(true);
