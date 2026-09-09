@@ -132,6 +132,33 @@ export class ProfileContextService {
     );
   }
 
+  refreshSummariesAndSelectFirst(): Observable<ProfileSummary | null> {
+    this.beginSelection(null);
+    this.invalidateSummaries();
+    const generation = this.summariesGeneration;
+    this.summariesLoading.set(true);
+    const request = this.profileService.list().pipe(shareReplay(1));
+    this.summariesRequest = request;
+    return request.pipe(
+      tap({
+        next: (summaries) => {
+          if (generation !== this.summariesGeneration || this.summariesRequest !== request) return;
+          this.summaries.set(summaries);
+          this.summariesLoading.set(false);
+          this.beginSelection(summaries.length ? String(summaries[0].id) : null);
+        },
+        error: (error) => {
+          if (generation !== this.summariesGeneration || this.summariesRequest !== request) return;
+          this.summariesError.set(error);
+          this.summariesLoading.set(false);
+          this.summariesRequest = undefined;
+        },
+      }),
+      filter(() => generation === this.summariesGeneration && this.summariesRequest === request),
+      map((summaries) => summaries[0] ?? null),
+    );
+  }
+
   private reset(): void {
     this.invalidateSummaries();
     this.beginSelection(null);

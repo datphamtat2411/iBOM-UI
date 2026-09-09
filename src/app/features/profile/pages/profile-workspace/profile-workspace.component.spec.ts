@@ -12,6 +12,7 @@ import { ProfileWorkspaceComponent } from './profile-workspace.component';
 describe('ProfileWorkspaceComponent', () => {
   let fixture: ComponentFixture<ProfileWorkspaceComponent>;
   let params: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+  let router: { navigate: jasmine.Spy };
   let context: {
     summaries: ReturnType<typeof signal>;
     summariesLoading: ReturnType<typeof signal>;
@@ -25,16 +26,18 @@ describe('ProfileWorkspaceComponent', () => {
     reloadDetail: jasmine.Spy;
     beginSelection: jasmine.Spy;
     replaceDetail: jasmine.Spy;
+    refreshSummariesAndSelectFirst: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
-  let profiles: { update: jasmine.Spy };
+  let profiles: { update: jasmine.Spy; delete: jasmine.Spy };
 
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01' };
 
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
-    profiles = { update: jasmine.createSpy('update') };
+    profiles = { update: jasmine.createSpy('update'), delete: jasmine.createSpy('delete') };
+    router = { navigate: jasmine.createSpy('navigate') };
     context = {
       summaries: signal([summary]),
       summariesLoading: signal(false),
@@ -48,6 +51,7 @@ describe('ProfileWorkspaceComponent', () => {
       reloadDetail: jasmine.createSpy('reloadDetail'),
       beginSelection: jasmine.createSpy('beginSelection'),
       replaceDetail: jasmine.createSpy('replaceDetail'),
+      refreshSummariesAndSelectFirst: jasmine.createSpy('refreshSummariesAndSelectFirst'),
       isNotFound: jasmine.createSpy('isNotFound').and.returnValue(false),
     };
     await TestBed.configureTestingModule({
@@ -56,7 +60,7 @@ describe('ProfileWorkspaceComponent', () => {
         { provide: ProfileService, useValue: profiles },
         { provide: ProfileContextService, useValue: context },
         { provide: ActivatedRoute, useValue: { paramMap: params } },
-        { provide: Router, useValue: { navigate: jasmine.createSpy('navigate') } },
+        { provide: Router, useValue: router },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(ProfileWorkspaceComponent);
@@ -89,7 +93,7 @@ describe('ProfileWorkspaceComponent', () => {
   it('renders About Me with Profile Name read-only and prefills six editable fields', () => {
     openEditor();
 
-    expect(fixture.nativeElement.querySelector('.edit-about-button')?.textContent.trim()).toBe('Edit');
+    expect(fixture.nativeElement.querySelector('.edit-about-button')).toBeNull();
     expect(fixture.nativeElement.querySelector('.readonly-value')?.textContent).toContain('Backend CV');
     expect(fixture.nativeElement.querySelectorAll('.about-editor input, .about-editor textarea').length).toBe(6);
     expect(fixture.componentInstance.editForm.getRawValue()).toEqual({ firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java' });
@@ -204,6 +208,140 @@ describe('ProfileWorkspaceComponent', () => {
     fixture.componentInstance.cancelEditing();
     fixture.componentInstance.discardEditing();
     expect(fixture.componentInstance.isEditing).toBeFalse();
+  });
+
+  it('disables Delete Profile when it is the only active Profile', () => {
+    const button = fixture.nativeElement.querySelector('.delete-profile-button') as HTMLButtonElement;
+
+    expect(button.disabled).toBeTrue();
+    context.summaries.set([summary, { ...summary, id: 2, profileName: 'Frontend CV' }]);
+    fixture.detectChanges();
+
+    expect(button.disabled).toBeFalse();
+  });
+
+  it('identifies the selected Profile in the destructive confirmation', () => {
+    context.summaries.set([summary, { ...summary, id: 2, profileName: 'Frontend CV' }]);
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('.delete-profile-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#delete-profile-title')?.textContent).toContain('Delete Backend CV?');
+    expect(fixture.nativeElement.querySelector('#delete-profile-copy')?.textContent).toContain('selected Profile only');
+  });
+
+  it('cancels deletion without discarding a dirty About Me draft', () => {
+    context.summaries.set([summary, { ...summary, id: 2, profileName: 'Frontend CV' }]);
+    fixture.detectChanges();
+    openEditor();
+    markDraft();
+
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.detectChanges();
+    fixture.componentInstance.cancelDelete();
+
+    expect(fixture.componentInstance.deleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.isEditing).toBeTrue();
+    expect(fixture.componentInstance.editForm.controls.firstName.value).toBe('Changed');
+    expect(fixture.componentInstance.editForm.dirty).toBeTrue();
+    expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
+  });
+
+  it('waits for confirmation and backend success before refreshing or navigating', () => {
+    const pendingDelete = new Subject<void>();
+    const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
+    profiles.delete.and.returnValue(pendingDelete);
+    context.refreshSummariesAndSelectFirst.and.returnValue(of(remaining));
+    context.summaries.set([summary, remaining]);
+    fixture.detectChanges();
+
+    expect(profiles.delete).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+    fixture.componentInstance.openDeleteConfirmation();
+    expect(profiles.delete).not.toHaveBeenCalled();
+
+    fixture.componentInstance.confirmDelete();
+    expect(profiles.delete).toHaveBeenCalledWith('1');
+    expect(context.refreshSummariesAndSelectFirst).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+
+    pendingDelete.next();
+    pendingDelete.complete();
+
+    expect(context.refreshSummariesAndSelectFirst).toHaveBeenCalledTimes(1);
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+  });
+
+  it('refreshes and navigates to the first remaining Profile after deletion', () => {
+    const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
+    profiles.delete.and.returnValue(of(undefined));
+    context.refreshSummariesAndSelectFirst.and.callFake(() => {
+      context.summaries.set([remaining]);
+      context.selectedId.set('2');
+      context.detail.set(null);
+      return of(remaining);
+    });
+    context.summaries.set([summary, remaining]);
+    fixture.detectChanges();
+
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.componentInstance.confirmDelete();
+
+    expect(fixture.componentInstance.isEditing).toBeFalse();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(context.summaries()).toEqual([remaining]);
+    expect(context.detail()).toBeNull();
+    expect(context.selectedId()).toBe('2');
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+  });
+
+  it('preserves the current Profile and draft after an ordinary delete failure and allows retry', () => {
+    const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
+    profiles.delete.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_LAST_ACTIVE_CANNOT_DELETE', message: 'At least one active Profile is required.' } })));
+    context.summaries.set([summary, remaining]);
+    fixture.detectChanges();
+    openEditor();
+    markDraft();
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.componentInstance.confirmDelete();
+
+    expect(fixture.componentInstance.deleteConfirmation).toBeTrue();
+    expect(fixture.componentInstance.isEditing).toBeTrue();
+    expect(fixture.componentInstance.editForm.controls.firstName.value).toBe('Changed');
+    expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
+    expect(context.detail()).toEqual(detail);
+    expect(fixture.componentInstance.deleteErrorMessage).toBe('At least one active Profile is required.');
+    expect(context.refreshSummariesAndSelectFirst).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+
+    profiles.delete.and.returnValue(of(undefined));
+    context.refreshSummariesAndSelectFirst.and.returnValue(of(remaining));
+    fixture.componentInstance.confirmDelete();
+    expect(profiles.delete).toHaveBeenCalledTimes(2);
+  });
+
+  it('recovers from PROFILE_NOT_FOUND by refreshing and navigating to a valid Profile', () => {
+    const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
+    const notFound = new HttpErrorResponse({ status: 404, error: { errorCode: 'PROFILE_NOT_FOUND', message: 'Profile not found.' } });
+    profiles.delete.and.returnValue(throwError(() => notFound));
+    context.isNotFound.and.returnValue(true);
+    context.refreshSummariesAndSelectFirst.and.callFake(() => {
+      context.summaries.set([remaining]);
+      context.selectedId.set('2');
+      context.detail.set(null);
+      return of(remaining);
+    });
+    context.summaries.set([summary, remaining]);
+    fixture.detectChanges();
+
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.componentInstance.confirmDelete();
+
+    expect(context.refreshSummariesAndSelectFirst).toHaveBeenCalledTimes(1);
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+    expect(fixture.componentInstance.deleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
   });
 
   it('directs empty workspace users to the Profile menu in the shared shell', () => {

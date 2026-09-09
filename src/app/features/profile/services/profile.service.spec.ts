@@ -46,4 +46,12 @@ describe('ProfileService', () => {
     expect(request.request.body).toEqual(profile);
     request.flush({ data: { id: 1, ...profile, version: 5 } });
   });
+
+  it('deletes a Profile with an encoded URL and no request body', () => {
+    service.delete('profile/1').subscribe((result) => expect(result).toBeUndefined());
+    const request = http.expectOne('/api/profiles/profile%2F1');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toBeNull();
+    request.flush({ code: 200, message: 'Success', data: null, timestamp: '2026-01-01' });
+  });
 });

@@ -14,7 +14,7 @@
     <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading {{ profileName() }}.</p></div>
   } @else {
     @if (context.detail(); as profile) {
-      <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · About Me and Profile-specific content</p></div></div>
+      <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · About Me and Profile-specific content</p></div><div class="heading-actions"><button class="btn danger delete-profile-button" type="button" title="Available while more than one active Profile exists" [disabled]="context.summaries().length <= 1 || isDeleting" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></div>
       <div class="workspace-grid">
         <nav class="section-nav" aria-label="Profile sections">
           @for (section of sections; track section[0]) {
@@ -64,5 +64,10 @@
   }
   @if (reloadConfirmation) {
     <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="reload-warning-title" aria-describedby="reload-warning-copy"><h2 id="reload-warning-title">Reload the latest Profile?</h2><p id="reload-warning-copy">This replaces the draft with the newest saved Profile data. You cannot save the current draft after reloading.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepEditing()">Keep Editing</button><button class="btn primary" type="button" (click)="confirmReloadLatest()">Discard and Reload Latest</button></div></section></div>
+  }
+  @if (deleteConfirmation) {
+    @if (deleteTarget; as target) {
+      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-profile-title" aria-describedby="delete-profile-copy"><h2 id="delete-profile-title">Delete {{ target.name }}?</h2><p id="delete-profile-copy">This removes the selected Profile only. This action cannot be undone. @if (editSession.dirty()) { <span>Your unsaved About Me changes will also be lost.</span> }</p>@if (deleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ deleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelDelete()" [disabled]="isDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmDelete()" [disabled]="isDeleting" [attr.aria-busy]="isDeleting">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></section></div>
+    }
   }
 </section>

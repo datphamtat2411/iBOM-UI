@@ -47,11 +47,15 @@ export class ProfileWorkspaceComponent {
   isEditing = false;
   isSubmitting = false;
   isReloading = false;
+  isDeleting = false;
   conflict = false;
   cancelConfirmation = false;
   reloadConfirmation = false;
+  deleteConfirmation = false;
+  deleteTarget: { id: string; name: string } | null = null;
   errorMessage = '';
   saveMessage = '';
+  deleteErrorMessage = '';
   previewInvalidated = false;
 
   constructor() {
@@ -59,6 +63,7 @@ export class ProfileWorkspaceComponent {
     this.editForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.route.paramMap.subscribe((params) => {
       this.closeEditor();
+      this.closeDeleteConfirmation();
       const profileId = params.get('profileId');
       if (profileId) {
         this.context.loadDetail(profileId);
@@ -76,6 +81,46 @@ export class ProfileWorkspaceComponent {
 
   selectProfile(profileId: number | string): void {
     void this.router.navigate(['/profiles', profileId]);
+  }
+
+  openDeleteConfirmation(): void {
+    if (this.isDeleting || this.context.summaries().length <= 1) return;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!profileId || !profile || String(profile.id) !== profileId) return;
+
+    this.syncDirtyState();
+    this.deleteTarget = { id: profileId, name: profile.profileName };
+    this.deleteErrorMessage = '';
+    this.deleteConfirmation = true;
+  }
+
+  cancelDelete(): void {
+    if (this.isDeleting) return;
+    this.closeDeleteConfirmation();
+  }
+
+  confirmDelete(): void {
+    const target = this.deleteTarget;
+    if (!this.deleteConfirmation || !target || this.isDeleting) return;
+    if (this.context.selectedId() !== target.id || String(this.context.detail()?.id) !== target.id) {
+      this.closeDeleteConfirmation();
+      return;
+    }
+
+    this.isDeleting = true;
+    this.deleteErrorMessage = '';
+    this.profileService.delete(target.id).subscribe({
+      next: () => this.finishDelete(),
+      error: (error: unknown) => {
+        if (this.context.isNotFound(error)) {
+          this.finishDelete();
+          return;
+        }
+        this.isDeleting = false;
+        this.deleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Profile right now. Your current Profile and changes are still here.';
+      },
+    });
   }
 
   scrollToSection(sectionId: string): void {
@@ -247,6 +292,23 @@ export class ProfileWorkspaceComponent {
       this.editForm.markAsPristine();
       this.editForm.markAsUntouched();
     }
+  }
+
+  private closeDeleteConfirmation(): void {
+    this.deleteConfirmation = false;
+    this.deleteTarget = null;
+    this.deleteErrorMessage = '';
+  }
+
+  private finishDelete(): void {
+    this.closeEditor();
+    this.closeDeleteConfirmation();
+    this.isDeleting = false;
+
+    this.context.refreshSummariesAndSelectFirst().subscribe({
+      next: (first) => void this.router.navigate(first ? ['/profiles', first.id] : ['/profiles']),
+      error: () => void this.router.navigate(['/profiles']),
+    });
   }
 
   private handleSaveError(error: unknown): void {

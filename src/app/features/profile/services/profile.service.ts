@@ -33,4 +33,10 @@ export class ProfileService {
       map((response) => response.data),
     );
   }
+
+  delete(profileId: string): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}`).pipe(
+      map(() => undefined),
+    );
+  }
 }

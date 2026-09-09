@@ -110,4 +110,23 @@ describe('ProfileContextService', () => {
     expect(service.summaries().map((item) => item.id)).toEqual([1, 2]);
     expect(service.selectedId()).toBe('2');
   });
+
+  it('clears deleted detail state and selects the first Profile in refreshed backend order', () => {
+    const refreshed = new Subject<ProfileSummary[]>();
+    const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
+    profiles.list.and.returnValue(refreshed);
+    service.beginSelection('1');
+    service.detail.set(detail);
+
+    service.refreshSummariesAndSelectFirst().subscribe();
+
+    expect(service.summaries()).toEqual([]);
+    expect(service.selectedId()).toBeNull();
+    expect(service.detail()).toBeNull();
+    refreshed.next([remaining, summary]);
+
+    expect(service.summaries()).toEqual([remaining, summary]);
+    expect(service.selectedId()).toBe('2');
+    expect(service.detail()).toBeNull();
+  });
 });
