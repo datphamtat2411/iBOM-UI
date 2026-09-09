@@ -69,10 +69,32 @@ export class ProfileContextService {
   }
 
   loadDetail(profileId: string): void {
+    this.requestDetail(profileId);
+  }
+
+  reloadDetail(profileId: string): Observable<ProfileDetail> {
+    return this.requestDetail(profileId);
+  }
+
+  replaceDetail(updated: ProfileDetail): void {
+    if (this.selectedId() !== String(updated.id)) return;
+    this.detail.set(updated);
+    this.summaries.update((summaries) => summaries.map((summary) => {
+      if (String(summary.id) !== String(updated.id)) return summary;
+      const next = { ...summary, profileName: updated.profileName, firstName: updated.firstName, lastName: updated.lastName, jobTitle: updated.jobTitle, updatedAt: updated.updatedAt };
+      return updated.completeness === undefined ? next : { ...next, completeness: updated.completeness };
+    }));
+  }
+
+  private requestDetail(profileId: string): Observable<ProfileDetail> {
     this.beginSelection(profileId);
     const generation = this.detailGeneration;
     this.detailLoading.set(true);
-    this.profileService.get(profileId).pipe(takeUntil(this.detailRequestCancel)).subscribe({
+    const request = this.profileService.get(profileId).pipe(
+      takeUntil(this.detailRequestCancel),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    );
+    request.subscribe({
       next: (detail) => {
         if (this.detailGeneration === generation && this.selectedId() === profileId) { this.detail.set(detail); this.detailLoading.set(false); }
       },
@@ -80,6 +102,7 @@ export class ProfileContextService {
         if (this.detailGeneration === generation && this.selectedId() === profileId) { this.detailError.set(error); this.detailLoading.set(false); }
       },
     });
+    return request;
   }
 
   refreshSummariesAndSelect(profileId: number | string): Observable<void> {

@@ -26,3 +26,14 @@ export interface CreateProfileRequest {
   personality: string;
   technicalSummary: string;
 }
+
+export interface UpdateProfileRequest {
+  profileName: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
+  yearsOfExperience: number;
+  personality: string;
+  technicalSummary: string;
+  version: number;
+}

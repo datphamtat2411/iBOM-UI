@@ -89,6 +89,18 @@ describe('ProfileContextService', () => {
     expect(service.detailError()).toBeNull();
   });
 
+  it('replaces the selected detail and matching summary after an update', () => {
+    service.summaries.set([summary, { ...summary, id: 2, profileName: 'Frontend CV' }]);
+    service.beginSelection('1');
+    const updated = { ...detail, firstName: 'Updated', version: 2, hasPreviewed: false, updatedAt: '2026-01-02' };
+
+    service.replaceDetail(updated);
+
+    expect(service.selectedId()).toBe('1');
+    expect(service.detail()).toEqual(updated);
+    expect(service.summaries()).toEqual([{ ...summary, firstName: 'Updated', updatedAt: '2026-01-02' }, { ...summary, id: 2, profileName: 'Frontend CV' }]);
+  });
+
   it('refreshes summaries and selects the newly created Profile', () => {
     const refreshed = new Subject<ProfileSummary[]>();
     profiles.list.and.returnValue(refreshed);

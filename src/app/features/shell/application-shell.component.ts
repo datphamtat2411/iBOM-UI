@@ -1,5 +1,5 @@
 import { Component, computed, HostListener, inject } from '@angular/core';
-import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { ProfileContextService } from '../profile/services/profile-context.service';
@@ -31,10 +31,6 @@ export class ApplicationShellComponent {
   constructor() {
     this.profileContext.loadSummaries();
     this.router.events.subscribe((event) => {
-      if (event instanceof NavigationStart && event.url.startsWith('/profiles')) {
-        const profileId = event.url.split('/')[2]?.split('?')[0] || null;
-        if (profileId !== 'new') this.profileContext.beginSelection(profileId);
-      }
       if (event instanceof NavigationEnd) this.accountMenuOpen = false;
     });
   }

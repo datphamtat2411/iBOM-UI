@@ -1,8 +1,11 @@
 import { Routes } from '@angular/router';
 
+import { profileDirtyDeactivationGuard, profileDirtyNavigationGuard } from './guards/profile-unsaved-changes.guard';
+
 export const profileRoutes: Routes = [
   {
     path: '',
+    canActivate: [profileDirtyNavigationGuard],
     loadComponent: () =>
       import('./pages/profile-workspace/profile-workspace.component').then(
         (component) => component.ProfileWorkspaceComponent,
@@ -10,6 +13,7 @@ export const profileRoutes: Routes = [
   },
   {
     path: 'new',
+    canActivate: [profileDirtyNavigationGuard],
     loadComponent: () =>
       import('./pages/profile-create/profile-create.component').then(
         (component) => component.ProfileCreateComponent,
@@ -17,6 +21,7 @@ export const profileRoutes: Routes = [
   },
   {
     path: ':profileId',
+    canActivate: [profileDirtyNavigationGuard],
     loadComponent: () =>
       import('./pages/profile-workspace/profile-workspace.component').then(
         (component) => component.ProfileWorkspaceComponent,

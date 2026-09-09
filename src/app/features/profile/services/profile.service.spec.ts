@@ -37,4 +37,13 @@ describe('ProfileService', () => {
     expect(request.request.body).toEqual(profile);
     request.flush({ data: { id: 2, ...profile } });
   });
+
+  it('updates a Profile with the immutable name and current version', () => {
+    const profile = { profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 6, personality: 'Methodical', technicalSummary: 'Angular and Java', version: 4 };
+    service.update('profile/1', profile).subscribe((updated) => expect(updated.version).toBe(5));
+    const request = http.expectOne('/api/profiles/profile%2F1');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(profile);
+    request.flush({ data: { id: 1, ...profile, version: 5 } });
+  });
 });

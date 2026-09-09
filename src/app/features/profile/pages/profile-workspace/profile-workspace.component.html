@@ -14,7 +14,7 @@
     <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading {{ profileName() }}.</p></div>
   } @else {
     @if (context.detail(); as profile) {
-      <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · read-only Profile details</p></div></div>
+      <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · About Me and Profile-specific content</p></div></div>
       <div class="workspace-grid">
         <nav class="section-nav" aria-label="Profile sections">
           @for (section of sections; track section[0]) {
@@ -22,10 +22,47 @@
           }
         </nav>
         <div class="workspace-sections">
-          <section class="content-section" id="workspace-section-about" aria-labelledby="about-title"><h2 id="about-title">About Me</h2><p>Identity and narrative details for this Profile.</p><div class="fact-grid"><div><label>Profile Name</label><p>{{ profile.profileName }}</p></div><div><label>First Name</label><p>{{ profile.firstName }}</p></div><div><label>Last Name</label><p>{{ profile.lastName }}</p></div><div><label>Job Title</label><p>{{ profile.jobTitle }}</p></div><div><label>Years of Experience</label><p>{{ profile.yearsOfExperience }}</p></div></div><div class="long-copy"><h3>Personality / Characteristic Description</h3><p>{{ profile.personality || 'Not provided.' }}</p><h3>Technical Summary</h3><p>{{ profile.technicalSummary || 'Not provided.' }}</p></div></section>
+          <section class="content-section" id="workspace-section-about" aria-labelledby="about-title">
+            <div class="section-title"><div><h2 id="about-title">About Me</h2><p>Identity and narrative details for this Profile.</p></div>@if (!isEditing) { <button class="btn edit-about-button" type="button" (click)="startEditing()">Edit</button> }</div>
+            @if (!isEditing) {
+                <div class="fact-grid">
+                  <div class="fact"><label>Profile Name</label><p>{{ profile.profileName }}</p></div>
+                  <div class="fact"><label>First Name</label><p>{{ profile.firstName }}</p></div>
+                  <div class="fact"><label>Last Name</label><p>{{ profile.lastName }}</p></div>
+                </div>
+                <div class="fact-group" aria-label="Professional context"><div class="fact"><label>Job Title</label><p>{{ profile.jobTitle }}</p></div><div class="fact"><label>Years of Experience</label><p>{{ profile.yearsOfExperience }}</p></div></div>
+                <div class="long-copy"><h3>Personality / Characteristic Description</h3><p>{{ profile.personality || 'Not provided.' }}</p><h3>Technical Summary</h3><p>{{ profile.technicalSummary || 'Not provided.' }}</p></div>
+              @if (saveMessage) { <div class="notice success" role="status">{{ saveMessage }}</div> }
+            } @else {
+              <form class="about-editor" [formGroup]="editForm" (ngSubmit)="submit()" novalidate>
+                @if (errorMessage) { <div class="notice error" role="alert">{{ errorMessage }}</div> }
+                @if (conflict) { <div class="notice warning" role="alert"><strong>Latest Profile required.</strong> Your draft is preserved, but saving is blocked until you reload the latest version. <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button></div> }
+                <section class="form-section"><h3>Profile identity</h3><div class="field"><label for="about-profile-name">Profile Name</label><div id="about-profile-name" class="readonly-value">{{ profile.profileName }}</div><span class="helper">Profile Name is managed separately and cannot be changed here.</span></div></section>
+                <section class="form-section"><h3>About Me</h3><div class="form-grid">
+                  <div class="field"><label for="about-first-name">First Name</label><input id="about-first-name" type="text" formControlName="firstName" maxlength="100" [attr.aria-invalid]="editForm.controls.firstName.invalid && editForm.controls.firstName.touched">@if (editForm.controls.firstName.invalid && editForm.controls.firstName.touched) { <span class="field-error">{{ fieldError('firstName') }}</span> }</div>
+                  <div class="field"><label for="about-last-name">Last Name</label><input id="about-last-name" type="text" formControlName="lastName" maxlength="100" [attr.aria-invalid]="editForm.controls.lastName.invalid && editForm.controls.lastName.touched">@if (editForm.controls.lastName.invalid && editForm.controls.lastName.touched) { <span class="field-error">{{ fieldError('lastName') }}</span> }</div>
+                  <div class="field"><label for="about-job-title">Job Title</label><input id="about-job-title" type="text" formControlName="jobTitle" maxlength="100" [attr.aria-invalid]="editForm.controls.jobTitle.invalid && editForm.controls.jobTitle.touched">@if (editForm.controls.jobTitle.invalid && editForm.controls.jobTitle.touched) { <span class="field-error">{{ fieldError('jobTitle') }}</span> }</div>
+                  <div class="field"><label for="about-years">Years of Experience</label><input id="about-years" type="number" min="0" formControlName="yearsOfExperience" [attr.aria-invalid]="editForm.controls.yearsOfExperience.invalid && editForm.controls.yearsOfExperience.touched">@if (editForm.controls.yearsOfExperience.invalid && editForm.controls.yearsOfExperience.touched) { <span class="field-error">{{ fieldError('yearsOfExperience') }}</span> }</div>
+                  <div class="field span-2"><label for="about-personality">Personality / Characteristic Description</label><textarea id="about-personality" rows="5" maxlength="4000" formControlName="personality" [attr.aria-invalid]="editForm.controls.personality.invalid && editForm.controls.personality.touched"></textarea>@if (editForm.controls.personality.invalid && editForm.controls.personality.touched) { <span class="field-error">{{ fieldError('personality') }}</span> }</div>
+                  <div class="field span-2"><label for="about-summary">Technical Summary</label><textarea id="about-summary" rows="7" maxlength="4000" formControlName="technicalSummary" [attr.aria-invalid]="editForm.controls.technicalSummary.invalid && editForm.controls.technicalSummary.touched"></textarea>@if (editForm.controls.technicalSummary.invalid && editForm.controls.technicalSummary.touched) { <span class="field-error">{{ fieldError('technicalSummary') }}</span> }</div>
+                </div></section>
+                <div class="sticky-actions"><span class="unsaved" [class.is-saving]="isSubmitting" [class.is-dirty]="editForm.dirty" role="status" aria-live="polite">{{ isSubmitting ? 'Saving...' : conflict ? 'Reload required' : editForm.dirty ? 'Unsaved changes' : 'No changes' }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isSubmitting">Cancel</button><button class="btn primary" type="submit" [disabled]="editForm.invalid || isSubmitting || conflict" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Saving...' : 'Save About Me' }}</button></div></div>
+              </form>
+            }
+          </section>
           @for (section of sections.slice(1); track section[0]) { <section class="content-section" [id]="'workspace-section-' + section[0]" [attr.aria-labelledby]="section[0] + '-title'"><h2 [id]="section[0] + '-title'">{{ section[1] }}</h2><p>No {{ section[1] }} data is available in this read-only workspace.</p><div class="structural-placeholder">Section structure reserved for Profile data.</div></section> }
         </div>
       </div>
     }
+  }
+
+  @if (editSession.pendingNavigation(); as pending) {
+    <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="navigation-warning-title" aria-describedby="navigation-warning-copy"><h2 id="navigation-warning-title">Leave without saving?</h2><p id="navigation-warning-copy">Your About Me changes will be discarded if you continue to <span class="mono">{{ pending.url }}</span>.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepPendingNavigation()">Keep Editing</button><button class="btn primary" type="button" (click)="discardPendingNavigation()">Discard and continue</button></div></section></div>
+  }
+  @if (cancelConfirmation) {
+    <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-warning-title" aria-describedby="cancel-warning-copy"><h2 id="cancel-warning-title">Discard About Me changes?</h2><p id="cancel-warning-copy">Your entered values will be discarded from this editor.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepEditing()">Keep Editing</button><button class="btn primary" type="button" (click)="discardEditing()">Discard</button></div></section></div>
+  }
+  @if (reloadConfirmation) {
+    <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="reload-warning-title" aria-describedby="reload-warning-copy"><h2 id="reload-warning-title">Reload the latest Profile?</h2><p id="reload-warning-copy">This replaces the draft with the newest saved Profile data. You cannot save the current draft after reloading.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepEditing()">Keep Editing</button><button class="btn primary" type="button" (click)="confirmReloadLatest()">Discard and Reload Latest</button></div></section></div>
   }
 </section>
