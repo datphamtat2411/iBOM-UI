@@ -18,7 +18,7 @@ export class ProfileCreateComponent {
   readonly context = inject(ProfileContextService);
   readonly createForm = this.formBuilder.group({
     profileName: ['', [Validators.required, Validators.maxLength(100)]], firstName: ['', [Validators.required, Validators.maxLength(100)]], lastName: ['', [Validators.required, Validators.maxLength(100)]], jobTitle: ['', [Validators.required, Validators.maxLength(100)]],
-    yearsOfExperience: [null as number | null, [Validators.required, Validators.min(0)]], personality: ['', [Validators.required, Validators.maxLength(4000)]], technicalSummary: ['', [Validators.required, Validators.maxLength(4000)]],
+    yearsOfExperience: [null as number | null, [Validators.required, Validators.min(0)]], personality: ['', [Validators.maxLength(4000)]], technicalSummary: ['', [Validators.maxLength(4000)]],
   });
   isSubmitting = false;
   warningRequired = false;

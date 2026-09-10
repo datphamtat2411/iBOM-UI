@@ -39,8 +39,8 @@ export class ProfileWorkspaceComponent {
     lastName: ['', [Validators.required, Validators.maxLength(100)]],
     jobTitle: ['', [Validators.required, Validators.maxLength(100)]],
     yearsOfExperience: [0, [Validators.required, Validators.min(0)]],
-    personality: ['', [Validators.required, Validators.maxLength(4000)]],
-    technicalSummary: ['', [Validators.required, Validators.maxLength(4000)]],
+    personality: ['', [Validators.maxLength(4000)]],
+    technicalSummary: ['', [Validators.maxLength(4000)]],
   });
 
   activeSection = 'about';

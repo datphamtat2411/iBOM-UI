@@ -107,15 +107,61 @@ describe('ProfileWorkspaceComponent', () => {
     expect(group?.querySelectorAll('.fact').length).toBe(2);
   });
 
-  it('validates all editable fields before submitting', () => {
+  it('keeps the four required About Me fields required while optional fields may be empty', () => {
     openEditor();
-    fixture.componentInstance.editForm.reset({ firstName: '', lastName: '', jobTitle: '', yearsOfExperience: -1, personality: '', technicalSummary: '' });
+    fixture.componentInstance.editForm.reset({ firstName: '', lastName: '', jobTitle: '', yearsOfExperience: null as unknown as number, personality: '', technicalSummary: '' });
 
     fixture.componentInstance.submit();
 
     expect(profiles.update).not.toHaveBeenCalled();
     expect(fixture.componentInstance.editForm.controls.firstName.touched).toBeTrue();
-    expect(fixture.componentInstance.editForm.controls.yearsOfExperience.errors?.['min']).toBeTruthy();
+    expect(fixture.componentInstance.editForm.controls.firstName.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.editForm.controls.lastName.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.editForm.controls.jobTitle.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.editForm.controls.yearsOfExperience.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.editForm.controls.personality.errors).toBeNull();
+    expect(fixture.componentInstance.editForm.controls.technicalSummary.errors).toBeNull();
+  });
+
+  it('allows either or both optional fields to be cleared and saves trimmed values', () => {
+    context.replaceDetail.and.callFake((next: ProfileDetail) => context.detail.set(next));
+    const cases = [
+      { personality: '', technicalSummary: '  TypeScript  ', savedPersonality: null, savedTechnicalSummary: 'TypeScript' },
+      { personality: '  Methodical  ', technicalSummary: '', savedPersonality: 'Methodical', savedTechnicalSummary: null },
+      { personality: '   ', technicalSummary: '\t', savedPersonality: null, savedTechnicalSummary: null },
+    ];
+
+    cases.forEach((testCase, index) => {
+      profiles.update.and.returnValue(of({ ...detail, personality: testCase.savedPersonality, technicalSummary: testCase.savedTechnicalSummary }));
+      openEditor();
+      fixture.componentInstance.editForm.setValue({ firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 5, personality: testCase.personality, technicalSummary: testCase.technicalSummary });
+      fixture.componentInstance.editForm.markAsDirty();
+
+      fixture.componentInstance.submit();
+
+      expect(profiles.update.calls.argsFor(index)).toEqual(['1', { profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 5, personality: testCase.personality.trim(), technicalSummary: testCase.technicalSummary.trim(), version: 3 }]);
+    });
+  });
+
+  it('keeps optional values over 4000 characters invalid', () => {
+    openEditor();
+    fixture.componentInstance.editForm.controls.personality.setValue('x'.repeat(4001));
+    fixture.componentInstance.editForm.controls.technicalSummary.setValue('x'.repeat(4001));
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.update).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.editForm.controls.personality.errors?.['maxlength']).toBeTruthy();
+    expect(fixture.componentInstance.editForm.controls.technicalSummary.errors?.['maxlength']).toBeTruthy();
+  });
+
+  it('renders missing optional values as not provided', () => {
+    context.detail.set({ ...detail, personality: null, technicalSummary: null });
+    fixture.detectChanges();
+
+    const longCopy = fixture.nativeElement.querySelector('.long-copy')?.textContent;
+    expect(longCopy).toContain('Personality / Characteristic DescriptionNot provided.');
+    expect(longCopy).toContain('Technical SummaryNot provided.');
   });
 
   it('trims values and prevents duplicate submissions', () => {

@@ -32,6 +32,50 @@ describe('ProfileCreateComponent', () => {
     expect(fixture.componentInstance.createForm.controls.yearsOfExperience.touched).toBeTrue();
   });
 
+  it('creates a Profile with both optional fields empty', () => {
+    profiles.create.and.returnValue(of({ id: 2 }));
+    fixture.componentInstance.createForm.setValue({ profileName: 'New CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 4, personality: '', technicalSummary: '' });
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.create).toHaveBeenCalledWith({ profileName: 'New CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 4, personality: '', technicalSummary: '' });
+  });
+
+  it('creates a Profile with only one optional field populated after trimming', () => {
+    profiles.create.and.returnValue(of({ id: 2 }));
+    fixture.componentInstance.createForm.setValue({ profileName: 'New CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 4, personality: '  Methodical  ', technicalSummary: '   ' });
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.create).toHaveBeenCalledWith({ profileName: 'New CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 4, personality: 'Methodical', technicalSummary: '' });
+  });
+
+  it('keeps optional values over 4000 characters invalid', () => {
+    fillValidForm();
+    fixture.componentInstance.createForm.controls.personality.setValue('x'.repeat(4001));
+    fixture.componentInstance.createForm.controls.technicalSummary.setValue('x'.repeat(4001));
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.create).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.createForm.controls.personality.errors?.['maxlength']).toBeTruthy();
+    expect(fixture.componentInstance.createForm.controls.technicalSummary.errors?.['maxlength']).toBeTruthy();
+  });
+
+  it('keeps the four required About Me fields required', () => {
+    fixture.componentInstance.createForm.setValue({ profileName: 'New CV', firstName: '', lastName: '', jobTitle: '', yearsOfExperience: null, personality: '', technicalSummary: '' });
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.create).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.createForm.controls.firstName.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.createForm.controls.lastName.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.createForm.controls.jobTitle.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.createForm.controls.yearsOfExperience.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.createForm.controls.personality.errors).toBeNull();
+    expect(fixture.componentInstance.createForm.controls.technicalSummary.errors).toBeNull();
+  });
+
   it('prevents duplicate submissions and navigates after context synchronization', () => {
     const pending = new Subject<any>();
     profiles.create.and.returnValue(pending);
