@@ -3,6 +3,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 
 import { AuthService } from '../../core/auth/auth.service';
 import { ProfileContextService } from '../profile/services/profile-context.service';
+import { ProfileEditSessionService } from '../profile/services/profile-edit-session.service';
 
 @Component({
   selector: 'app-application-shell',
@@ -14,6 +15,7 @@ import { ProfileContextService } from '../profile/services/profile-context.servi
 export class ApplicationShellComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly profileEditSession = inject(ProfileEditSessionService);
   readonly profileContext = inject(ProfileContextService);
 
   readonly user = this.authService.user;
@@ -45,6 +47,20 @@ export class ApplicationShellComponent {
     if (this.logoutInProgress) return;
     this.logoutInProgress = true;
     this.closeAccountMenu();
+    if (this.profileEditSession.dirty()) {
+      this.profileEditSession.requestNavigation('/login').then((allow) => {
+        if (!allow) {
+          this.logoutInProgress = false;
+          return;
+        }
+        this.executeLogout();
+      });
+      return;
+    }
+
+    this.executeLogout();
+  }
+  private executeLogout(): void {
     this.authService.logout().subscribe({
       next: () => this.router.navigateByUrl('/login'),
       error: () => { this.logoutInProgress = false; },
