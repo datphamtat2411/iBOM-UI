@@ -99,6 +99,83 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.editForm.getRawValue()).toEqual({ firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java' });
   });
 
+  it('does not update a pristine About Me edit', () => {
+    openEditor();
+
+    expect((fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBeTrue();
+    fixture.componentInstance.submit();
+
+    expect(profiles.update).not.toHaveBeenCalled();
+  });
+
+  it('does not update when an edited value is restored to its original value', () => {
+    openEditor();
+    fixture.componentInstance.editForm.controls.firstName.setValue('Changed');
+    fixture.componentInstance.editForm.controls.firstName.setValue('A');
+    fixture.componentInstance.editForm.markAsDirty();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBeTrue();
+    fixture.componentInstance.submit();
+
+    expect(profiles.update).not.toHaveBeenCalled();
+  });
+
+  it('does not update when a value differs only by surrounding whitespace', () => {
+    openEditor();
+    fixture.componentInstance.editForm.controls.firstName.setValue('  A  ');
+    fixture.componentInstance.editForm.markAsDirty();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBeTrue();
+    fixture.componentInstance.submit();
+
+    expect(profiles.update).not.toHaveBeenCalled();
+  });
+
+  it('allows a capitalization change because comparison is case-sensitive', () => {
+    profiles.update.and.returnValue(of(detail));
+    context.detail.set({ ...detail, firstName: 'dat' });
+    openEditor();
+    fixture.componentInstance.editForm.controls.firstName.setValue('Dat');
+    fixture.componentInstance.editForm.markAsDirty();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBeFalse();
+    fixture.componentInstance.submit();
+
+    expect(profiles.update).toHaveBeenCalled();
+  });
+
+  it('allows an actual change in the editable About Me values', () => {
+    profiles.update.and.returnValue(of(detail));
+    openEditor();
+    fixture.componentInstance.editForm.setValue({
+      firstName: 'Changed',
+      lastName: 'Different',
+      jobTitle: 'Different title',
+      yearsOfExperience: 6,
+      personality: 'Different personality',
+      technicalSummary: 'Different summary',
+    });
+    fixture.componentInstance.editForm.markAsDirty();
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.update).toHaveBeenCalled();
+  });
+
+  it('prevents a no-op PUT when submit is triggered programmatically on a dirty form', () => {
+    openEditor();
+    fixture.componentInstance.editForm.controls.firstName.setValue('Changed');
+    fixture.componentInstance.editForm.controls.firstName.setValue('A');
+    fixture.componentInstance.editForm.markAsDirty();
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.update).not.toHaveBeenCalled();
+  });
+
   it('keeps Job Title and Years of Experience in one context group', () => {
     const group = fixture.nativeElement.querySelector('.fact-group') as HTMLElement;
 
@@ -110,6 +187,7 @@ describe('ProfileWorkspaceComponent', () => {
   it('keeps the four required About Me fields required while optional fields may be empty', () => {
     openEditor();
     fixture.componentInstance.editForm.reset({ firstName: '', lastName: '', jobTitle: '', yearsOfExperience: null as unknown as number, personality: '', technicalSummary: '' });
+    fixture.componentInstance.editForm.markAsDirty();
 
     fixture.componentInstance.submit();
 
@@ -365,6 +443,89 @@ describe('ProfileWorkspaceComponent', () => {
     context.refreshSummariesAndSelectFirst.and.returnValue(of(remaining));
     fixture.componentInstance.confirmDelete();
     expect(profiles.delete).toHaveBeenCalledTimes(2);
+  });
+
+  it('recovers an invalid Profile route to the first accessible Profile and clears stale detail', () => {
+    const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
+    const notFound = new HttpErrorResponse({ status: 404, error: { errorCode: 'PROFILE_NOT_FOUND', message: 'Profile not found.' } });
+    context.isNotFound.and.returnValue(true);
+    context.refreshSummariesAndSelectFirst.and.callFake(() => {
+      context.beginSelection(null);
+      context.detail.set(null);
+      context.detailError.set(null);
+      context.summaries.set([remaining]);
+      context.selectedId.set('2');
+      return of(remaining);
+    });
+
+    context.detailError.set(notFound);
+    fixture.detectChanges();
+
+    expect(context.refreshSummariesAndSelectFirst).toHaveBeenCalledTimes(1);
+    expect(context.detail()).toBeNull();
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+  });
+
+  it('uses the same recovery for an inaccessible Profile response as for a missing Profile', () => {
+    const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
+    const responses = [
+      new HttpErrorResponse({ status: 404, error: { errorCode: 'PROFILE_NOT_FOUND', message: 'Profile not found.' } }),
+      new HttpErrorResponse({ status: 404, error: { errorCode: 'PROFILE_NOT_FOUND', message: 'Profile not available.' } }),
+    ];
+    context.isNotFound.and.callFake((error: unknown) => error instanceof HttpErrorResponse && error.error?.errorCode === 'PROFILE_NOT_FOUND');
+    context.refreshSummariesAndSelectFirst.and.callFake(() => {
+      context.beginSelection(null);
+      context.detail.set(null);
+      context.detailError.set(null);
+      context.summaries.set([remaining]);
+      context.selectedId.set('2');
+      return of(remaining);
+    });
+
+    responses.forEach((response) => {
+      context.detailError.set(response);
+      fixture.detectChanges();
+    });
+
+    expect(context.refreshSummariesAndSelectFirst).toHaveBeenCalledTimes(2);
+    expect(router.navigate).toHaveBeenCalledTimes(2);
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+  });
+
+  it('does not repeat recovery when the same Profile route fails again', () => {
+    const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
+    context.isNotFound.and.returnValue(true);
+    context.refreshSummariesAndSelectFirst.and.callFake(() => {
+      context.detail.set(null);
+      return of(remaining);
+    });
+
+    context.detailError.set(new HttpErrorResponse({ status: 404, error: { errorCode: 'PROFILE_NOT_FOUND' } }));
+    fixture.detectChanges();
+    context.detailError.set(new HttpErrorResponse({ status: 404, error: { errorCode: 'PROFILE_NOT_FOUND' } }));
+    fixture.detectChanges();
+
+    expect(context.refreshSummariesAndSelectFirst).toHaveBeenCalledTimes(1);
+    expect(router.navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('redirects to the Profile index when recovery finds no accessible Profiles', () => {
+    const notFound = new HttpErrorResponse({ status: 404, error: { errorCode: 'PROFILE_NOT_FOUND', message: 'Profile not found.' } });
+    context.isNotFound.and.returnValue(true);
+    context.refreshSummariesAndSelectFirst.and.callFake(() => {
+      context.beginSelection(null);
+      context.detail.set(null);
+      context.detailError.set(null);
+      context.summaries.set([]);
+      return of(null);
+    });
+
+    context.detailError.set(notFound);
+    fixture.detectChanges();
+
+    expect(context.refreshSummariesAndSelectFirst).toHaveBeenCalledTimes(1);
+    expect(context.detail()).toBeNull();
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles']);
   });
 
   it('recovers from PROFILE_NOT_FOUND by refreshing and navigating to a valid Profile', () => {

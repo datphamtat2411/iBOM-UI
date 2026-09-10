@@ -37,6 +37,7 @@ export class ProfileCreateComponent {
     if (this.isSubmitting) return;
     if (this.context.summaries().length >= 5 && !this.warningAcknowledged) { this.warningRequired = true; return; }
     this.clearBackendErrors();
+    this.trimFormValues();
     if (this.createForm.invalid) { this.createForm.markAllAsTouched(); return; }
     this.isSubmitting = true;
     const value = this.createForm.getRawValue();
@@ -78,6 +79,18 @@ export class ProfileCreateComponent {
       delete errors['backend'];
       control.setErrors(Object.keys(errors).length ? errors : null);
     }
+  }
+  private trimFormValues(): void {
+    const value = this.createForm.getRawValue();
+    this.createForm.patchValue({
+      profileName: value.profileName?.trim() ?? '',
+      firstName: value.firstName?.trim() ?? '',
+      lastName: value.lastName?.trim() ?? '',
+      jobTitle: value.jobTitle?.trim() ?? '',
+      personality: value.personality?.trim() ?? '',
+      technicalSummary: value.technicalSummary?.trim() ?? '',
+    }, { emitEvent: false });
+    this.createForm.updateValueAndValidity({ emitEvent: false });
   }
   private setBackendFieldError(field: ProfileField, message: string | undefined): void {
     const control = this.createForm.controls[field];

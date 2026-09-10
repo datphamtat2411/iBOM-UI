@@ -10,6 +10,7 @@ import { ProfileEditSessionService } from '../../services/profile-edit-session.s
 import { ProfileService } from '../../services/profile.service';
 
 type EditableAboutMeField = Exclude<keyof UpdateProfileRequest, 'profileName' | 'version'>;
+type EditableAboutMeValues = Pick<UpdateProfileRequest, EditableAboutMeField>;
 
 @Component({
   selector: 'app-profile-workspace',
@@ -53,6 +54,9 @@ export class ProfileWorkspaceComponent {
   reloadConfirmation = false;
   deleteConfirmation = false;
   deleteTarget: { id: string; name: string } | null = null;
+  private notFoundRecoveryInProgress = false;
+  private lastNotFoundProfileId: string | null = null;
+  private originalAboutMeValues: EditableAboutMeValues | null = null;
   errorMessage = '';
   saveMessage = '';
   deleteErrorMessage = '';
@@ -77,6 +81,28 @@ export class ProfileWorkspaceComponent {
         void this.router.navigate(['/profiles', summaries[0].id]);
       }
     });
+    effect(() => {
+      const selectedId = this.context.selectedId();
+      const detail = this.context.detail();
+      if (detail && String(detail.id) === selectedId) this.lastNotFoundProfileId = null;
+
+      const error = this.context.detailError();
+      if (!error || !this.context.isNotFound(error) || this.notFoundRecoveryInProgress) return;
+      if (selectedId && this.lastNotFoundProfileId === selectedId) return;
+
+      this.lastNotFoundProfileId = selectedId;
+      this.notFoundRecoveryInProgress = true;
+      this.context.refreshSummariesAndSelectFirst().subscribe({
+        next: (first) => {
+          this.notFoundRecoveryInProgress = false;
+          void this.router.navigate(first ? ['/profiles', first.id] : ['/profiles']);
+        },
+        error: () => {
+          this.notFoundRecoveryInProgress = false;
+          void this.router.navigate(['/profiles']);
+        },
+      });
+    }, { allowSignalWrites: true });
   }
 
   selectProfile(profileId: number | string): void {
@@ -139,7 +165,9 @@ export class ProfileWorkspaceComponent {
   startEditing(): void {
     const profile = this.context.detail();
     if (!profile || this.conflict) return;
-    this.editForm.reset(this.formValues(profile));
+    const values = this.formValues(profile);
+    this.originalAboutMeValues = this.normalizeAboutMeValues(values);
+    this.editForm.reset(values);
     this.editForm.markAsPristine();
     this.editForm.markAsUntouched();
     this.isEditing = true;
@@ -176,6 +204,7 @@ export class ProfileWorkspaceComponent {
 
     this.clearBackendErrors();
     this.trimFormValues();
+    if (!this.hasAboutMeChanges()) return;
     if (this.editForm.invalid) {
       this.editForm.markAllAsTouched();
       this.syncDirtyState();
@@ -280,6 +309,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private closeEditor(): void {
+    this.originalAboutMeValues = null;
     this.isEditing = false;
     this.isSubmitting = false;
     this.cancelConfirmation = false;
@@ -377,6 +407,30 @@ export class ProfileWorkspaceComponent {
       yearsOfExperience: profile.yearsOfExperience,
       personality: profile.personality ?? '',
       technicalSummary: profile.technicalSummary ?? '',
+    };
+  }
+
+  hasAboutMeChanges(): boolean {
+    const original = this.originalAboutMeValues;
+    if (!original) return false;
+
+    const current = this.normalizeAboutMeValues(this.editForm.getRawValue());
+    return current.firstName !== original.firstName
+      || current.lastName !== original.lastName
+      || current.jobTitle !== original.jobTitle
+      || current.yearsOfExperience !== original.yearsOfExperience
+      || current.personality !== original.personality
+      || current.technicalSummary !== original.technicalSummary;
+  }
+
+  private normalizeAboutMeValues(value: EditableAboutMeValues): EditableAboutMeValues {
+    return {
+      firstName: value.firstName.trim(),
+      lastName: value.lastName.trim(),
+      jobTitle: value.jobTitle.trim(),
+      yearsOfExperience: value.yearsOfExperience,
+      personality: value.personality.trim(),
+      technicalSummary: value.technicalSummary.trim(),
     };
   }
 

@@ -43,11 +43,24 @@ describe('ProfileCreateComponent', () => {
 
   it('creates a Profile with only one optional field populated after trimming', () => {
     profiles.create.and.returnValue(of({ id: 2 }));
-    fixture.componentInstance.createForm.setValue({ profileName: 'New CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 4, personality: '  Methodical  ', technicalSummary: '   ' });
+    fixture.componentInstance.createForm.setValue({ profileName: '  New CV  ', firstName: ' A ', lastName: ' User ', jobTitle: ' Engineer ', yearsOfExperience: 4, personality: '  Methodical  ', technicalSummary: '   ' });
 
     fixture.componentInstance.submit();
 
     expect(profiles.create).toHaveBeenCalledWith({ profileName: 'New CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 4, personality: 'Methodical', technicalSummary: '' });
+  });
+
+  it('rejects whitespace-only required text fields before submission', () => {
+    fixture.componentInstance.createForm.setValue({ profileName: '   ', firstName: '\t', lastName: ' \n ', jobTitle: '  ', yearsOfExperience: 4, personality: '', technicalSummary: '' });
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.create).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.createForm.controls.profileName.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.createForm.controls.firstName.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.createForm.controls.lastName.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.createForm.controls.jobTitle.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.createForm.controls.profileName.touched).toBeTrue();
   });
 
   it('keeps optional values over 4000 characters invalid', () => {
