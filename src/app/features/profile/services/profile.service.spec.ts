@@ -88,6 +88,36 @@ describe('ProfileService', () => {
     request.flush({ data: { profileVersion: 10 } });
   });
 
+  it('lists Certificates for the selected Profile and unwraps data', () => {
+    service.listCertificates('profile/1').subscribe((certificates) => expect(certificates).toEqual([{ id: 4, certificateName: 'AWS Developer', issueDate: '2025-04-01' }]));
+    const request = http.expectOne('/api/profiles/profile%2F1/certificates');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: [{ id: 4, certificateName: 'AWS Developer', issueDate: '2025-04-01' }] });
+  });
+
+  it('creates and updates Certificates with the current Profile version', () => {
+    const certificate = { certificateName: 'AWS Developer', issueDate: '2025-04-01', version: 3 };
+    service.createCertificate('profile-1', certificate).subscribe((result) => expect(result.profileVersion).toBe(4));
+    const createRequest = http.expectOne('/api/profiles/profile-1/certificates');
+    expect(createRequest.request.method).toBe('POST');
+    expect(createRequest.request.body).toEqual(certificate);
+    createRequest.flush({ data: { certificate: { id: 5, ...certificate }, profileVersion: 4 } });
+
+    service.updateCertificate('profile-1', 'certificate/2', { ...certificate, issueDate: '2024-04-01', version: 4 }).subscribe((result) => expect(result.certificate.issueDate).toBe('2024-04-01'));
+    const updateRequest = http.expectOne('/api/profiles/profile-1/certificates/certificate%2F2');
+    expect(updateRequest.request.method).toBe('PUT');
+    expect(updateRequest.request.body).toEqual({ ...certificate, issueDate: '2024-04-01', version: 4 });
+    updateRequest.flush({ data: { certificate: { id: 2, certificateName: 'AWS Developer', issueDate: '2024-04-01' }, profileVersion: 5 } });
+  });
+
+  it('deletes a Certificate with the Profile version in the JSON request body', () => {
+    service.deleteCertificate('profile-1', 8, 9).subscribe((result) => expect(result).toEqual({ profileVersion: 10 }));
+    const request = http.expectOne('/api/profiles/profile-1/certificates/8');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toEqual({ profileVersion: 9 });
+    request.flush({ data: { profileVersion: 10 } });
+  });
+
   it('lists Profile Languages from the selected Profile endpoint and unwraps data', () => {
     service.listProfileLanguages('profile/1').subscribe((languages) => expect(languages).toEqual([{ profileLanguageId: 4, languageId: 2, languageName: 'English', level: 'ADVANCED' }]));
     const request = http.expectOne('/api/profiles/profile%2F1/languages');

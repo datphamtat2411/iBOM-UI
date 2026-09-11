@@ -6,6 +6,8 @@ import { Subject, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
 import {
+  Certificate,
+  CertificateRequest,
   Education,
   EducationRequest,
   EducationStatus,
@@ -37,6 +39,12 @@ type EditableLanguageField = keyof EditableLanguageValues;
 type EditableLanguageValues = {
   languageId: number | string | null;
   level: LanguageLevel;
+};
+type CertificateEditorMode = 'create' | 'edit' | null;
+type EditableCertificateField = keyof EditableCertificateValues;
+type EditableCertificateValues = {
+  certificateName: string;
+  issueDate: string;
 };
 
 @Component({
@@ -89,6 +97,11 @@ export class ProfileWorkspaceComponent {
     languageId: this.formBuilder.control<number | string | null>(null, [Validators.required]),
     level: this.formBuilder.nonNullable.control<LanguageLevel>('BEGINNER', [Validators.required, this.languageLevelValidator()]),
   });
+  readonly certificateForm = this.formBuilder.nonNullable.group({
+    certificateName: ['', [Validators.required, Validators.maxLength(255)]],
+    issueDate: ['', [Validators.required, this.certificateIssueDateValidator()]],
+  });
+  readonly certificateDateMax = this.currentDate();
 
   activeSection = 'about';
   isEditing = false;
@@ -131,6 +144,18 @@ export class ProfileWorkspaceComponent {
   languageDeleteConfirmation = false;
   languageDeleteTarget: ProfileLanguage | null = null;
   languageDeleteErrorMessage = '';
+  certificates: Certificate[] = [];
+  certificateLoading = false;
+  certificateError: unknown | null = null;
+  certificateEditorMode: CertificateEditorMode = null;
+  certificateConflict = false;
+  isCertificateSubmitting = false;
+  certificateErrorMessage = '';
+  certificateMessage = '';
+  isCertificateDeleting = false;
+  certificateDeleteConfirmation = false;
+  certificateDeleteTarget: Certificate | null = null;
+  certificateDeleteErrorMessage = '';
   languageMasterOptions: LanguageMasterOption[] = [];
   languageMasterPage = 0;
   languageMasterSize = 10;
@@ -143,37 +168,46 @@ export class ProfileWorkspaceComponent {
   languageMasterReady = false;
   private readonly educationListCancel = new Subject<void>();
   private readonly languageListCancel = new Subject<void>();
+  private readonly certificateListCancel = new Subject<void>();
   private readonly languageMasterCancel = new Subject<void>();
   private educationListGeneration = 0;
   private educationMutationGeneration = 0;
   private languageListGeneration = 0;
   private languageMutationGeneration = 0;
+  private certificateListGeneration = 0;
+  private certificateMutationGeneration = 0;
   private languageMasterGeneration = 0;
   private activeProfileId: string | null = null;
   private editingEducationId: number | string | null = null;
   private originalEducationValues: EditableEducationValues | null = null;
   private editingProfileLanguageId: number | string | null = null;
   private originalLanguageValues: EditableLanguageValues | null = null;
+  private editingCertificateId: number | string | null = null;
+  private originalCertificateValues: EditableCertificateValues | null = null;
 
   constructor() {
     this.context.loadSummaries();
     this.editForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.educationForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.languageForm.valueChanges.subscribe(() => this.syncDirtyState());
+    this.certificateForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.educationForm.controls.status.valueChanges.subscribe(() => this.updateEducationDateValidation());
     this.route.paramMap.subscribe((params) => {
       this.closeEditor();
       this.closeDeleteConfirmation();
       this.closeEducationDeleteConfirmation();
       this.closeLanguageDeleteConfirmation();
+      this.closeCertificateDeleteConfirmation();
       this.resetEducationState();
       this.resetLanguageState();
+      this.resetCertificateState();
       const profileId = params.get('profileId');
       this.activeProfileId = profileId;
       if (profileId) {
         this.context.loadDetail(profileId);
         this.loadEducations(profileId);
         this.loadProfileLanguages(profileId);
+        this.loadCertificates(profileId);
       } else {
         this.context.beginSelection(null);
       }
@@ -275,6 +309,11 @@ export class ProfileWorkspaceComponent {
     if (profileId) this.loadProfileLanguages(profileId);
   }
 
+  retryCertificates(): void {
+    const profileId = this.activeProfileId ?? this.context.selectedId();
+    if (profileId) this.loadCertificates(profileId);
+  }
+
   searchLanguageMaster(): void {
     this.languageMasterSearch = this.languageMasterSearchDraft.trim();
     this.loadLanguageMaster(0, this.languageMasterSearch);
@@ -334,6 +373,54 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentLanguageOperation(profileId, operationGeneration, false)) return;
         this.isLanguageDeleting = false;
         this.languageDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Language right now. The record is still here and you can retry.';
+      },
+    });
+  }
+
+  openCertificateDeleteConfirmation(certificate: Certificate): void {
+    if (this.isCertificateDeleting || this.certificateEditorMode) return;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!profileId || !profile || String(profile.id) !== profileId) return;
+
+    this.certificateDeleteTarget = certificate;
+    this.certificateDeleteErrorMessage = '';
+    this.certificateDeleteConfirmation = true;
+  }
+
+  cancelCertificateDelete(): void {
+    if (this.isCertificateDeleting) return;
+    this.closeCertificateDeleteConfirmation();
+  }
+
+  confirmCertificateDelete(): void {
+    const target = this.certificateDeleteTarget;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!this.certificateDeleteConfirmation || !target || this.isCertificateDeleting || !profileId || !profile) return;
+    if (String(profile.id) !== profileId || !this.certificates.some((certificate) => String(certificate.id) === String(target.id))) {
+      this.closeCertificateDeleteConfirmation();
+      return;
+    }
+
+    const operationGeneration = this.certificateMutationGeneration;
+    this.isCertificateDeleting = true;
+    this.certificateDeleteErrorMessage = '';
+    this.profileService.deleteCertificate(profileId, target.id, profile.version).subscribe({
+      next: (result) => {
+        if (!this.isCurrentCertificateOperation(profileId, operationGeneration, false)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+
+        this.certificates = this.certificates.filter((certificate) => String(certificate.id) !== String(target.id));
+        this.isCertificateDeleting = false;
+        this.previewInvalidated = true;
+        this.certificateMessage = 'Certificate deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.closeCertificateDeleteConfirmation();
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentCertificateOperation(profileId, operationGeneration, false)) return;
+        this.isCertificateDeleting = false;
+        this.certificateDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Certificate right now. The record is still here and you can retry.';
       },
     });
   }
@@ -417,7 +504,24 @@ export class ProfileWorkspaceComponent {
     this.openLanguageEditor(language);
   }
 
+  startCertificateCreate(): void {
+    this.openCertificateEditor();
+  }
+
+  startCertificateEdit(certificate: Certificate): void {
+    this.openCertificateEditor(certificate);
+  }
+
   cancelEditing(): void {
+    if (this.certificateEditorMode) {
+      if (this.isCertificateSubmitting) return;
+      if (this.certificateForm.dirty) {
+        this.cancelConfirmation = true;
+        return;
+      }
+      this.closeCertificateEditor();
+      return;
+    }
     if (this.languageEditorMode) {
       if (this.isLanguageSubmitting) return;
       if (this.languageForm.dirty) {
@@ -453,6 +557,10 @@ export class ProfileWorkspaceComponent {
     this.cancelConfirmation = false;
     if (this.languageEditorMode) {
       this.closeLanguageEditor();
+      return;
+    }
+    if (this.certificateEditorMode) {
+      this.closeCertificateEditor();
       return;
     }
     if (this.educationEditorMode) {
@@ -638,7 +746,81 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  submitCertificate(): void {
+    const mode = this.certificateEditorMode;
+    if (!mode || this.isCertificateSubmitting || this.certificateConflict) return;
+
+    this.certificateErrorMessage = '';
+    this.certificateMessage = '';
+    this.clearCertificateBackendErrors();
+    this.trimCertificateFormValues();
+    if (!this.hasCertificateChanges()) return;
+    if (this.certificateForm.invalid) {
+      this.certificateForm.markAllAsTouched();
+      this.syncDirtyState();
+      return;
+    }
+
+    const profile = this.context.detail();
+    const profileId = this.context.selectedId();
+    if (!profile || !profileId || String(profile.id) !== profileId) return;
+
+    const value = this.certificateForm.getRawValue();
+    const duplicate = this.certificates.some((certificate) => certificate.certificateName === value.certificateName
+      && certificate.issueDate === value.issueDate
+      && (mode !== 'edit' || String(certificate.id) !== String(this.editingCertificateId)));
+    if (duplicate) {
+      this.setCertificateFieldError('certificateName', 'A Certificate with this name and Issue Date already exists in this Profile.', 'duplicate');
+      this.certificateErrorMessage = 'A Certificate with this name and Issue Date already exists in this Profile.';
+      this.syncDirtyState();
+      return;
+    }
+
+    const request: CertificateRequest = {
+      certificateName: value.certificateName,
+      issueDate: value.issueDate,
+      version: profile.version,
+    };
+    const certificateId = this.editingCertificateId;
+    const operationGeneration = this.certificateMutationGeneration;
+    this.isCertificateSubmitting = true;
+    const request$ = mode === 'edit' && certificateId !== null
+      ? this.profileService.updateCertificate(profileId, certificateId, request)
+      : this.profileService.createCertificate(profileId, request);
+
+    request$.subscribe({
+      next: (result) => {
+        if (!this.isCurrentCertificateOperation(profileId, operationGeneration)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+
+        this.certificates = this.sortCertificates(mode === 'edit' && certificateId !== null
+          ? this.certificates.map((certificate) => String(certificate.id) === String(certificateId) ? result.certificate : certificate)
+          : [...this.certificates, result.certificate]);
+        this.isCertificateSubmitting = false;
+        this.certificateConflict = false;
+        this.previewInvalidated = true;
+        this.certificateMessage = mode === 'edit'
+          ? 'Certificate updated. Preview is no longer current; generate a new preview before exporting.'
+          : 'Certificate added. Preview is no longer current; generate a new preview before exporting.';
+        this.closeCertificateEditor();
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentCertificateOperation(profileId, operationGeneration)) return;
+        this.handleCertificateSaveError(error);
+      },
+    });
+  }
+
   reloadLatest(): void {
+    if (this.certificateEditorMode) {
+      if (this.isReloading || !this.certificateConflict) return;
+      if (this.certificateForm.dirty) {
+        this.reloadConfirmation = true;
+        return;
+      }
+      this.fetchLatestCertificate();
+      return;
+    }
     if (this.languageEditorMode) {
       if (this.isReloading || !this.languageConflict) return;
       if (this.languageForm.dirty) {
@@ -667,7 +849,9 @@ export class ProfileWorkspaceComponent {
 
   confirmReloadLatest(): void {
     this.reloadConfirmation = false;
-    if (this.languageEditorMode) {
+    if (this.certificateEditorMode) {
+      this.fetchLatestCertificate();
+    } else if (this.languageEditorMode) {
       this.fetchLatestLanguage();
     } else if (this.educationEditorMode) {
       this.fetchLatestEducation();
@@ -714,6 +898,21 @@ export class ProfileWorkspaceComponent {
     return control.invalid && control.touched;
   }
 
+  certificateFieldError(field: EditableCertificateField): string {
+    const errors = this.certificateForm.controls[field].errors;
+    if (errors?.['backend']) return errors['backend'];
+    if (errors?.['duplicate']) return errors['duplicate'];
+    if (errors?.['required']) return 'This field is required.';
+    if (errors?.['maxlength']) return `Use ${errors['maxlength'].requiredLength} characters or fewer.`;
+    if (errors?.['futureDate']) return 'Issue Date cannot be in the future.';
+    return errors ? 'This value is not valid.' : '';
+  }
+
+  certificateFieldInvalid(field: EditableCertificateField): boolean {
+    const control = this.certificateForm.controls[field];
+    return control.invalid && control.touched;
+  }
+
   languageRecordLabel(language: ProfileLanguage): string {
     return `${language.languageName} (${this.languageLevelLabel(language.level)})`;
   }
@@ -739,6 +938,10 @@ export class ProfileWorkspaceComponent {
 
   educationRecordLabel(education: Education): string {
     return `${education.degree} at ${education.schoolName}`;
+  }
+
+  certificateRecordLabel(certificate: Certificate): string {
+    return `${certificate.certificateName} (${certificate.issueDate})`;
   }
 
   discardPendingNavigation(): void {
@@ -787,6 +990,26 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentLanguageProfile(profileId, generation)) return;
         this.languageError = error;
         this.languageLoading = false;
+      },
+    });
+  }
+
+  private loadCertificates(profileId: string): void {
+    this.certificateListCancel.next();
+    const generation = ++this.certificateListGeneration;
+    this.certificates = [];
+    this.certificateLoading = true;
+    this.certificateError = null;
+    this.profileService.listCertificates(profileId).pipe(takeUntil(this.certificateListCancel)).subscribe({
+      next: (certificates) => {
+        if (!this.isCurrentCertificateProfile(profileId, generation)) return;
+        this.certificates = this.sortCertificates(certificates);
+        this.certificateLoading = false;
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentCertificateProfile(profileId, generation)) return;
+        this.certificateError = error;
+        this.certificateLoading = false;
       },
     });
   }
@@ -896,6 +1119,30 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  private fetchLatestCertificate(): void {
+    const profileId = this.context.selectedId();
+    if (!profileId) return;
+
+    this.closeCertificateEditor();
+    this.isReloading = true;
+    this.certificateErrorMessage = '';
+    this.certificateMessage = '';
+    this.context.reloadDetail(profileId).subscribe({
+      next: () => {
+        if (this.context.selectedId() !== profileId || this.activeProfileId !== profileId) return;
+        this.isReloading = false;
+        this.certificateConflict = false;
+        this.certificateMessage = 'Latest Profile and Certificate data loaded. Review it before editing.';
+        this.loadCertificates(profileId);
+      },
+      error: (error: unknown) => {
+        if (this.context.selectedId() !== profileId || this.activeProfileId !== profileId) return;
+        this.isReloading = false;
+        this.certificateErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to reload the latest Profile right now. Please try again.';
+      },
+    });
+  }
+
   private closeEditor(): void {
     this.originalAboutMeValues = null;
     this.isEditing = false;
@@ -906,6 +1153,7 @@ export class ProfileWorkspaceComponent {
     this.editSession.setDirty(false);
     this.closeEducationEditor();
     this.closeLanguageEditor();
+    this.closeCertificateEditor();
     const profile = this.context.detail();
     if (profile) {
       this.editForm.reset(this.formValues(profile));
@@ -946,6 +1194,22 @@ export class ProfileWorkspaceComponent {
     this.syncDirtyState();
   }
 
+  private closeCertificateEditor(): void {
+    this.certificateMutationGeneration++;
+    this.certificateEditorMode = null;
+    this.editingCertificateId = null;
+    this.originalCertificateValues = null;
+    this.isCertificateSubmitting = false;
+    this.certificateConflict = false;
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.certificateForm.reset(this.emptyCertificateValues());
+    this.certificateForm.markAsPristine();
+    this.certificateForm.markAsUntouched();
+    this.clearCertificateBackendErrors();
+    this.syncDirtyState();
+  }
+
   private closeDeleteConfirmation(): void {
     this.deleteConfirmation = false;
     this.deleteTarget = null;
@@ -964,6 +1228,13 @@ export class ProfileWorkspaceComponent {
     this.languageDeleteTarget = null;
     this.languageDeleteErrorMessage = '';
     this.isLanguageDeleting = false;
+  }
+
+  private closeCertificateDeleteConfirmation(): void {
+    this.certificateDeleteConfirmation = false;
+    this.certificateDeleteTarget = null;
+    this.certificateDeleteErrorMessage = '';
+    this.isCertificateDeleting = false;
   }
 
   private resetEducationState(): void {
@@ -988,6 +1259,19 @@ export class ProfileWorkspaceComponent {
     this.languageMessage = '';
     this.languageErrorMessage = '';
     this.closeLanguageDeleteConfirmation();
+    this.previewInvalidated = false;
+  }
+
+  private resetCertificateState(): void {
+    this.certificateListCancel.next();
+    this.certificateListGeneration++;
+    this.certificateMutationGeneration++;
+    this.certificates = [];
+    this.certificateLoading = false;
+    this.certificateError = null;
+    this.certificateMessage = '';
+    this.certificateErrorMessage = '';
+    this.closeCertificateDeleteConfirmation();
     this.previewInvalidated = false;
   }
 
@@ -1115,6 +1399,51 @@ export class ProfileWorkspaceComponent {
     this.syncDirtyState();
   }
 
+  private openCertificateEditor(certificate?: Certificate): void {
+    const profile = this.context.detail();
+    if (!profile || this.isEditing || this.educationEditorMode || this.languageEditorMode || this.certificateEditorMode) return;
+
+    const values = certificate ? this.certificateFormValues(certificate) : this.emptyCertificateValues();
+    this.certificateEditorMode = certificate ? 'edit' : 'create';
+    this.editingCertificateId = certificate ? certificate.id : null;
+    this.originalCertificateValues = this.normalizeCertificateValues(values);
+    this.certificateForm.reset(values);
+    this.certificateForm.markAsPristine();
+    this.certificateForm.markAsUntouched();
+    this.certificateMutationGeneration++;
+    this.certificateConflict = false;
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.certificateErrorMessage = '';
+    this.certificateMessage = '';
+    this.syncDirtyState();
+  }
+
+  private handleCertificateSaveError(error: unknown): void {
+    this.isCertificateSubmitting = false;
+    const response = this.apiError(error);
+    if (response?.errorCode === 'PROFILE_VERSION_CONFLICT') {
+      this.certificateConflict = true;
+      this.certificateErrorMessage = response.message?.trim() || 'This Profile changed elsewhere. Reload the latest version before saving again.';
+      this.syncDirtyState();
+      return;
+    }
+    if (response?.errorCode === 'VALIDATION_ERROR') {
+      this.applyCertificateFieldErrors(response.data);
+      this.certificateErrorMessage = 'Please correct the highlighted fields.';
+      this.syncDirtyState();
+      return;
+    }
+
+    if (response?.errorCode === 'CERTIFICATE_ALREADY_EXISTS') {
+      this.setCertificateFieldError('certificateName', response.message || 'A Certificate with this name and Issue Date already exists in this Profile.');
+    } else if (response?.errorCode === 'CERTIFICATE_ISSUE_DATE_IN_FUTURE') {
+      this.setCertificateFieldError('issueDate', response.message || 'Issue Date cannot be in the future.');
+    }
+    this.certificateErrorMessage = response?.message?.trim() || 'Unable to save this Certificate right now. Your changes are still here.';
+    this.syncDirtyState();
+  }
+
   private trimFormValues(): void {
     const value = this.editForm.getRawValue();
     this.editForm.patchValue({
@@ -1137,6 +1466,15 @@ export class ProfileWorkspaceComponent {
       endDate: value.endDate.trim(),
     }, { emitEvent: false });
     this.educationForm.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private trimCertificateFormValues(): void {
+    const value = this.certificateForm.getRawValue();
+    this.certificateForm.patchValue({
+      certificateName: value.certificateName.trim(),
+      issueDate: value.issueDate.trim(),
+    }, { emitEvent: false });
+    this.certificateForm.updateValueAndValidity({ emitEvent: false });
   }
 
   private applyLanguageFieldErrors(data: unknown): void {
@@ -1192,6 +1530,19 @@ export class ProfileWorkspaceComponent {
     }
   }
 
+  private applyCertificateFieldErrors(data: unknown): void {
+    const errors = (data as { errors?: unknown } | undefined)?.errors;
+    if (!Array.isArray(errors)) return;
+    for (const error of errors) {
+      if (!error || typeof error !== 'object') continue;
+      const { field, message } = error as { field?: unknown; message?: unknown };
+      const normalizedField = typeof field === 'string' ? field.split('.').pop() : undefined;
+      if (normalizedField && typeof message === 'string' && normalizedField in this.certificateForm.controls) {
+        this.setCertificateFieldError(normalizedField as EditableCertificateField, message);
+      }
+    }
+  }
+
   private clearEducationBackendErrors(): void {
     for (const control of Object.values(this.educationForm.controls)) {
       if (!control.errors?.['backend']) continue;
@@ -1210,6 +1561,16 @@ export class ProfileWorkspaceComponent {
     }
   }
 
+  private clearCertificateBackendErrors(): void {
+    for (const control of Object.values(this.certificateForm.controls)) {
+      if (!control.errors?.['backend'] && !control.errors?.['duplicate']) continue;
+      const errors = { ...control.errors };
+      delete errors['backend'];
+      delete errors['duplicate'];
+      control.setErrors(Object.keys(errors).length ? errors : null);
+    }
+  }
+
   private setEducationFieldError(field: EditableEducationField, message: string): void {
     const control = this.educationForm.controls[field];
     control.setErrors({ ...control.errors, backend: message.trim() || 'This value is not valid.' });
@@ -1218,6 +1579,12 @@ export class ProfileWorkspaceComponent {
 
   private setLanguageFieldError(field: EditableLanguageField, message: string, key = 'backend'): void {
     const control = this.languageForm.controls[field];
+    control.setErrors({ ...control.errors, [key]: message.trim() || 'This value is not valid.' });
+    control.markAsTouched();
+  }
+
+  private setCertificateFieldError(field: EditableCertificateField, message: string, key = 'backend'): void {
+    const control = this.certificateForm.controls[field];
     control.setErrors({ ...control.errors, [key]: message.trim() || 'This value is not valid.' });
     control.markAsTouched();
   }
@@ -1241,6 +1608,10 @@ export class ProfileWorkspaceComponent {
     return { languageId: null, level: 'BEGINNER' };
   }
 
+  private emptyCertificateValues(): EditableCertificateValues {
+    return { certificateName: '', issueDate: '' };
+  }
+
   private educationFormValues(education: Education): EditableEducationValues {
     return {
       schoolName: education.schoolName,
@@ -1256,6 +1627,10 @@ export class ProfileWorkspaceComponent {
     return { languageId: language.languageId, level: language.level };
   }
 
+  private certificateFormValues(certificate: Certificate): EditableCertificateValues {
+    return { certificateName: certificate.certificateName, issueDate: certificate.issueDate };
+  }
+
   private educationDateRangeValidator(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       const value = control.value as Partial<EditableEducationValues> | null;
@@ -1264,6 +1639,20 @@ export class ProfileWorkspaceComponent {
       }
       return null;
     };
+  }
+
+  private certificateIssueDateValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const value = typeof control.value === 'string' ? control.value : '';
+      return value && value > this.currentDate() ? { futureDate: true } : null;
+    };
+  }
+
+  private currentDate(): string {
+    const date = new Date();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
   }
 
   private updateEducationDateValidation(): void {
@@ -1288,6 +1677,10 @@ export class ProfileWorkspaceComponent {
     return { languageId: value.languageId, level: value.level };
   }
 
+  private normalizeCertificateValues(value: EditableCertificateValues): EditableCertificateValues {
+    return { certificateName: value.certificateName.trim(), issueDate: value.issueDate.trim() };
+  }
+
   hasEducationChanges(): boolean {
     const original = this.originalEducationValues;
     if (!original) return false;
@@ -1307,6 +1700,13 @@ export class ProfileWorkspaceComponent {
     return current.languageId !== original.languageId || current.level !== original.level;
   }
 
+  hasCertificateChanges(): boolean {
+    const original = this.originalCertificateValues;
+    if (!original) return false;
+    const current = this.normalizeCertificateValues(this.certificateForm.getRawValue());
+    return current.certificateName !== original.certificateName || current.issueDate !== original.issueDate;
+  }
+
   private isCurrentEducationProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.educationListGeneration === generation;
@@ -1315,6 +1715,11 @@ export class ProfileWorkspaceComponent {
   private isCurrentLanguageProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.languageListGeneration === generation;
+  }
+
+  private isCurrentCertificateProfile(profileId: string, generation: number): boolean {
+    return this.activeProfileId === profileId
+      && this.certificateListGeneration === generation;
   }
 
   private isCurrentEducationOperation(profileId: string, generation: number, requiresEditor = true): boolean {
@@ -1331,6 +1736,14 @@ export class ProfileWorkspaceComponent {
       && String(this.context.detail()?.id) === profileId
       && this.languageMutationGeneration === generation
       && (!requiresEditor || this.languageEditorMode !== null);
+  }
+
+  private isCurrentCertificateOperation(profileId: string, generation: number, requiresEditor = true): boolean {
+    return this.activeProfileId === profileId
+      && this.context.selectedId() === profileId
+      && String(this.context.detail()?.id) === profileId
+      && this.certificateMutationGeneration === generation
+      && (!requiresEditor || this.certificateEditorMode !== null);
   }
 
   private sortEducations(educations: Education[]): Education[] {
@@ -1359,6 +1772,17 @@ export class ProfileWorkspaceComponent {
       const rightId = Number(right.profileLanguageId);
       if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
       return String(left.profileLanguageId).localeCompare(String(right.profileLanguageId));
+    });
+  }
+
+  private sortCertificates(certificates: Certificate[]): Certificate[] {
+    return certificates.sort((left, right) => {
+      const issueDateDifference = String(right.issueDate).localeCompare(String(left.issueDate));
+      if (issueDateDifference) return issueDateDifference;
+      const leftId = Number(left.id);
+      const rightId = Number(right.id);
+      if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
+      return String(left.id).localeCompare(String(right.id));
     });
   }
 
@@ -1399,6 +1823,7 @@ export class ProfileWorkspaceComponent {
   private syncDirtyState(): void {
     this.editSession.setDirty((this.isEditing && (this.editForm.dirty || this.hasAboutMeChanges()))
       || (this.educationEditorMode !== null && (this.educationForm.dirty || this.hasEducationChanges()))
-      || (this.languageEditorMode !== null && (this.languageForm.dirty || this.hasLanguageChanges())));
+      || (this.languageEditorMode !== null && (this.languageForm.dirty || this.hasLanguageChanges()))
+      || (this.certificateEditorMode !== null && (this.certificateForm.dirty || this.hasCertificateChanges())));
   }
 }

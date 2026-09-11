@@ -7,6 +7,9 @@ import { ApiResponse } from '../../../core/http/api.models';
 import { API_BASE_URL } from '../../../core/http/api.config';
 import {
   CreateProfileRequest,
+  CertificateMutationResponse,
+  CertificateRequest,
+  CertificateResponse,
   EducationMutationResponse,
   EducationRequest,
   EducationResponse,
@@ -78,6 +81,30 @@ export class ProfileService {
     );
   }
 
+  listCertificates(profileId: string): Observable<CertificateResponse[]> {
+    return this.http.get<ApiResponse<CertificateResponse[]>>(this.certificateUrl(profileId)).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  createCertificate(profileId: string, certificate: CertificateRequest): Observable<CertificateMutationResponse> {
+    return this.http.post<ApiResponse<CertificateMutationResponse>>(this.certificateUrl(profileId), certificate).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  updateCertificate(profileId: string, certificateId: number | string, certificate: CertificateRequest): Observable<CertificateMutationResponse> {
+    return this.http.put<ApiResponse<CertificateMutationResponse>>(this.certificateUrl(profileId, certificateId), certificate).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  deleteCertificate(profileId: string, certificateId: number | string, profileVersion: number): Observable<ProfileVersionResponse> {
+    return this.http.delete<ApiResponse<ProfileVersionResponse>>(this.certificateUrl(profileId, certificateId), { body: { profileVersion } }).pipe(
+      map((response) => response.data),
+    );
+  }
+
   listProfileLanguages(profileId: string): Observable<ProfileLanguageResponse[]> {
     return this.http.get<ApiResponse<ProfileLanguageResponse[]>>(this.languageUrl(profileId)).pipe(
       map((response) => response.data),
@@ -117,5 +144,10 @@ export class ProfileService {
   private languageUrl(profileId: string, profileLanguageId?: number | string): string {
     const profileUrl = `${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}/languages`;
     return profileLanguageId === undefined ? profileUrl : `${profileUrl}/${encodeURIComponent(String(profileLanguageId))}`;
+  }
+
+  private certificateUrl(profileId: string, certificateId?: number | string): string {
+    const profileUrl = `${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}/certificates`;
+    return certificateId === undefined ? profileUrl : `${profileUrl}/${encodeURIComponent(String(certificateId))}`;
   }
 }

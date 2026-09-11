@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
-import { Education, LanguageMasterPage, ProfileDetail, ProfileLanguage, ProfileSummary } from '../../models/profile.models';
+import { Certificate, Education, LanguageMasterPage, ProfileDetail, ProfileLanguage, ProfileSummary } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
 import { ProfileWorkspaceComponent } from './profile-workspace.component';
@@ -30,12 +30,13 @@ describe('ProfileWorkspaceComponent', () => {
     applyMutationVersion: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
-  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy; listProfileLanguages: jasmine.Spy; createProfileLanguage: jasmine.Spy; updateProfileLanguage: jasmine.Spy; deleteProfileLanguage: jasmine.Spy; listLanguageMaster: jasmine.Spy };
+  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy; listProfileLanguages: jasmine.Spy; createProfileLanguage: jasmine.Spy; updateProfileLanguage: jasmine.Spy; deleteProfileLanguage: jasmine.Spy; listCertificates: jasmine.Spy; createCertificate: jasmine.Spy; updateCertificate: jasmine.Spy; deleteCertificate: jasmine.Spy; listLanguageMaster: jasmine.Spy };
 
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01' };
   const education: Education = { id: 1, schoolName: 'North University', degree: 'BSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: null, status: 'ONGOING' };
   const language: ProfileLanguage = { profileLanguageId: 1, languageId: 2, languageName: 'English', level: 'ADVANCED' };
+  const certificate: Certificate = { id: 1, certificateName: 'AWS Developer', issueDate: '2025-04-01' };
   const languageMasterPage: LanguageMasterPage = { content: [{ id: 2, name: 'English' }, { id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 2, totalPages: 1 };
 
   beforeEach(async () => {
@@ -51,6 +52,10 @@ describe('ProfileWorkspaceComponent', () => {
       createProfileLanguage: jasmine.createSpy('createProfileLanguage'),
       updateProfileLanguage: jasmine.createSpy('updateProfileLanguage'),
       deleteProfileLanguage: jasmine.createSpy('deleteProfileLanguage'),
+      listCertificates: jasmine.createSpy('listCertificates').and.returnValue(of([])),
+      createCertificate: jasmine.createSpy('createCertificate'),
+      updateCertificate: jasmine.createSpy('updateCertificate'),
+      deleteCertificate: jasmine.createSpy('deleteCertificate'),
       listLanguageMaster: jasmine.createSpy('listLanguageMaster').and.returnValue(of(languageMasterPage)),
     };
     router = { navigate: jasmine.createSpy('navigate') };
@@ -111,6 +116,21 @@ describe('ProfileWorkspaceComponent', () => {
       ...overrides,
     });
     fixture.componentInstance.educationForm.markAsDirty();
+    fixture.detectChanges();
+  }
+
+  function openCertificateCreate(): void {
+    fixture.componentInstance.startCertificateCreate();
+    fixture.detectChanges();
+  }
+
+  function fillCertificateDraft(overrides: Partial<{ certificateName: string; issueDate: string }> = {}): void {
+    fixture.componentInstance.certificateForm.patchValue({
+      certificateName: 'AWS Developer',
+      issueDate: '2025-04-01',
+      ...overrides,
+    });
+    fixture.componentInstance.certificateForm.markAsDirty();
     fixture.detectChanges();
   }
 
@@ -991,6 +1011,247 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.languages).toEqual([language]);
     expect(fixture.componentInstance.languageDeleteConfirmation).toBeTrue();
     expect(fixture.componentInstance.languageDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('renders independent Certificate loading, empty, error, and populated states', () => {
+    expect(fixture.nativeElement.querySelector('#workspace-section-certificates .empty-state')?.textContent).toContain('No Certificates exist');
+
+    const loading = new Subject<Certificate[]>();
+    profiles.listCertificates.and.returnValue(loading);
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-certificates .section-state')?.textContent).toContain('Loading Certificate records');
+
+    loading.next([certificate]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-certificates .record')?.textContent).toContain('AWS Developer');
+    expect(fixture.nativeElement.querySelector('#workspace-section-certificates .empty-state')).toBeNull();
+
+    const failed = new Subject<Certificate[]>();
+    profiles.listCertificates.and.returnValue(failed);
+    params.next(convertToParamMap({ profileId: '3' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-certificates [role="alert"]')?.textContent).toContain('could not load Certificate');
+  });
+
+  it('retries Certificate loading at section level', () => {
+    const failed = new Subject<Certificate[]>();
+    const retried = new Subject<Certificate[]>();
+    profiles.listCertificates.and.returnValues(failed, retried);
+    params.next(convertToParamMap({ profileId: '2' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+
+    fixture.componentInstance.retryCertificates();
+    expect(fixture.componentInstance.certificateLoading).toBeTrue();
+    retried.next([certificate]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.certificates).toEqual([certificate]);
+    expect(fixture.nativeElement.querySelector('#workspace-section-certificates .record')?.textContent).toContain('AWS Developer');
+  });
+
+  it('ignores stale Certificate list responses after Profile switching', () => {
+    const first = new Subject<Certificate[]>();
+    const second = new Subject<Certificate[]>();
+    profiles.listCertificates.calls.reset();
+    profiles.listCertificates.and.returnValues(first, second);
+
+    params.next(convertToParamMap({ profileId: '2' }));
+    params.next(convertToParamMap({ profileId: '3' }));
+    first.next([certificate]);
+
+    expect(fixture.componentInstance.certificates).toEqual([]);
+    second.next([{ ...certificate, id: 2, certificateName: 'Google Cloud' }]);
+    expect(fixture.componentInstance.certificates).toEqual([{ ...certificate, id: 2, certificateName: 'Google Cloud' }]);
+  });
+
+  it('renders the required Certificate fields and prevents future Issue Dates', () => {
+    openCertificateCreate();
+    expect(fixture.nativeElement.querySelectorAll('.certificate-editor input').length).toBe(2);
+
+    fillCertificateDraft({ issueDate: '2999-01-01' });
+    fixture.componentInstance.submitCertificate();
+
+    expect(profiles.createCertificate).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.certificateForm.controls.issueDate.errors?.['futureDate']).toBeTrue();
+    expect(fixture.componentInstance.certificateForm.controls.issueDate.touched).toBeTrue();
+  });
+
+  it('creates canonical Certificate data, applies the Profile version, invalidates Preview, and orders rows', () => {
+    const created: Certificate = { id: 7, certificateName: 'AWS Developer', issueDate: '2026-02-01' };
+    profiles.createCertificate.and.returnValue(of({ certificate: created, profileVersion: 4 }));
+    fixture.componentInstance.certificates = [{ ...certificate, id: 4, issueDate: '2025-01-01' }];
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: '  AWS Developer  ', issueDate: '2026-02-01' });
+
+    fixture.componentInstance.submitCertificate();
+
+    expect(profiles.createCertificate).toHaveBeenCalledWith('1', { certificateName: 'AWS Developer', issueDate: '2026-02-01', version: 3 });
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
+    expect(fixture.componentInstance.certificates).toEqual([created, { ...certificate, id: 4, issueDate: '2025-01-01' }]);
+    expect(fixture.componentInstance.previewInvalidated).toBeTrue();
+    expect(fixture.componentInstance.certificateMessage).toContain('Preview is no longer current');
+    expect(fixture.componentInstance.certificateEditorMode).toBeNull();
+  });
+
+  it('updates and re-sorts a Certificate after a date change', () => {
+    const updated: Certificate = { ...certificate, issueDate: '2026-03-01' };
+    profiles.updateCertificate.and.returnValue(of({ certificate: updated, profileVersion: 5 }));
+    fixture.componentInstance.certificates = [certificate, { id: 2, certificateName: 'Google Cloud', issueDate: '2026-01-01' }];
+    fixture.componentInstance.startCertificateEdit(certificate);
+    fillCertificateDraft({ issueDate: '2026-03-01' });
+
+    fixture.componentInstance.submitCertificate();
+
+    expect(profiles.updateCertificate).toHaveBeenCalledWith('1', 1, { certificateName: 'AWS Developer', issueDate: '2026-03-01', version: 3 });
+    expect(fixture.componentInstance.certificates).toEqual([updated, { id: 2, certificateName: 'Google Cloud', issueDate: '2026-01-01' }]);
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 5);
+  });
+
+  it('rejects only an exact Name and Issue Date duplicate and allows the same Name on another date', () => {
+    fixture.componentInstance.certificates = [certificate];
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: 'AWS Developer', issueDate: '2025-04-01' });
+    fixture.componentInstance.submitCertificate();
+
+    expect(profiles.createCertificate).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.certificateForm.controls.certificateName.errors?.['duplicate']).toContain('already exists');
+
+    profiles.createCertificate.and.returnValue(of({ certificate: { ...certificate, id: 2, issueDate: '2024-04-01' }, profileVersion: 4 }));
+    fixture.componentInstance.certificateForm.controls.issueDate.setValue('2024-04-01');
+    fixture.componentInstance.certificateForm.markAsDirty();
+    fixture.componentInstance.submitCertificate();
+
+    expect(profiles.createCertificate).toHaveBeenCalledWith('1', { certificateName: 'AWS Developer', issueDate: '2024-04-01', version: 3 });
+  });
+
+  it('preserves a failed Certificate mutation draft and allows retry', () => {
+    profiles.createCertificate.and.returnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Service unavailable' } })));
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: 'Draft Certificate' });
+
+    fixture.componentInstance.submitCertificate();
+
+    expect(fixture.componentInstance.certificateEditorMode).toBe('create');
+    expect(fixture.componentInstance.certificateForm.controls.certificateName.value).toBe('Draft Certificate');
+    expect(fixture.componentInstance.certificateForm.dirty).toBeTrue();
+    expect(fixture.componentInstance.certificateErrorMessage).toBe('Service unavailable');
+
+    profiles.createCertificate.and.returnValue(of({ certificate: { id: 8, certificateName: 'Draft Certificate', issueDate: '2025-04-01' }, profileVersion: 4 }));
+    fixture.componentInstance.submitCertificate();
+    expect(fixture.componentInstance.certificateEditorMode).toBeNull();
+  });
+
+  it('maps Certificate duplicate, future-date, and validation errors while keeping the editor retryable', () => {
+    profiles.createCertificate.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'CERTIFICATE_ALREADY_EXISTS', message: 'Certificate already exists.' } })));
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: 'Entered Certificate' });
+    fixture.componentInstance.submitCertificate();
+
+    expect(fixture.componentInstance.certificateForm.controls.certificateName.errors?.['backend']).toBe('Certificate already exists.');
+    expect(fixture.componentInstance.certificateEditorMode).toBe('create');
+
+    profiles.createCertificate.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { errorCode: 'CERTIFICATE_ISSUE_DATE_IN_FUTURE', message: 'Date is in the future.' } })));
+    fixture.componentInstance.submitCertificate();
+    expect(fixture.componentInstance.certificateForm.controls.issueDate.errors?.['backend']).toBe('Date is in the future.');
+
+    profiles.createCertificate.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { errorCode: 'VALIDATION_ERROR', data: { errors: [{ field: 'certificateName', message: 'Name is invalid' }] } } })));
+    fixture.componentInstance.submitCertificate();
+    expect(fixture.componentInstance.certificateForm.controls.certificateName.errors?.['backend']).toBe('Name is invalid');
+  });
+
+  it('preserves a Certificate conflict draft and reloads Profile plus Certificates', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshedCertificates = new Subject<Certificate[]>();
+    profiles.createCertificate.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT', message: 'Profile changed elsewhere.' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listCertificates.and.returnValue(refreshedCertificates);
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: 'Conflict Draft' });
+
+    fixture.componentInstance.submitCertificate();
+    expect(fixture.componentInstance.certificateConflict).toBeTrue();
+    expect(fixture.componentInstance.certificateForm.controls.certificateName.value).toBe('Conflict Draft');
+
+    fixture.componentInstance.reloadLatest();
+    expect(fixture.componentInstance.reloadConfirmation).toBeTrue();
+    fixture.componentInstance.confirmReloadLatest();
+    expect(context.reloadDetail).toHaveBeenCalledWith('1');
+    expect(fixture.componentInstance.certificateEditorMode).toBeNull();
+
+    reload.next({ ...detail, version: 4 });
+    refreshedCertificates.next([certificate]);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.certificates).toEqual([certificate]);
+    expect(fixture.componentInstance.certificateMessage).toContain('Latest Profile and Certificate data loaded');
+  });
+
+  it('confirms Certificate deletion, protects duplicate submission, and removes the row', () => {
+    const pending = new Subject<{ profileVersion: number }>();
+    fixture.componentInstance.certificates = [certificate];
+    profiles.deleteCertificate.and.returnValue(pending);
+    fixture.detectChanges();
+    const deleteButton = fixture.nativeElement.querySelector('.certificate-delete-button') as HTMLButtonElement;
+    expect(deleteButton.getAttribute('aria-label')).toBe('Delete AWS Developer (2025-04-01)');
+    deleteButton.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.certificateDeleteConfirmation).toBeTrue();
+
+    fixture.componentInstance.confirmCertificateDelete();
+    fixture.componentInstance.confirmCertificateDelete();
+    expect(profiles.deleteCertificate).toHaveBeenCalledTimes(1);
+    expect(profiles.deleteCertificate).toHaveBeenCalledWith('1', 1, 3);
+    expect(fixture.componentInstance.certificates).toEqual([certificate]);
+
+    pending.next({ profileVersion: 4 });
+    pending.complete();
+    expect(fixture.componentInstance.certificates).toEqual([]);
+    expect(fixture.componentInstance.certificateDeleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.certificateMessage).toContain('Certificate deleted');
+    expect(context.reloadDetail).not.toHaveBeenCalled();
+  });
+
+  it('retains a Certificate row and confirmation after delete failure', () => {
+    profiles.deleteCertificate.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Delete rejected' } })));
+    fixture.componentInstance.certificates = [certificate];
+    fixture.componentInstance.openCertificateDeleteConfirmation(certificate);
+    fixture.componentInstance.confirmCertificateDelete();
+
+    expect(fixture.componentInstance.certificates).toEqual([certificate]);
+    expect(fixture.componentInstance.certificateDeleteConfirmation).toBeTrue();
+    expect(fixture.componentInstance.certificateDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('ignores a stale Certificate mutation after Profile switching', () => {
+    const pending = new Subject<{ certificate: Certificate; profileVersion: number }>();
+    profiles.createCertificate.and.returnValue(pending);
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: 'Pending Certificate' });
+    fixture.componentInstance.submitCertificate();
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2 });
+    params.next(convertToParamMap({ profileId: '2' }));
+    pending.next({ certificate: { id: 9, certificateName: 'Pending Certificate', issueDate: '2025-04-01' }, profileVersion: 4 });
+
+    expect(fixture.componentInstance.certificates).toEqual([]);
+    expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 4);
+  });
+
+  it('includes Certificate editor dirtiness in unsaved navigation confirmation', () => {
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: 'Unsaved Certificate' });
+
+    const navigation = fixture.componentInstance.editSession.requestNavigation('/profiles/2');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Your unsaved editor changes will be discarded');
+    fixture.componentInstance.discardPendingNavigation();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(fixture.componentInstance.certificateEditorMode).toBeNull();
+    void navigation;
   });
 
   it('includes Language editor dirtiness in unsaved navigation confirmation', () => {

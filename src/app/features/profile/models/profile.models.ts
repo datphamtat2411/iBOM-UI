@@ -71,6 +71,25 @@ export interface ProfileVersionResponse {
   profileVersion: number;
 }
 
+export interface Certificate {
+  id: number | string;
+  certificateName: string;
+  issueDate: string;
+}
+
+export type CertificateResponse = Certificate;
+
+export interface CertificateRequest {
+  certificateName: string;
+  issueDate: string;
+  version: number;
+}
+
+export interface CertificateMutationResponse {
+  certificate: CertificateResponse;
+  profileVersion: number;
+}
+
 export type LanguageLevel = 'BEGINNER' | 'INTERMEDIATE' | 'UPPER_INTERMEDIATE' | 'ADVANCED' | 'NATIVE';
 
 export interface ProfileLanguage {
