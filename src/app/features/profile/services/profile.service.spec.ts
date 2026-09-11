@@ -54,4 +54,37 @@ describe('ProfileService', () => {
     expect(request.request.body).toBeNull();
     request.flush({ code: 200, message: 'Success', data: null, timestamp: '2026-01-01' });
   });
+
+  it('lists Education for the selected Profile and unwraps data', () => {
+    service.listEducations('profile/1').subscribe((educations) => expect(educations).toEqual([{ id: 4, schoolName: 'North', degree: 'BSc', fieldOfStudy: null, startDate: '2020-09-01', endDate: null, status: 'ONGOING' }]));
+    const request = http.expectOne('/api/profiles/profile%2F1/educations');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: [{ id: 4, schoolName: 'North', degree: 'BSc', fieldOfStudy: null, startDate: '2020-09-01', endDate: null, status: 'ONGOING' }] });
+  });
+
+  it('creates Education with the profile version and unwraps the mutation response', () => {
+    const education = { schoolName: 'North', degree: 'BSc', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: null, status: 'ONGOING' as const, version: 3 };
+    service.createEducation('profile-1', education).subscribe((result) => expect(result.profileVersion).toBe(4));
+    const request = http.expectOne('/api/profiles/profile-1/educations');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(education);
+    request.flush({ data: { education: { id: 5, ...education }, profileVersion: 4 } });
+  });
+
+  it('updates Education with an encoded record URL and unwraps the mutation response', () => {
+    const education = { schoolName: 'South', degree: 'MSc', fieldOfStudy: null, startDate: '2021-09-01', endDate: '2023-06-30', status: 'COMPLETED' as const, version: 6 };
+    service.updateEducation('profile-1', 'education/2', education).subscribe((result) => expect(result.education.degree).toBe('MSc'));
+    const request = http.expectOne('/api/profiles/profile-1/educations/education%2F2');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(education);
+    request.flush({ data: { education: { id: 2, ...education }, profileVersion: 7 } });
+  });
+
+  it('deletes Education with the profile version in the JSON request body', () => {
+    service.deleteEducation('profile-1', 8, 9).subscribe((result) => expect(result).toEqual({ profileVersion: 10 }));
+    const request = http.expectOne('/api/profiles/profile-1/educations/8');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toEqual({ profileVersion: 9 });
+    request.flush({ data: { profileVersion: 10 } });
+  });
 });

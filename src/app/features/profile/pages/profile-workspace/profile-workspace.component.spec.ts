@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
-import { ProfileDetail, ProfileSummary } from '../../models/profile.models';
+import { Education, ProfileDetail, ProfileSummary } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
 import { ProfileWorkspaceComponent } from './profile-workspace.component';
@@ -27,16 +27,18 @@ describe('ProfileWorkspaceComponent', () => {
     beginSelection: jasmine.Spy;
     replaceDetail: jasmine.Spy;
     refreshSummariesAndSelectFirst: jasmine.Spy;
+    applyMutationVersion: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
-  let profiles: { update: jasmine.Spy; delete: jasmine.Spy };
+  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy };
 
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01' };
+  const education: Education = { id: 1, schoolName: 'North University', degree: 'BSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: null, status: 'ONGOING' };
 
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
-    profiles = { update: jasmine.createSpy('update'), delete: jasmine.createSpy('delete') };
+    profiles = { update: jasmine.createSpy('update'), delete: jasmine.createSpy('delete'), listEducations: jasmine.createSpy('listEducations').and.returnValue(of([])), createEducation: jasmine.createSpy('createEducation'), updateEducation: jasmine.createSpy('updateEducation'), deleteEducation: jasmine.createSpy('deleteEducation') };
     router = { navigate: jasmine.createSpy('navigate') };
     context = {
       summaries: signal([summary]),
@@ -52,6 +54,7 @@ describe('ProfileWorkspaceComponent', () => {
       beginSelection: jasmine.createSpy('beginSelection'),
       replaceDetail: jasmine.createSpy('replaceDetail'),
       refreshSummariesAndSelectFirst: jasmine.createSpy('refreshSummariesAndSelectFirst'),
+      applyMutationVersion: jasmine.createSpy('applyMutationVersion').and.returnValue(true),
       isNotFound: jasmine.createSpy('isNotFound').and.returnValue(false),
     };
     await TestBed.configureTestingModule({
@@ -75,6 +78,25 @@ describe('ProfileWorkspaceComponent', () => {
   function markDraft(): void {
     fixture.componentInstance.editForm.controls.firstName.setValue('Changed');
     fixture.componentInstance.editForm.markAsDirty();
+    fixture.detectChanges();
+  }
+
+  function openEducationCreate(): void {
+    fixture.componentInstance.startEducationCreate();
+    fixture.detectChanges();
+  }
+
+  function fillEducationDraft(overrides: Partial<{ schoolName: string; degree: string; fieldOfStudy: string; startDate: string; endDate: string; status: 'ONGOING' | 'COMPLETED' }> = {}): void {
+    fixture.componentInstance.educationForm.patchValue({
+      schoolName: 'North University',
+      degree: 'BSc Computer Science',
+      fieldOfStudy: 'Computing',
+      startDate: '2020-09-01',
+      endDate: '',
+      status: 'ONGOING',
+      ...overrides,
+    });
+    fixture.componentInstance.educationForm.markAsDirty();
     fixture.detectChanges();
   }
 
@@ -549,6 +571,219 @@ describe('ProfileWorkspaceComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
     expect(fixture.componentInstance.deleteConfirmation).toBeFalse();
     expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+  });
+
+  it('renders independent Education loading, empty, error, and populated states', () => {
+    expect(fixture.nativeElement.querySelector('.empty-state')?.textContent).toContain('No Education records exist');
+
+    const loading = new Subject<Education[]>();
+    profiles.listEducations.and.returnValue(loading);
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.section-state')?.textContent).toContain('Loading Education records');
+
+    loading.next([education]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.record')?.textContent).toContain('BSc Computer Science');
+    expect(fixture.nativeElement.querySelector('.empty-state')).toBeNull();
+
+    const failed = new Subject<Education[]>();
+    profiles.listEducations.and.returnValue(failed);
+    params.next(convertToParamMap({ profileId: '3' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('could not load Education');
+    expect(fixture.nativeElement.querySelector('.empty-state')).toBeNull();
+  });
+
+  it('retries Education loading at section level', () => {
+    const failed = new Subject<Education[]>();
+    const retried = new Subject<Education[]>();
+    profiles.listEducations.and.returnValues(failed, retried);
+    params.next(convertToParamMap({ profileId: '2' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+
+    fixture.componentInstance.retryEducations();
+    expect(fixture.componentInstance.educationLoading).toBeTrue();
+    retried.next([education]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.educations).toEqual([education]);
+    expect(fixture.nativeElement.querySelector('.record')?.textContent).toContain('North University');
+  });
+
+  it('ignores stale Education list responses after Profile switching', () => {
+    const first = new Subject<Education[]>();
+    const second = new Subject<Education[]>();
+    profiles.listEducations.calls.reset();
+    profiles.listEducations.and.returnValues(first, second);
+
+    params.next(convertToParamMap({ profileId: '2' }));
+    params.next(convertToParamMap({ profileId: '3' }));
+    first.next([education]);
+
+    expect(fixture.componentInstance.educations).toEqual([]);
+    second.next([{ ...education, id: 2, degree: 'MSc' }]);
+    expect(fixture.componentInstance.educations).toEqual([{ ...education, id: 2, degree: 'MSc' }]);
+  });
+
+  it('renders Education editor fields and requires an end date for completed Education', () => {
+    openEducationCreate();
+    expect(fixture.nativeElement.querySelectorAll('.education-editor input, .education-editor select').length).toBe(6);
+
+    fillEducationDraft({ status: 'COMPLETED', endDate: '' });
+    fixture.componentInstance.submitEducation();
+
+    expect(profiles.createEducation).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.educationForm.controls.endDate.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.educationForm.controls.endDate.touched).toBeTrue();
+  });
+
+  it('rejects an Education date range where the start is after the end', () => {
+    openEducationCreate();
+    fillEducationDraft({ status: 'COMPLETED', endDate: '2019-06-30' });
+    fixture.componentInstance.submitEducation();
+
+    expect(profiles.createEducation).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.educationForm.errors?.['dateRange']).toBeTrue();
+    expect(fixture.componentInstance.educationFieldError('endDate')).toContain('on or after');
+  });
+
+  it('creates Education with canonical returned data, the current Profile version, and preview invalidation', () => {
+    const created: Education = { ...education, id: 7, endDate: null };
+    profiles.createEducation.and.returnValue(of({ education: created, profileVersion: 4 }));
+    openEducationCreate();
+    fillEducationDraft({ schoolName: '  North University  ', degree: '  BSc Computer Science  ', fieldOfStudy: '  Computing  ', endDate: '2024-01-01' });
+
+    fixture.componentInstance.submitEducation();
+
+    expect(profiles.createEducation).toHaveBeenCalledWith('1', { schoolName: 'North University', degree: 'BSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: null, status: 'ONGOING', version: 3 });
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
+    expect(fixture.componentInstance.educations).toEqual([created]);
+    expect(fixture.componentInstance.previewInvalidated).toBeTrue();
+    expect(fixture.componentInstance.educationMessage).toContain('Preview is no longer current');
+    expect(context.reloadDetail).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.educationEditorMode).toBeNull();
+  });
+
+  it('updates Education with completed dates and applies the canonical returned row', () => {
+    const updated: Education = { ...education, degree: 'MSc Computer Science', status: 'COMPLETED', endDate: '2024-06-30' };
+    profiles.updateEducation.and.returnValue(of({ education: updated, profileVersion: 5 }));
+    fixture.componentInstance.educations = [education];
+    fixture.componentInstance.startEducationEdit(education);
+    fillEducationDraft({ degree: 'MSc Computer Science', status: 'COMPLETED', endDate: '2024-06-30' });
+
+    fixture.componentInstance.submitEducation();
+
+    expect(profiles.updateEducation).toHaveBeenCalledWith('1', 1, { schoolName: 'North University', degree: 'MSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: '2024-06-30', status: 'COMPLETED', version: 3 });
+    expect(fixture.componentInstance.educations).toEqual([updated]);
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 5);
+  });
+
+  it('preserves Education form values, dirty state, and rows after a failed mutation', () => {
+    profiles.createEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Service unavailable' } })));
+    fixture.componentInstance.educations = [education];
+    openEducationCreate();
+    fillEducationDraft({ schoolName: 'Draft School' });
+
+    fixture.componentInstance.submitEducation();
+
+    expect(fixture.componentInstance.educationEditorMode).toBe('create');
+    expect(fixture.componentInstance.educationForm.controls.schoolName.value).toBe('Draft School');
+    expect(fixture.componentInstance.educationForm.dirty).toBeTrue();
+    expect(fixture.componentInstance.educations).toEqual([education]);
+    expect(fixture.componentInstance.educationErrorMessage).toBe('Service unavailable');
+  });
+
+  it('maps backend Education validation and preserves entered values', () => {
+    profiles.createEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { errorCode: 'VALIDATION_ERROR', data: { errors: [{ field: 'schoolName', message: 'School is invalid' }] } } })));
+    openEducationCreate();
+    fillEducationDraft({ schoolName: 'Entered School' });
+
+    fixture.componentInstance.submitEducation();
+
+    expect(fixture.componentInstance.educationForm.controls.schoolName.value).toBe('Entered School');
+    expect(fixture.componentInstance.educationForm.controls.schoolName.errors?.['backend']).toBe('School is invalid');
+    expect(fixture.componentInstance.educationEditorMode).toBe('create');
+  });
+
+  it('preserves an Education conflict draft and reloads Profile plus Education after confirmation', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshedEducations = new Subject<Education[]>();
+    profiles.createEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT', message: 'Profile changed elsewhere.' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listEducations.and.returnValue(refreshedEducations);
+    openEducationCreate();
+    fillEducationDraft({ schoolName: 'Conflict Draft' });
+
+    fixture.componentInstance.submitEducation();
+    expect(fixture.componentInstance.educationConflict).toBeTrue();
+    expect(fixture.componentInstance.educationForm.controls.schoolName.value).toBe('Conflict Draft');
+
+    fixture.componentInstance.reloadLatest();
+    expect(fixture.componentInstance.reloadConfirmation).toBeTrue();
+    fixture.componentInstance.confirmReloadLatest();
+    expect(context.reloadDetail).toHaveBeenCalledWith('1');
+    expect(fixture.componentInstance.educationEditorMode).toBeNull();
+
+    reload.next({ ...detail, version: 4 });
+    refreshedEducations.next([education]);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.educations).toEqual([education]);
+    expect(fixture.componentInstance.educationMessage).toContain('Latest Profile and Education data loaded');
+  });
+
+  it('confirms Education deletion, protects against duplicate submission, and removes the canonical row', () => {
+    const pending = new Subject<{ profileVersion: number }>();
+    fixture.componentInstance.educations = [education];
+    profiles.deleteEducation.and.returnValue(pending);
+    fixture.detectChanges();
+
+    const deleteButton = fixture.nativeElement.querySelector('.education-delete-button') as HTMLButtonElement;
+    expect(deleteButton.getAttribute('aria-label')).toBe('Delete BSc Computer Science at North University');
+    deleteButton.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.educationDeleteConfirmation).toBeTrue();
+
+    fixture.componentInstance.confirmEducationDelete();
+    fixture.componentInstance.confirmEducationDelete();
+    expect(profiles.deleteEducation).toHaveBeenCalledTimes(1);
+    expect(profiles.deleteEducation).toHaveBeenCalledWith('1', 1, 3);
+    expect(fixture.componentInstance.educations).toEqual([education]);
+
+    pending.next({ profileVersion: 4 });
+    pending.complete();
+    expect(fixture.componentInstance.educations).toEqual([]);
+    expect(fixture.componentInstance.educationDeleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.educationMessage).toContain('Education deleted');
+    expect(context.reloadDetail).not.toHaveBeenCalled();
+  });
+
+  it('retains an Education row and confirmation after delete failure', () => {
+    profiles.deleteEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Delete rejected' } })));
+    fixture.componentInstance.educations = [education];
+    fixture.componentInstance.openEducationDeleteConfirmation(education);
+    fixture.componentInstance.confirmEducationDelete();
+
+    expect(fixture.componentInstance.educations).toEqual([education]);
+    expect(fixture.componentInstance.educationDeleteConfirmation).toBeTrue();
+    expect(fixture.componentInstance.educationDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('includes Education editor dirtiness in unsaved navigation confirmation', () => {
+    openEducationCreate();
+    fillEducationDraft({ schoolName: 'Unsaved School' });
+
+    const navigation = fixture.componentInstance.editSession.requestNavigation('/profiles/2');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Your unsaved editor changes will be discarded');
+    fixture.componentInstance.discardPendingNavigation();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(fixture.componentInstance.educationEditorMode).toBeNull();
+    void navigation;
   });
 
   it('directs empty workspace users to the Profile menu in the shared shell', () => {

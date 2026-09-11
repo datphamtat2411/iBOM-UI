@@ -101,6 +101,22 @@ describe('ProfileContextService', () => {
     expect(service.summaries()).toEqual([{ ...summary, firstName: 'Updated', updatedAt: '2026-01-02' }, { ...summary, id: 2, profileName: 'Frontend CV' }]);
   });
 
+  it('synchronizes a successful section mutation version and invalidates the preview', () => {
+    service.beginSelection('1');
+    service.detail.set({ ...detail, hasPreviewed: true, version: 4 });
+
+    expect(service.applyMutationVersion('1', 5)).toBeTrue();
+    expect(service.detail()).toEqual({ ...detail, hasPreviewed: false, version: 5 });
+  });
+
+  it('ignores a section mutation returned for a Profile that is no longer selected', () => {
+    service.beginSelection('1');
+    service.detail.set({ ...detail, hasPreviewed: true, version: 4 });
+
+    expect(service.applyMutationVersion('2', 9)).toBeFalse();
+    expect(service.detail()).toEqual({ ...detail, hasPreviewed: true, version: 4 });
+  });
+
   it('refreshes summaries and selects the newly created Profile', () => {
     const refreshed = new Subject<ProfileSummary[]>();
     profiles.list.and.returnValue(refreshed);

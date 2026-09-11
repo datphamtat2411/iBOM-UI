@@ -86,6 +86,13 @@ export class ProfileContextService {
     }));
   }
 
+  applyMutationVersion(profileId: string, profileVersion: number): boolean {
+    const current = this.detail();
+    if (this.selectedId() !== String(profileId) || !current || String(current.id) !== String(profileId)) return false;
+    this.detail.set({ ...current, version: profileVersion, hasPreviewed: false });
+    return true;
+  }
+
   private requestDetail(profileId: string): Observable<ProfileDetail> {
     this.beginSelection(profileId);
     const generation = this.detailGeneration;

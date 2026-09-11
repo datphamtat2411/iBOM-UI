@@ -28,25 +28,39 @@
 .long-copy h3 { margin: 18px 0 5px; font-size: 14px; }
 .long-copy p { margin: 0; line-height: 1.65; white-space: pre-line; }
 .structural-placeholder { margin-top: 18px; padding: 18px; border: 1px dashed var(--shell-border, #d8d2c4); color: var(--shell-muted, #6b675f); }
+.record-list { border-top: 1px solid var(--shell-ink, #17191d); }
+.record { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); padding: 16px 3px; gap: 10px 20px; border-bottom: 1px solid var(--shell-border, #d8d2c4); }
+.record h3 { margin: 0 0 4px; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+.record p { margin: 0; color: var(--shell-muted, #6b675f); overflow-wrap: anywhere; }
+.record-meta { font-family: var(--font-mono); font-size: 11px; line-height: 1.45; text-align: end; white-space: normal; overflow-wrap: anywhere; }
+.record-actions { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+.empty-state { display: grid; gap: 12px; padding: 18px; border: 1px dashed var(--shell-border, #d8d2c4); border-radius: 6px; background: var(--paper-bg, #f9f7f1); }
+.empty-state p { margin: 0; color: var(--shell-muted, #6b675f); }
+.empty-state .btn { width: fit-content; }
+.section-state { padding: 18px 3px; color: var(--shell-muted, #6b675f); }
+.section-state p { margin: 0; }
 .about-editor { margin-top: 4px; }
+.education-editor { margin-top: 4px; }
 .form-section { padding: 22px 0; border-top: 1px solid var(--shell-border, #d8d2c4); }
 .form-section h3 { margin: 0 0 16px; font-size: 18px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
 .span-2 { grid-column: 1 / -1; }
 .field { display: grid; gap: 7px; }
 .field label { font-size: 13px; font-weight: 700; }
-.field input, .field textarea { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid var(--shell-ink, #17191d); border-radius: 4px; background: #fff; color: inherit; resize: vertical; }
+.field input, .field textarea, .field select { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid var(--shell-ink, #17191d); border-radius: 4px; background: #fff; color: inherit; resize: vertical; }
 .field textarea { line-height: 1.5; }
-.field input:focus, .field textarea:focus { outline: 3px solid rgb(216 90 24 / 28%); outline-offset: 2px; }
-.field input[aria-invalid="true"], .field textarea[aria-invalid="true"] { border-color: #a62d25; }
+.field input:focus, .field textarea:focus, .field select:focus { outline: 3px solid rgb(216 90 24 / 28%); outline-offset: 2px; }
+.field input[aria-invalid="true"], .field textarea[aria-invalid="true"], .field select[aria-invalid="true"] { border-color: #a62d25; }
 .readonly-value { min-height: 44px; padding: 11px; border: 1px solid var(--shell-border, #d8d2c4); border-radius: 4px; background: var(--paper-muted, #ece8de); overflow-wrap: anywhere; }
 .helper { color: var(--shell-muted, #6b675f); font-size: 12px; line-height: 1.45; }
 .field-error { color: #a62d25; font-size: 12px; }
+.optional { color: var(--shell-muted, #6b675f); font-size: 12px; font-weight: 400; }
 .btn { min-height: 42px; padding: 9px 14px; border: 2px solid var(--shell-ink, #17191d); background: transparent; color: var(--shell-ink, #17191d); font-weight: 700; cursor: pointer; }
 .btn:hover:not(:disabled), .btn:focus-visible { background: var(--paper-muted, #ece8de); outline: none; }
 .btn.primary { background: var(--shell-accent, #d85a18); box-shadow: 3px 3px 0 var(--shell-ink, #17191d); color: #fff; }
 .btn.danger { border-color: rgb(166 45 37 / 55%); color: #a62d25; }
 .btn.danger:hover:not(:disabled), .btn.danger:focus-visible { background: #fff1ef; color: #8d241d; }
+.education-delete-button { display: inline-grid; width: 32px; min-height: 32px; padding: 0; place-items: center; border-radius: 50%; background: #fff1ef; font-size: 19px; line-height: 1; }
 .btn.text { min-height: 32px; padding: 4px 8px; border-width: 1px; }
 .btn:disabled { cursor: not-allowed; opacity: .55; }
 .notice { margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--shell-border, #d8d2c4); border-radius: 6px; line-height: 1.5; }
@@ -65,5 +79,5 @@
 .modal-actions { justify-content: flex-end; margin-top: 24px; flex-wrap: wrap; }
 .mono { font-family: var(--font-mono); font-size: .9em; }
 @media (max-width: 1050px) { .workspace-grid { grid-template-columns: minmax(145px, 170px) minmax(0, 1fr); } .fact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 800px) { .profile-page { padding: 22px 16px 72px; } .page-heading { flex-direction: column; } .heading-actions { justify-content: flex-start; } .workspace-grid { display: block; } .section-nav { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 28px; } .section-nav button { padding-inline: 8px; } .section-title { align-items: stretch; flex-direction: column; gap: 0; } .section-title > .btn { align-self: flex-start; } .form-grid { grid-template-columns: 1fr; } .span-2 { grid-column: auto; } .sticky-actions { align-items: stretch; flex-direction: column; margin-bottom: -56px; } .editor-actions { justify-content: flex-end; } }
+@media (max-width: 800px) { .profile-page { padding: 22px 16px 72px; } .page-heading { flex-direction: column; } .heading-actions { justify-content: flex-start; } .workspace-grid { display: block; } .section-nav { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 28px; } .section-nav button { padding-inline: 8px; } .section-title { align-items: stretch; flex-direction: column; gap: 0; } .section-title > .btn { align-self: flex-start; } .form-grid { grid-template-columns: 1fr; } .span-2 { grid-column: auto; } .sticky-actions { align-items: stretch; flex-direction: column; margin-bottom: -56px; } .editor-actions { justify-content: flex-end; } .record { grid-template-columns: 1fr; gap: 8px; } .record-meta { text-align: start; } .record-actions { justify-content: flex-start; } }
 @media (max-width: 480px) { .fact-grid, .fact-group { grid-template-columns: 1fr; } .heading-actions, .heading-actions .btn { width: 100%; } .heading-actions { flex-direction: column; } .editor-actions, .editor-actions .btn { width: 100%; } .editor-actions { flex-direction: column; } .modal-actions, .modal-actions .btn { width: 100%; } .modal-actions { flex-direction: column-reverse; } }
