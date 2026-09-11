@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
-import { Education, ProfileDetail, ProfileSummary } from '../../models/profile.models';
+import { Education, LanguageMasterPage, ProfileDetail, ProfileLanguage, ProfileSummary } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
 import { ProfileWorkspaceComponent } from './profile-workspace.component';
@@ -30,15 +30,29 @@ describe('ProfileWorkspaceComponent', () => {
     applyMutationVersion: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
-  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy };
+  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy; listProfileLanguages: jasmine.Spy; createProfileLanguage: jasmine.Spy; updateProfileLanguage: jasmine.Spy; deleteProfileLanguage: jasmine.Spy; listLanguageMaster: jasmine.Spy };
 
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01' };
   const education: Education = { id: 1, schoolName: 'North University', degree: 'BSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: null, status: 'ONGOING' };
+  const language: ProfileLanguage = { profileLanguageId: 1, languageId: 2, languageName: 'English', level: 'ADVANCED' };
+  const languageMasterPage: LanguageMasterPage = { content: [{ id: 2, name: 'English' }, { id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 2, totalPages: 1 };
 
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
-    profiles = { update: jasmine.createSpy('update'), delete: jasmine.createSpy('delete'), listEducations: jasmine.createSpy('listEducations').and.returnValue(of([])), createEducation: jasmine.createSpy('createEducation'), updateEducation: jasmine.createSpy('updateEducation'), deleteEducation: jasmine.createSpy('deleteEducation') };
+    profiles = {
+      update: jasmine.createSpy('update'),
+      delete: jasmine.createSpy('delete'),
+      listEducations: jasmine.createSpy('listEducations').and.returnValue(of([])),
+      createEducation: jasmine.createSpy('createEducation'),
+      updateEducation: jasmine.createSpy('updateEducation'),
+      deleteEducation: jasmine.createSpy('deleteEducation'),
+      listProfileLanguages: jasmine.createSpy('listProfileLanguages').and.returnValue(of([])),
+      createProfileLanguage: jasmine.createSpy('createProfileLanguage'),
+      updateProfileLanguage: jasmine.createSpy('updateProfileLanguage'),
+      deleteProfileLanguage: jasmine.createSpy('deleteProfileLanguage'),
+      listLanguageMaster: jasmine.createSpy('listLanguageMaster').and.returnValue(of(languageMasterPage)),
+    };
     router = { navigate: jasmine.createSpy('navigate') };
     context = {
       summaries: signal([summary]),
@@ -574,7 +588,7 @@ describe('ProfileWorkspaceComponent', () => {
   });
 
   it('renders independent Education loading, empty, error, and populated states', () => {
-    expect(fixture.nativeElement.querySelector('.empty-state')?.textContent).toContain('No Education records exist');
+    expect(fixture.nativeElement.querySelector('#workspace-section-education .empty-state')?.textContent).toContain('No Education records exist');
 
     const loading = new Subject<Education[]>();
     profiles.listEducations.and.returnValue(loading);
@@ -585,7 +599,7 @@ describe('ProfileWorkspaceComponent', () => {
     loading.next([education]);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.record')?.textContent).toContain('BSc Computer Science');
-    expect(fixture.nativeElement.querySelector('.empty-state')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#workspace-section-education .empty-state')).toBeNull();
 
     const failed = new Subject<Education[]>();
     profiles.listEducations.and.returnValue(failed);
@@ -593,7 +607,7 @@ describe('ProfileWorkspaceComponent', () => {
     failed.error(new Error('unavailable'));
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('could not load Education');
-    expect(fixture.nativeElement.querySelector('.empty-state')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#workspace-section-education .empty-state')).toBeNull();
   });
 
   it('retries Education loading at section level', () => {
@@ -769,6 +783,230 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.educations).toEqual([education]);
     expect(fixture.componentInstance.educationDeleteConfirmation).toBeTrue();
     expect(fixture.componentInstance.educationDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('renders independent Language loading, empty, error, and populated states', () => {
+    expect(fixture.nativeElement.textContent).toContain('No Language records exist');
+
+    const loading = new Subject<ProfileLanguage[]>();
+    profiles.listProfileLanguages.and.returnValue(loading);
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.section-state')?.textContent).toContain('Loading Language records');
+
+    loading.next([language]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.record')?.textContent).toContain('English');
+    expect(fixture.nativeElement.querySelector('.empty-state')?.textContent).not.toContain('No Language records');
+
+    const failed = new Subject<ProfileLanguage[]>();
+    profiles.listProfileLanguages.and.returnValue(failed);
+    params.next(convertToParamMap({ profileId: '3' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('could not load Language');
+  });
+
+  it('retries Language loading at section level', () => {
+    const failed = new Subject<ProfileLanguage[]>();
+    const retried = new Subject<ProfileLanguage[]>();
+    profiles.listProfileLanguages.and.returnValues(failed, retried);
+    params.next(convertToParamMap({ profileId: '2' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+
+    fixture.componentInstance.retryLanguages();
+    expect(fixture.componentInstance.languageLoading).toBeTrue();
+    retried.next([language]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.languages).toEqual([language]);
+    expect(fixture.nativeElement.querySelector('.record')?.textContent).toContain('English');
+  });
+
+  it('ignores stale Language list responses after Profile switching', () => {
+    const first = new Subject<ProfileLanguage[]>();
+    const second = new Subject<ProfileLanguage[]>();
+    profiles.listProfileLanguages.calls.reset();
+    profiles.listProfileLanguages.and.returnValues(first, second);
+
+    params.next(convertToParamMap({ profileId: '2' }));
+    params.next(convertToParamMap({ profileId: '3' }));
+    first.next([language]);
+
+    expect(fixture.componentInstance.languages).toEqual([]);
+    second.next([{ ...language, profileLanguageId: 2, languageName: 'Japanese' }]);
+    expect(fixture.componentInstance.languages).toEqual([{ ...language, profileLanguageId: 2, languageName: 'Japanese' }]);
+  });
+
+  it('requires a Language and exposes only controlled proficiency options', () => {
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.languageForm.controls.level.setValue('ADVANCED');
+    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.languageLevels.map((level) => level.value)).toEqual(['BEGINNER', 'INTERMEDIATE', 'UPPER_INTERMEDIATE', 'ADVANCED', 'NATIVE']);
+    expect(fixture.nativeElement.querySelectorAll('#profile-language-level option').length).toBe(5);
+    fixture.componentInstance.submitLanguage();
+
+    expect(profiles.createProfileLanguage).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.languageForm.controls.languageId.errors?.['required']).toBeTrue();
+  });
+
+  it('searches and pages Language Master without assuming the first page is complete', () => {
+    const firstSearchPage: LanguageMasterPage = { content: [{ id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 2, totalPages: 2 };
+    const secondPage: LanguageMasterPage = { content: [{ id: 8, name: 'Korean' }], page: 1, size: 1, totalElements: 2, totalPages: 2 };
+    profiles.listLanguageMaster.and.returnValues(of(languageMasterPage), of(firstSearchPage), of(secondPage));
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.languageMasterSearchDraft = '  kor ';
+    fixture.componentInstance.searchLanguageMaster();
+
+    expect(profiles.listLanguageMaster).toHaveBeenCalledWith(0, 10, 'kor');
+    expect(fixture.componentInstance.languageMasterTotalPages).toBe(2);
+    fixture.componentInstance.nextLanguageMasterPage();
+    expect(profiles.listLanguageMaster).toHaveBeenCalledWith(1, 10, 'kor');
+    expect(fixture.componentInstance.languageMasterOptions).toEqual(secondPage.content);
+  });
+
+  it('preserves the selected edit Language when it is outside the displayed Master page', () => {
+    profiles.listLanguageMaster.and.returnValue(of({ content: [{ id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 1, totalPages: 1 }));
+    fixture.componentInstance.languages = [language];
+    fixture.componentInstance.startLanguageEdit(language);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.languageOptions()).toContain(jasmine.objectContaining({ id: 2, name: 'English' }));
+    expect(fixture.nativeElement.querySelector('#profile-language')?.textContent).toContain('English');
+  });
+
+  it('prevents local duplicate Languages before submission', () => {
+    fixture.componentInstance.languages = [language];
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.languageForm.patchValue({ languageId: 2, level: 'BEGINNER' });
+    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.submitLanguage();
+
+    expect(profiles.createProfileLanguage).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.languageForm.controls.languageId.errors?.['duplicate']).toBe('This Language is already assigned to this Profile.');
+  });
+
+  it('maps backend duplicate errors to Language and keeps the editor draft retryable', () => {
+    profiles.createProfileLanguage.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_LANGUAGE_ALREADY_EXISTS', message: 'Language already exists.' } })));
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'INTERMEDIATE' });
+    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.submitLanguage();
+
+    expect(fixture.componentInstance.languageEditorMode).toBe('create');
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBe(3);
+    expect(fixture.componentInstance.languageForm.controls.languageId.errors?.['backend']).toBe('Language already exists.');
+  });
+
+  it('creates canonical Language data, applies the Profile version, invalidates Preview, and orders rows', () => {
+    const created: ProfileLanguage = { profileLanguageId: 7, languageId: 3, languageName: 'Japanese', level: 'NATIVE' };
+    profiles.createProfileLanguage.and.returnValue(of({ profileLanguage: created, profileVersion: 4 }));
+    fixture.componentInstance.languages = [{ ...language, profileLanguageId: 4, languageName: 'english', level: 'ADVANCED' }];
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'NATIVE' });
+    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.submitLanguage();
+
+    expect(profiles.createProfileLanguage).toHaveBeenCalledWith('1', { languageId: 3, level: 'NATIVE', version: 3 });
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
+    expect(fixture.componentInstance.languages).toEqual([created, { ...language, profileLanguageId: 4, languageName: 'english', level: 'ADVANCED' }]);
+    expect(fixture.componentInstance.previewInvalidated).toBeTrue();
+    expect(fixture.componentInstance.languageEditorMode).toBeNull();
+  });
+
+  it('updates canonical Language data and re-sorts after a proficiency change', () => {
+    const updated: ProfileLanguage = { ...language, languageName: 'English', level: 'NATIVE' };
+    profiles.updateProfileLanguage.and.returnValue(of({ profileLanguage: updated, profileVersion: 5 }));
+    fixture.componentInstance.languages = [language, { profileLanguageId: 2, languageId: 3, languageName: 'Japanese', level: 'BEGINNER' }];
+    fixture.componentInstance.startLanguageEdit(language);
+    fixture.componentInstance.languageForm.controls.level.setValue('NATIVE');
+    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.submitLanguage();
+
+    expect(profiles.updateProfileLanguage).toHaveBeenCalledWith('1', 1, { languageId: 2, level: 'NATIVE', version: 3 });
+    expect(fixture.componentInstance.languages).toEqual([updated, { profileLanguageId: 2, languageId: 3, languageName: 'Japanese', level: 'BEGINNER' }]);
+  });
+
+  it('preserves a failed Language mutation draft and allows retry', () => {
+    profiles.createProfileLanguage.and.returnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Service unavailable' } })));
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'INTERMEDIATE' });
+    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.submitLanguage();
+
+    expect(fixture.componentInstance.languageEditorMode).toBe('create');
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBe(3);
+    expect(fixture.componentInstance.languageForm.dirty).toBeTrue();
+    expect(fixture.componentInstance.languageErrorMessage).toBe('Service unavailable');
+
+    profiles.createProfileLanguage.and.returnValue(of({ profileLanguage: { profileLanguageId: 9, languageId: 3, languageName: 'Japanese', level: 'INTERMEDIATE' }, profileVersion: 4 }));
+    fixture.componentInstance.submitLanguage();
+    expect(fixture.componentInstance.languageEditorMode).toBeNull();
+  });
+
+  it('ignores a stale Language mutation after Profile switching', () => {
+    const pending = new Subject<{ profileLanguage: ProfileLanguage; profileVersion: number }>();
+    profiles.createProfileLanguage.and.returnValue(pending);
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'INTERMEDIATE' });
+    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.submitLanguage();
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2 });
+    params.next(convertToParamMap({ profileId: '2' }));
+    pending.next({ profileLanguage: { profileLanguageId: 9, languageId: 3, languageName: 'Japanese', level: 'INTERMEDIATE' }, profileVersion: 4 });
+
+    expect(fixture.componentInstance.languages).toEqual([]);
+    expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 4);
+  });
+
+  it('confirms Language deletion, protects duplicate submission, and removes the row', () => {
+    const pending = new Subject<{ profileVersion: number }>();
+    fixture.componentInstance.languages = [language];
+    profiles.deleteProfileLanguage.and.returnValue(pending);
+    fixture.detectChanges();
+    fixture.componentInstance.openLanguageDeleteConfirmation(language);
+    fixture.componentInstance.confirmLanguageDelete();
+    fixture.componentInstance.confirmLanguageDelete();
+
+    expect(profiles.deleteProfileLanguage).toHaveBeenCalledTimes(1);
+    expect(profiles.deleteProfileLanguage).toHaveBeenCalledWith('1', 1, 3);
+    pending.next({ profileVersion: 4 });
+    pending.complete();
+
+    expect(fixture.componentInstance.languages).toEqual([]);
+    expect(fixture.componentInstance.languageDeleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.languageMessage).toContain('Language deleted');
+  });
+
+  it('retains the Language row and confirmation after delete failure', () => {
+    profiles.deleteProfileLanguage.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Delete rejected' } })));
+    fixture.componentInstance.languages = [language];
+    fixture.componentInstance.openLanguageDeleteConfirmation(language);
+    fixture.componentInstance.confirmLanguageDelete();
+
+    expect(fixture.componentInstance.languages).toEqual([language]);
+    expect(fixture.componentInstance.languageDeleteConfirmation).toBeTrue();
+    expect(fixture.componentInstance.languageDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('includes Language editor dirtiness in unsaved navigation confirmation', () => {
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'INTERMEDIATE' });
+    fixture.componentInstance.languageForm.markAsDirty();
+
+    const navigation = fixture.componentInstance.editSession.requestNavigation('/profiles/2');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Your unsaved editor changes will be discarded');
+    fixture.componentInstance.discardPendingNavigation();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(fixture.componentInstance.languageEditorMode).toBeNull();
+    void navigation;
   });
 
   it('includes Education editor dirtiness in unsaved navigation confirmation', () => {

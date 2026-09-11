@@ -70,3 +70,38 @@ export interface EducationMutationResponse {
 export interface ProfileVersionResponse {
   profileVersion: number;
 }
+
+export type LanguageLevel = 'BEGINNER' | 'INTERMEDIATE' | 'UPPER_INTERMEDIATE' | 'ADVANCED' | 'NATIVE';
+
+export interface ProfileLanguage {
+  profileLanguageId: number | string;
+  languageId: number | string;
+  languageName: string;
+  level: LanguageLevel;
+}
+
+export type ProfileLanguageResponse = ProfileLanguage;
+
+export interface ProfileLanguageRequest {
+  languageId: number | string;
+  level: LanguageLevel;
+  version: number;
+}
+
+export interface ProfileLanguageMutationResponse {
+  profileLanguage: ProfileLanguageResponse;
+  profileVersion: number;
+}
+
+export interface LanguageMasterOption {
+  id: number | string;
+  name: string;
+}
+
+export interface LanguageMasterPage {
+  content: LanguageMasterOption[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}

@@ -9,6 +9,10 @@ import {
   Education,
   EducationRequest,
   EducationStatus,
+  LanguageLevel,
+  LanguageMasterOption,
+  ProfileLanguage,
+  ProfileLanguageRequest,
   ProfileDetail,
   UpdateProfileRequest,
 } from '../../models/profile.models';
@@ -27,6 +31,12 @@ type EditableEducationValues = {
   startDate: string;
   endDate: string;
   status: EducationStatus;
+};
+type LanguageEditorMode = 'create' | 'edit' | null;
+type EditableLanguageField = keyof EditableLanguageValues;
+type EditableLanguageValues = {
+  languageId: number | string | null;
+  level: LanguageLevel;
 };
 
 @Component({
@@ -68,6 +78,17 @@ export class ProfileWorkspaceComponent {
     endDate: [''],
     status: this.formBuilder.nonNullable.control<EducationStatus>('ONGOING', [Validators.required]),
   }, { validators: this.educationDateRangeValidator() });
+  readonly languageLevels: ReadonlyArray<{ value: LanguageLevel; label: string }> = [
+    { value: 'BEGINNER', label: 'Beginner' },
+    { value: 'INTERMEDIATE', label: 'Intermediate' },
+    { value: 'UPPER_INTERMEDIATE', label: 'Upper Intermediate' },
+    { value: 'ADVANCED', label: 'Advanced' },
+    { value: 'NATIVE', label: 'Native' },
+  ];
+  readonly languageForm = this.formBuilder.group({
+    languageId: this.formBuilder.control<number | string | null>(null, [Validators.required]),
+    level: this.formBuilder.nonNullable.control<LanguageLevel>('BEGINNER', [Validators.required, this.languageLevelValidator()]),
+  });
 
   activeSection = 'about';
   isEditing = false;
@@ -98,28 +119,61 @@ export class ProfileWorkspaceComponent {
   educationDeleteConfirmation = false;
   educationDeleteTarget: Education | null = null;
   educationDeleteErrorMessage = '';
+  languages: ProfileLanguage[] = [];
+  languageLoading = false;
+  languageError: unknown | null = null;
+  languageEditorMode: LanguageEditorMode = null;
+  languageConflict = false;
+  isLanguageSubmitting = false;
+  languageErrorMessage = '';
+  languageMessage = '';
+  isLanguageDeleting = false;
+  languageDeleteConfirmation = false;
+  languageDeleteTarget: ProfileLanguage | null = null;
+  languageDeleteErrorMessage = '';
+  languageMasterOptions: LanguageMasterOption[] = [];
+  languageMasterPage = 0;
+  languageMasterSize = 10;
+  languageMasterTotalElements = 0;
+  languageMasterTotalPages = 0;
+  languageMasterSearch = '';
+  languageMasterSearchDraft = '';
+  languageMasterLoading = false;
+  languageMasterError: unknown | null = null;
+  languageMasterReady = false;
   private readonly educationListCancel = new Subject<void>();
+  private readonly languageListCancel = new Subject<void>();
+  private readonly languageMasterCancel = new Subject<void>();
   private educationListGeneration = 0;
   private educationMutationGeneration = 0;
+  private languageListGeneration = 0;
+  private languageMutationGeneration = 0;
+  private languageMasterGeneration = 0;
   private activeProfileId: string | null = null;
   private editingEducationId: number | string | null = null;
   private originalEducationValues: EditableEducationValues | null = null;
+  private editingProfileLanguageId: number | string | null = null;
+  private originalLanguageValues: EditableLanguageValues | null = null;
 
   constructor() {
     this.context.loadSummaries();
     this.editForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.educationForm.valueChanges.subscribe(() => this.syncDirtyState());
+    this.languageForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.educationForm.controls.status.valueChanges.subscribe(() => this.updateEducationDateValidation());
     this.route.paramMap.subscribe((params) => {
       this.closeEditor();
       this.closeDeleteConfirmation();
       this.closeEducationDeleteConfirmation();
+      this.closeLanguageDeleteConfirmation();
       this.resetEducationState();
+      this.resetLanguageState();
       const profileId = params.get('profileId');
       this.activeProfileId = profileId;
       if (profileId) {
         this.context.loadDetail(profileId);
         this.loadEducations(profileId);
+        this.loadProfileLanguages(profileId);
       } else {
         this.context.beginSelection(null);
       }
@@ -216,6 +270,74 @@ export class ProfileWorkspaceComponent {
     if (profileId) this.loadEducations(profileId);
   }
 
+  retryLanguages(): void {
+    const profileId = this.activeProfileId ?? this.context.selectedId();
+    if (profileId) this.loadProfileLanguages(profileId);
+  }
+
+  searchLanguageMaster(): void {
+    this.languageMasterSearch = this.languageMasterSearchDraft.trim();
+    this.loadLanguageMaster(0, this.languageMasterSearch);
+  }
+
+  previousLanguageMasterPage(): void {
+    if (this.languageMasterLoading || this.languageMasterPage <= 0) return;
+    this.loadLanguageMaster(this.languageMasterPage - 1, this.languageMasterSearch);
+  }
+
+  nextLanguageMasterPage(): void {
+    if (this.languageMasterLoading || this.languageMasterPage + 1 >= this.languageMasterTotalPages) return;
+    this.loadLanguageMaster(this.languageMasterPage + 1, this.languageMasterSearch);
+  }
+
+  openLanguageDeleteConfirmation(language: ProfileLanguage): void {
+    if (this.isLanguageDeleting || this.languageEditorMode) return;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!profileId || !profile || String(profile.id) !== profileId) return;
+
+    this.languageDeleteTarget = language;
+    this.languageDeleteErrorMessage = '';
+    this.languageDeleteConfirmation = true;
+  }
+
+  cancelLanguageDelete(): void {
+    if (this.isLanguageDeleting) return;
+    this.closeLanguageDeleteConfirmation();
+  }
+
+  confirmLanguageDelete(): void {
+    const target = this.languageDeleteTarget;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!this.languageDeleteConfirmation || !target || this.isLanguageDeleting || !profileId || !profile) return;
+    if (String(profile.id) !== profileId) {
+      this.closeLanguageDeleteConfirmation();
+      return;
+    }
+
+    const operationGeneration = ++this.languageMutationGeneration;
+    this.isLanguageDeleting = true;
+    this.languageDeleteErrorMessage = '';
+    this.profileService.deleteProfileLanguage(profileId, target.profileLanguageId, profile.version).subscribe({
+      next: (result) => {
+        if (!this.isCurrentLanguageOperation(profileId, operationGeneration, false)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+
+        this.languages = this.languages.filter((language) => String(language.profileLanguageId) !== String(target.profileLanguageId));
+        this.isLanguageDeleting = false;
+        this.previewInvalidated = true;
+        this.languageMessage = 'Language deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.closeLanguageDeleteConfirmation();
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentLanguageOperation(profileId, operationGeneration, false)) return;
+        this.isLanguageDeleting = false;
+        this.languageDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Language right now. The record is still here and you can retry.';
+      },
+    });
+  }
+
   openEducationDeleteConfirmation(education: Education): void {
     if (this.isEducationDeleting || this.educationEditorMode) return;
     const profileId = this.context.selectedId();
@@ -287,7 +409,24 @@ export class ProfileWorkspaceComponent {
     this.openEducationEditor(education);
   }
 
+  startLanguageCreate(): void {
+    this.openLanguageEditor();
+  }
+
+  startLanguageEdit(language: ProfileLanguage): void {
+    this.openLanguageEditor(language);
+  }
+
   cancelEditing(): void {
+    if (this.languageEditorMode) {
+      if (this.isLanguageSubmitting) return;
+      if (this.languageForm.dirty) {
+        this.cancelConfirmation = true;
+        return;
+      }
+      this.closeLanguageEditor();
+      return;
+    }
     if (this.educationEditorMode) {
       if (this.isEducationSubmitting) return;
       if (this.educationForm.dirty) {
@@ -312,6 +451,10 @@ export class ProfileWorkspaceComponent {
 
   discardEditing(): void {
     this.cancelConfirmation = false;
+    if (this.languageEditorMode) {
+      this.closeLanguageEditor();
+      return;
+    }
     if (this.educationEditorMode) {
       this.closeEducationEditor();
       return;
@@ -425,7 +568,86 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  submitLanguage(): void {
+    const mode = this.languageEditorMode;
+    if (!mode || this.isLanguageSubmitting || this.languageConflict) return;
+
+    this.languageErrorMessage = '';
+    this.languageMessage = '';
+    this.clearLanguageBackendErrors();
+    if (!this.hasLanguageChanges()) return;
+    if (!this.languageMasterReady || this.languageMasterLoading || this.languageMasterError) {
+      this.languageErrorMessage = this.languageMasterLoading
+        ? 'Language options are still loading. Please try again when they are available.'
+        : 'Language options are unavailable. Retry the Language Master request before saving.';
+      this.syncDirtyState();
+      return;
+    }
+    if (this.languageForm.invalid) {
+      this.languageForm.markAllAsTouched();
+      this.syncDirtyState();
+      return;
+    }
+
+    const profile = this.context.detail();
+    const profileId = this.context.selectedId();
+    if (!profile || !profileId || String(profile.id) !== profileId) return;
+
+    const value = this.languageForm.getRawValue();
+    const duplicate = this.languages.some((language) => String(language.languageId) === String(value.languageId)
+      && (mode !== 'edit' || String(language.profileLanguageId) !== String(this.editingProfileLanguageId)));
+    if (duplicate) {
+      this.setLanguageFieldError('languageId', 'This Language is already assigned to this Profile.', 'duplicate');
+      this.languageErrorMessage = 'This Language is already assigned to this Profile.';
+      this.syncDirtyState();
+      return;
+    }
+
+    const request: ProfileLanguageRequest = {
+      languageId: value.languageId as number | string,
+      level: value.level,
+      version: profile.version,
+    };
+    const languageId = this.editingProfileLanguageId;
+    const operationGeneration = this.languageMutationGeneration;
+    this.isLanguageSubmitting = true;
+    const request$ = mode === 'edit' && languageId !== null
+      ? this.profileService.updateProfileLanguage(profileId, languageId, request)
+      : this.profileService.createProfileLanguage(profileId, request);
+
+    request$.subscribe({
+      next: (result) => {
+        if (!this.isCurrentLanguageOperation(profileId, operationGeneration)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+
+        this.languages = mode === 'edit' && languageId !== null
+          ? this.sortProfileLanguages(this.languages.map((language) => String(language.profileLanguageId) === String(languageId) ? result.profileLanguage : language))
+          : this.sortProfileLanguages([...this.languages, result.profileLanguage]);
+        this.isLanguageSubmitting = false;
+        this.languageConflict = false;
+        this.previewInvalidated = true;
+        this.languageMessage = mode === 'edit'
+          ? 'Language updated. Preview is no longer current; generate a new preview before exporting.'
+          : 'Language added. Preview is no longer current; generate a new preview before exporting.';
+        this.closeLanguageEditor();
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentLanguageOperation(profileId, operationGeneration)) return;
+        this.handleLanguageSaveError(error);
+      },
+    });
+  }
+
   reloadLatest(): void {
+    if (this.languageEditorMode) {
+      if (this.isReloading || !this.languageConflict) return;
+      if (this.languageForm.dirty) {
+        this.reloadConfirmation = true;
+        return;
+      }
+      this.fetchLatestLanguage();
+      return;
+    }
     if (this.educationEditorMode) {
       if (this.isReloading || !this.educationConflict) return;
       if (this.educationForm.dirty) {
@@ -445,7 +667,9 @@ export class ProfileWorkspaceComponent {
 
   confirmReloadLatest(): void {
     this.reloadConfirmation = false;
-    if (this.educationEditorMode) {
+    if (this.languageEditorMode) {
+      this.fetchLatestLanguage();
+    } else if (this.educationEditorMode) {
       this.fetchLatestEducation();
     } else {
       this.fetchLatest();
@@ -474,6 +698,39 @@ export class ProfileWorkspaceComponent {
   educationFieldInvalid(field: EditableEducationField): boolean {
     const control = this.educationForm.controls[field];
     return control.invalid && control.touched || field === 'endDate' && !!this.educationForm.errors?.['dateRange'] && control.touched;
+  }
+
+  languageFieldError(field: EditableLanguageField): string {
+    const errors = this.languageForm.controls[field].errors;
+    if (errors?.['backend']) return errors['backend'];
+    if (errors?.['duplicate']) return errors['duplicate'];
+    if (errors?.['required']) return 'This field is required.';
+    if (errors?.['invalidLevel']) return 'Select a supported proficiency level.';
+    return errors ? 'This value is not valid.' : '';
+  }
+
+  languageFieldInvalid(field: EditableLanguageField): boolean {
+    const control = this.languageForm.controls[field];
+    return control.invalid && control.touched;
+  }
+
+  languageRecordLabel(language: ProfileLanguage): string {
+    return `${language.languageName} (${this.languageLevelLabel(language.level)})`;
+  }
+
+  languageLevelLabel(level: LanguageLevel): string {
+    return this.languageLevels.find((option) => option.value === level)?.label ?? level;
+  }
+
+  languageOptions(): LanguageMasterOption[] {
+    const selectedId = this.languageForm.controls.languageId.value;
+    const assignedIds = new Set(this.languages.map((language) => String(language.languageId)));
+    const options = this.languageMasterOptions.filter((option) => !assignedIds.has(String(option.id)) || String(option.id) === String(selectedId));
+    if (selectedId !== null && selectedId !== undefined && !options.some((option) => String(option.id) === String(selectedId))) {
+      const selected = this.languages.find((language) => String(language.languageId) === String(selectedId));
+      if (selected) options.unshift({ id: selected.languageId, name: selected.languageName });
+    }
+    return options;
   }
 
   educationDateLabel(education: Education): string {
@@ -509,6 +766,53 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentEducationProfile(profileId, generation)) return;
         this.educationError = error;
         this.educationLoading = false;
+      },
+    });
+  }
+
+  private loadProfileLanguages(profileId: string): void {
+    this.languageListCancel.next();
+    const generation = ++this.languageListGeneration;
+    this.languages = [];
+    this.languageLoading = true;
+    this.languageError = null;
+    this.languageMessage = '';
+    this.profileService.listProfileLanguages(profileId).pipe(takeUntil(this.languageListCancel)).subscribe({
+      next: (languages) => {
+        if (!this.isCurrentLanguageProfile(profileId, generation)) return;
+        this.languages = this.sortProfileLanguages(languages);
+        this.languageLoading = false;
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentLanguageProfile(profileId, generation)) return;
+        this.languageError = error;
+        this.languageLoading = false;
+      },
+    });
+  }
+
+  private loadLanguageMaster(page: number, search: string): void {
+    this.languageMasterCancel.next();
+    const generation = ++this.languageMasterGeneration;
+    this.languageMasterLoading = true;
+    this.languageMasterError = null;
+    this.languageMasterReady = false;
+    this.profileService.listLanguageMaster(page, this.languageMasterSize, search).pipe(takeUntil(this.languageMasterCancel)).subscribe({
+      next: (result) => {
+        if (this.languageMasterGeneration !== generation) return;
+        this.languageMasterOptions = result.content;
+        this.languageMasterPage = result.page;
+        this.languageMasterTotalElements = result.totalElements;
+        this.languageMasterTotalPages = result.totalPages;
+        this.languageMasterSearch = search;
+        this.languageMasterSearchDraft = search;
+        this.languageMasterLoading = false;
+        this.languageMasterReady = true;
+      },
+      error: (error: unknown) => {
+        if (this.languageMasterGeneration !== generation) return;
+        this.languageMasterError = error;
+        this.languageMasterLoading = false;
       },
     });
   }
@@ -568,6 +872,30 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  private fetchLatestLanguage(): void {
+    const profileId = this.context.selectedId();
+    if (!profileId) return;
+
+    this.closeLanguageEditor();
+    this.isReloading = true;
+    this.languageErrorMessage = '';
+    this.languageMessage = '';
+    this.context.reloadDetail(profileId).subscribe({
+      next: () => {
+        if (this.context.selectedId() !== profileId || this.activeProfileId !== profileId) return;
+        this.isReloading = false;
+        this.languageConflict = false;
+        this.languageMessage = 'Latest Profile and Language data loaded. Review it before editing.';
+        this.loadProfileLanguages(profileId);
+      },
+      error: (error: unknown) => {
+        if (this.context.selectedId() !== profileId || this.activeProfileId !== profileId) return;
+        this.isReloading = false;
+        this.languageErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to reload the latest Profile right now. Please try again.';
+      },
+    });
+  }
+
   private closeEditor(): void {
     this.originalAboutMeValues = null;
     this.isEditing = false;
@@ -577,6 +905,7 @@ export class ProfileWorkspaceComponent {
     this.conflict = false;
     this.editSession.setDirty(false);
     this.closeEducationEditor();
+    this.closeLanguageEditor();
     const profile = this.context.detail();
     if (profile) {
       this.editForm.reset(this.formValues(profile));
@@ -601,6 +930,22 @@ export class ProfileWorkspaceComponent {
     this.syncDirtyState();
   }
 
+  private closeLanguageEditor(): void {
+    this.languageMutationGeneration++;
+    this.languageEditorMode = null;
+    this.editingProfileLanguageId = null;
+    this.originalLanguageValues = null;
+    this.isLanguageSubmitting = false;
+    this.languageConflict = false;
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.languageForm.reset(this.emptyLanguageValues());
+    this.languageForm.markAsPristine();
+    this.languageForm.markAsUntouched();
+    this.clearLanguageBackendErrors();
+    this.syncDirtyState();
+  }
+
   private closeDeleteConfirmation(): void {
     this.deleteConfirmation = false;
     this.deleteTarget = null;
@@ -614,6 +959,13 @@ export class ProfileWorkspaceComponent {
     this.isEducationDeleting = false;
   }
 
+  private closeLanguageDeleteConfirmation(): void {
+    this.languageDeleteConfirmation = false;
+    this.languageDeleteTarget = null;
+    this.languageDeleteErrorMessage = '';
+    this.isLanguageDeleting = false;
+  }
+
   private resetEducationState(): void {
     this.educationListCancel.next();
     this.educationListGeneration++;
@@ -623,6 +975,19 @@ export class ProfileWorkspaceComponent {
     this.educationError = null;
     this.educationMessage = '';
     this.educationErrorMessage = '';
+    this.previewInvalidated = false;
+  }
+
+  private resetLanguageState(): void {
+    this.languageListCancel.next();
+    this.languageListGeneration++;
+    this.languageMutationGeneration++;
+    this.languages = [];
+    this.languageLoading = false;
+    this.languageError = null;
+    this.languageMessage = '';
+    this.languageErrorMessage = '';
+    this.closeLanguageDeleteConfirmation();
     this.previewInvalidated = false;
   }
 
@@ -704,6 +1069,52 @@ export class ProfileWorkspaceComponent {
     this.syncDirtyState();
   }
 
+  private openLanguageEditor(language?: ProfileLanguage): void {
+    const profile = this.context.detail();
+    if (!profile || this.isEditing || this.educationEditorMode || this.languageEditorMode) return;
+
+    const values = language ? this.languageFormValues(language) : this.emptyLanguageValues();
+    this.languageEditorMode = language ? 'edit' : 'create';
+    this.editingProfileLanguageId = language ? language.profileLanguageId : null;
+    this.originalLanguageValues = this.normalizeLanguageValues(values);
+    this.languageForm.reset(values);
+    this.languageForm.markAsPristine();
+    this.languageForm.markAsUntouched();
+    this.languageMutationGeneration++;
+    this.languageConflict = false;
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.languageErrorMessage = '';
+    this.languageMessage = '';
+    this.loadLanguageMaster(0, this.languageMasterSearch);
+    this.syncDirtyState();
+  }
+
+  private handleLanguageSaveError(error: unknown): void {
+    this.isLanguageSubmitting = false;
+    const response = this.apiError(error);
+    if (response?.errorCode === 'PROFILE_VERSION_CONFLICT') {
+      this.languageConflict = true;
+      this.languageErrorMessage = response.message?.trim() || 'This Profile changed elsewhere. Reload the latest version before saving again.';
+      this.syncDirtyState();
+      return;
+    }
+    if (response?.errorCode === 'VALIDATION_ERROR') {
+      this.applyLanguageFieldErrors(response.data);
+      this.languageErrorMessage = 'Please correct the highlighted fields.';
+      this.syncDirtyState();
+      return;
+    }
+
+    if (response?.errorCode === 'PROFILE_LANGUAGE_ALREADY_EXISTS') {
+      this.setLanguageFieldError('languageId', response.message || 'This Language is already assigned to this Profile.');
+    } else if (response?.errorCode === 'PROFILE_LANGUAGE_INVALID_LEVEL') {
+      this.setLanguageFieldError('level', response.message || 'Select a supported proficiency level.');
+    }
+    this.languageErrorMessage = response?.message?.trim() || 'Unable to save this Language right now. Your changes are still here.';
+    this.syncDirtyState();
+  }
+
   private trimFormValues(): void {
     const value = this.editForm.getRawValue();
     this.editForm.patchValue({
@@ -726,6 +1137,19 @@ export class ProfileWorkspaceComponent {
       endDate: value.endDate.trim(),
     }, { emitEvent: false });
     this.educationForm.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private applyLanguageFieldErrors(data: unknown): void {
+    const errors = (data as { errors?: unknown } | undefined)?.errors;
+    if (!Array.isArray(errors)) return;
+    for (const error of errors) {
+      if (!error || typeof error !== 'object') continue;
+      const { field, message } = error as { field?: unknown; message?: unknown };
+      const normalizedField = typeof field === 'string' ? field.split('.').pop() : undefined;
+      if (normalizedField && typeof message === 'string' && normalizedField in this.languageForm.controls) {
+        this.setLanguageFieldError(normalizedField as EditableLanguageField, message);
+      }
+    }
   }
 
   private applyFieldErrors(data: unknown): void {
@@ -777,9 +1201,24 @@ export class ProfileWorkspaceComponent {
     }
   }
 
+  private clearLanguageBackendErrors(): void {
+    for (const control of Object.values(this.languageForm.controls)) {
+      if (!control.errors?.['backend']) continue;
+      const errors = { ...control.errors };
+      delete errors['backend'];
+      control.setErrors(Object.keys(errors).length ? errors : null);
+    }
+  }
+
   private setEducationFieldError(field: EditableEducationField, message: string): void {
     const control = this.educationForm.controls[field];
     control.setErrors({ ...control.errors, backend: message.trim() || 'This value is not valid.' });
+    control.markAsTouched();
+  }
+
+  private setLanguageFieldError(field: EditableLanguageField, message: string, key = 'backend'): void {
+    const control = this.languageForm.controls[field];
+    control.setErrors({ ...control.errors, [key]: message.trim() || 'This value is not valid.' });
     control.markAsTouched();
   }
 
@@ -798,6 +1237,10 @@ export class ProfileWorkspaceComponent {
     return { schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', status: 'ONGOING' };
   }
 
+  private emptyLanguageValues(): EditableLanguageValues {
+    return { languageId: null, level: 'BEGINNER' };
+  }
+
   private educationFormValues(education: Education): EditableEducationValues {
     return {
       schoolName: education.schoolName,
@@ -807,6 +1250,10 @@ export class ProfileWorkspaceComponent {
       endDate: education.endDate ?? '',
       status: education.status,
     };
+  }
+
+  private languageFormValues(language: ProfileLanguage): EditableLanguageValues {
+    return { languageId: language.languageId, level: language.level };
   }
 
   private educationDateRangeValidator(): ValidatorFn {
@@ -837,6 +1284,10 @@ export class ProfileWorkspaceComponent {
     };
   }
 
+  private normalizeLanguageValues(value: EditableLanguageValues): EditableLanguageValues {
+    return { languageId: value.languageId, level: value.level };
+  }
+
   hasEducationChanges(): boolean {
     const original = this.originalEducationValues;
     if (!original) return false;
@@ -849,9 +1300,21 @@ export class ProfileWorkspaceComponent {
       || current.status !== original.status;
   }
 
+  hasLanguageChanges(): boolean {
+    const original = this.originalLanguageValues;
+    if (!original) return false;
+    const current = this.normalizeLanguageValues(this.languageForm.getRawValue());
+    return current.languageId !== original.languageId || current.level !== original.level;
+  }
+
   private isCurrentEducationProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.educationListGeneration === generation;
+  }
+
+  private isCurrentLanguageProfile(profileId: string, generation: number): boolean {
+    return this.activeProfileId === profileId
+      && this.languageListGeneration === generation;
   }
 
   private isCurrentEducationOperation(profileId: string, generation: number, requiresEditor = true): boolean {
@@ -862,6 +1325,14 @@ export class ProfileWorkspaceComponent {
       && (!requiresEditor || this.educationEditorMode !== null);
   }
 
+  private isCurrentLanguageOperation(profileId: string, generation: number, requiresEditor = true): boolean {
+    return this.activeProfileId === profileId
+      && this.context.selectedId() === profileId
+      && String(this.context.detail()?.id) === profileId
+      && this.languageMutationGeneration === generation
+      && (!requiresEditor || this.languageEditorMode !== null);
+  }
+
   private sortEducations(educations: Education[]): Education[] {
     return educations.sort((left, right) => {
       const leftId = Number(left.id);
@@ -869,6 +1340,32 @@ export class ProfileWorkspaceComponent {
       if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
       return String(left.id).localeCompare(String(right.id));
     });
+  }
+
+  private sortProfileLanguages(languages: ProfileLanguage[]): ProfileLanguage[] {
+    const proficiencyOrder: Record<LanguageLevel, number> = {
+      NATIVE: 0,
+      ADVANCED: 1,
+      UPPER_INTERMEDIATE: 2,
+      INTERMEDIATE: 3,
+      BEGINNER: 4,
+    };
+    return languages.sort((left, right) => {
+      const levelDifference = proficiencyOrder[left.level] - proficiencyOrder[right.level];
+      if (levelDifference) return levelDifference;
+      const nameDifference = left.languageName.toLocaleLowerCase().localeCompare(right.languageName.toLocaleLowerCase());
+      if (nameDifference) return nameDifference;
+      const leftId = Number(left.profileLanguageId);
+      const rightId = Number(right.profileLanguageId);
+      if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
+      return String(left.profileLanguageId).localeCompare(String(right.profileLanguageId));
+    });
+  }
+
+  private languageLevelValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => this.languageLevels?.some((option) => option.value === control.value)
+      ? null
+      : { invalidLevel: true };
   }
 
   hasAboutMeChanges(): boolean {
@@ -901,6 +1398,7 @@ export class ProfileWorkspaceComponent {
 
   private syncDirtyState(): void {
     this.editSession.setDirty((this.isEditing && (this.editForm.dirty || this.hasAboutMeChanges()))
-      || (this.educationEditorMode !== null && (this.educationForm.dirty || this.hasEducationChanges())));
+      || (this.educationEditorMode !== null && (this.educationForm.dirty || this.hasEducationChanges()))
+      || (this.languageEditorMode !== null && (this.languageForm.dirty || this.hasLanguageChanges())));
   }
 }

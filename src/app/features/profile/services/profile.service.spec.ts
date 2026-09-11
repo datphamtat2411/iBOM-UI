@@ -87,4 +87,47 @@ describe('ProfileService', () => {
     expect(request.request.body).toEqual({ profileVersion: 9 });
     request.flush({ data: { profileVersion: 10 } });
   });
+
+  it('lists Profile Languages from the selected Profile endpoint and unwraps data', () => {
+    service.listProfileLanguages('profile/1').subscribe((languages) => expect(languages).toEqual([{ profileLanguageId: 4, languageId: 2, languageName: 'English', level: 'ADVANCED' }]));
+    const request = http.expectOne('/api/profiles/profile%2F1/languages');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: [{ profileLanguageId: 4, languageId: 2, languageName: 'English', level: 'ADVANCED' }] });
+  });
+
+  it('creates Profile Language with the current Profile version and unwraps the mutation response', () => {
+    const language = { languageId: 2, level: 'ADVANCED' as const, version: 3 };
+    service.createProfileLanguage('profile-1', language).subscribe((result) => expect(result.profileVersion).toBe(4));
+    const request = http.expectOne('/api/profiles/profile-1/languages');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(language);
+    request.flush({ data: { profileLanguage: { profileLanguageId: 5, languageId: 2, languageName: 'English', level: 'ADVANCED' }, profileVersion: 4 } });
+  });
+
+  it('updates Profile Language with an encoded record URL and unwraps the mutation response', () => {
+    const language = { languageId: 3, level: 'NATIVE' as const, version: 6 };
+    service.updateProfileLanguage('profile-1', 'language/2', language).subscribe((result) => expect(result.profileLanguage.level).toBe('NATIVE'));
+    const request = http.expectOne('/api/profiles/profile-1/languages/language%2F2');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(language);
+    request.flush({ data: { profileLanguage: { profileLanguageId: 2, languageId: 3, languageName: 'Japanese', level: 'NATIVE' }, profileVersion: 7 } });
+  });
+
+  it('deletes Profile Language with the Profile version in the JSON request body', () => {
+    service.deleteProfileLanguage('profile-1', 8, 9).subscribe((result) => expect(result).toEqual({ profileVersion: 10 }));
+    const request = http.expectOne('/api/profiles/profile-1/languages/8');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toEqual({ profileVersion: 9 });
+    request.flush({ data: { profileVersion: 10 } });
+  });
+
+  it('loads a complete paged Language Master response with trimmed search parameters', () => {
+    service.listLanguageMaster(2, 10, '  eng  ').subscribe((page) => expect(page).toEqual({ content: [{ id: 2, name: 'English' }], page: 2, size: 10, totalElements: 11, totalPages: 2 }));
+    const request = http.expectOne((candidate) => candidate.url === '/api/master/languages');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('page')).toBe('2');
+    expect(request.request.params.get('size')).toBe('10');
+    expect(request.request.params.get('search')).toBe('eng');
+    request.flush({ data: { content: [{ id: 2, name: 'English' }], page: 2, size: 10, totalElements: 11, totalPages: 2 } });
+  });
 });

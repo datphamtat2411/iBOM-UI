@@ -87,7 +87,43 @@
                }
              }
            </section>
-           @for (section of sections.slice(2); track section[0]) { <section class="content-section" [id]="'workspace-section-' + section[0]" [attr.aria-labelledby]="section[0] + '-title'"><h2 [id]="section[0] + '-title'">{{ section[1] }}</h2><p>No {{ section[1] }} data is available in this read-only workspace.</p><div class="structural-placeholder">Section structure reserved for Profile data.</div></section> }
+            <section class="content-section" id="workspace-section-languages" aria-labelledby="languages-title">
+              <div class="section-title"><div><h2 id="languages-title">Languages</h2><p>Profile-specific language records and controlled proficiency levels.</p></div>@if (!languageEditorMode && !isEditing && !educationEditorMode) { <button class="btn" type="button" (click)="startLanguageCreate()">Add language</button> }</div>
+              @if (languageMessage) { <div class="notice success" role="status">{{ languageMessage }}</div> }
+              @if (languageLoading) {
+                <div class="section-state" role="status" aria-live="polite"><p>Loading Language records.</p></div>
+              } @else if (languageError) {
+                <div class="notice error" role="alert"><p>We could not load Language records for this Profile.</p><button class="btn text" type="button" (click)="retryLanguages()">Try again</button></div>
+              } @else {
+                @if (languageEditorMode) {
+                  <form class="language-editor" [formGroup]="languageForm" (ngSubmit)="submitLanguage()" novalidate>
+                    @if (languageErrorMessage) { <div class="notice error" role="alert">{{ languageErrorMessage }}</div> }
+                    @if (languageConflict) { <div class="notice warning" role="alert"><strong>Latest Profile required.</strong> Your Language draft is preserved, but saving is blocked until you reload the latest version. <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button></div> }
+                    <section class="form-section"><h3>Language details</h3><div class="form-grid">
+                      <div class="field span-2"><label for="language-master-search">Search Language Master</label><div class="language-master-search"><input id="language-master-search" type="search" [value]="languageMasterSearchDraft" (input)="languageMasterSearchDraft = $any($event.target).value" [attr.aria-busy]="languageMasterLoading"><button class="btn" type="button" (click)="searchLanguageMaster()" [disabled]="languageMasterLoading">Search</button></div><span class="helper">Select a controlled Language Master value. New Languages cannot be created here.</span></div>
+                      <div class="field"><label for="profile-language">Language</label><select id="profile-language" formControlName="languageId" [attr.aria-invalid]="languageFieldInvalid('languageId')"><option [ngValue]="null">Select a Language</option>@for (option of languageOptions(); track option.id) { <option [ngValue]="option.id">{{ option.name }}</option> }</select>@if (languageFieldInvalid('languageId')) { <span class="field-error">{{ languageFieldError('languageId') }}</span> }</div>
+                      <div class="field"><label for="profile-language-level">Proficiency</label><select id="profile-language-level" formControlName="level" [attr.aria-invalid]="languageFieldInvalid('level')">@for (level of languageLevels; track level.value) { <option [ngValue]="level.value">{{ level.label }}</option> }</select>@if (languageFieldInvalid('level')) { <span class="field-error">{{ languageFieldError('level') }}</span> }</div>
+                    </div></section>
+                    @if (languageMasterError) { <div class="notice error" role="alert"><p>We could not load Language Master options.</p><button class="btn text" type="button" (click)="searchLanguageMaster()">Try again</button></div> }
+                    @if (languageMasterTotalPages > 1) { <div class="language-pagination" aria-label="Language Master pages"><button class="btn text" type="button" (click)="previousLanguageMasterPage()" [disabled]="languageMasterLoading || languageMasterPage === 0">Previous</button><span class="mono" aria-live="polite">Page {{ languageMasterPage + 1 }} of {{ languageMasterTotalPages }}</span><button class="btn text" type="button" (click)="nextLanguageMasterPage()" [disabled]="languageMasterLoading || languageMasterPage + 1 >= languageMasterTotalPages">Next</button></div> }
+                    <div class="sticky-actions"><span class="unsaved" [class.is-saving]="isLanguageSubmitting" [class.is-dirty]="hasLanguageChanges()" role="status" aria-live="polite">{{ isLanguageSubmitting ? 'Saving...' : languageConflict ? 'Reload required' : hasLanguageChanges() ? 'Unsaved changes' : 'No changes' }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isLanguageSubmitting">Cancel</button><button class="btn primary" type="submit" [disabled]="languageForm.invalid || !hasLanguageChanges() || isLanguageSubmitting || languageConflict || languageMasterLoading || !!languageMasterError || !languageMasterReady" [attr.aria-busy]="isLanguageSubmitting">{{ isLanguageSubmitting ? 'Saving...' : languageEditorMode === 'edit' ? 'Save Language' : 'Add Language' }}</button></div></div>
+                  </form>
+                }
+                @if (languages.length) {
+                  <div class="record-list">
+                    @for (language of languages; track language.profileLanguageId) {
+                      <div class="record">
+                        <div><h3>{{ language.languageName }}</h3><p>{{ languageLevelLabel(language.level) }}</p></div>
+                        <div class="record-meta"><div>LANGUAGE</div><div class="record-actions"><button class="btn text" type="button" (click)="startLanguageEdit(language)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || isLanguageDeleting">Edit</button><button class="btn danger language-delete-button" type="button" (click)="openLanguageDeleteConfirmation(language)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || isLanguageDeleting" [attr.aria-busy]="isLanguageDeleting" [attr.aria-label]="'Delete ' + languageRecordLabel(language)"><span aria-hidden="true">&minus;</span></button></div></div>
+                      </div>
+                    }
+                  </div>
+                } @else if (!languageEditorMode) {
+                  <div class="empty-state"><p>No Language records exist in this Profile.</p><button class="btn" type="button" (click)="startLanguageCreate()" [disabled]="isEditing">Add language</button></div>
+                }
+              }
+            </section>
+            @for (section of sections.slice(3); track section[0]) { <section class="content-section" [id]="'workspace-section-' + section[0]" [attr.aria-labelledby]="section[0] + '-title'"><h2 [id]="section[0] + '-title'">{{ section[1] }}</h2><p>No {{ section[1] }} data is available in this read-only workspace.</p><div class="structural-placeholder">Section structure reserved for Profile data.</div></section> }
         </div>
       </div>
     }
@@ -110,6 +146,11 @@
   @if (educationDeleteConfirmation) {
     @if (educationDeleteTarget; as target) {
       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-education-title" aria-describedby="delete-education-copy"><h2 id="delete-education-title">Delete {{ educationRecordLabel(target) }}?</h2><p id="delete-education-copy">This removes this Education record from the selected Profile only. This action cannot be undone.</p>@if (educationDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ educationDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelEducationDelete()" [disabled]="isEducationDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmEducationDelete()" [disabled]="isEducationDeleting" [attr.aria-busy]="isEducationDeleting">{{ isEducationDeleting ? 'Deleting...' : 'Delete Education' }}</button></div></section></div>
+    }
+  }
+  @if (languageDeleteConfirmation) {
+    @if (languageDeleteTarget; as target) {
+      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-language-title" aria-describedby="delete-language-copy"><h2 id="delete-language-title">Delete {{ languageRecordLabel(target) }}?</h2><p id="delete-language-copy">This removes this Language record from the selected Profile only. This action cannot be undone.</p>@if (languageDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ languageDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelLanguageDelete()" [disabled]="isLanguageDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmLanguageDelete()" [disabled]="isLanguageDeleting" [attr.aria-busy]="isLanguageDeleting">{{ isLanguageDeleting ? 'Deleting...' : 'Delete Language' }}</button></div></section></div>
     }
   }
 </section>

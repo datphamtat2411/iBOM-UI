@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { HttpParams } from '@angular/common/http';
 import { map, Observable } from 'rxjs';
 
 import { ApiResponse } from '../../../core/http/api.models';
@@ -9,6 +10,10 @@ import {
   EducationMutationResponse,
   EducationRequest,
   EducationResponse,
+  LanguageMasterPage,
+  ProfileLanguageMutationResponse,
+  ProfileLanguageRequest,
+  ProfileLanguageResponse,
   ProfileDetail,
   ProfileSummary,
   ProfileVersionResponse,
@@ -73,8 +78,44 @@ export class ProfileService {
     );
   }
 
+  listProfileLanguages(profileId: string): Observable<ProfileLanguageResponse[]> {
+    return this.http.get<ApiResponse<ProfileLanguageResponse[]>>(this.languageUrl(profileId)).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  createProfileLanguage(profileId: string, language: ProfileLanguageRequest): Observable<ProfileLanguageMutationResponse> {
+    return this.http.post<ApiResponse<ProfileLanguageMutationResponse>>(this.languageUrl(profileId), language).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  updateProfileLanguage(profileId: string, profileLanguageId: number | string, language: ProfileLanguageRequest): Observable<ProfileLanguageMutationResponse> {
+    return this.http.put<ApiResponse<ProfileLanguageMutationResponse>>(this.languageUrl(profileId, profileLanguageId), language).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  deleteProfileLanguage(profileId: string, profileLanguageId: number | string, profileVersion: number): Observable<ProfileVersionResponse> {
+    return this.http.delete<ApiResponse<ProfileVersionResponse>>(this.languageUrl(profileId, profileLanguageId), { body: { profileVersion } }).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  listLanguageMaster(page: number, size: number, search: string): Observable<LanguageMasterPage> {
+    const params = new HttpParams({ fromObject: { page, size, search: search.trim() } });
+    return this.http.get<ApiResponse<LanguageMasterPage>>(`${API_BASE_URL}/master/languages`, { params }).pipe(
+      map((response) => response.data),
+    );
+  }
+
   private educationUrl(profileId: string, educationId?: number | string): string {
     const profileUrl = `${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}/educations`;
     return educationId === undefined ? profileUrl : `${profileUrl}/${encodeURIComponent(String(educationId))}`;
+  }
+
+  private languageUrl(profileId: string, profileLanguageId?: number | string): string {
+    const profileUrl = `${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}/languages`;
+    return profileLanguageId === undefined ? profileUrl : `${profileUrl}/${encodeURIComponent(String(profileLanguageId))}`;
   }
 }
