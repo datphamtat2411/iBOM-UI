@@ -151,6 +151,37 @@ describe('ProfileService', () => {
     request.flush({ data: { profileVersion: 10 } });
   });
 
+  it('lists Profile Skills from the selected Profile endpoint and unwraps data', () => {
+    const skills = [{ profileSkillId: 4, skillId: 2, skillName: 'Java', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend', experienceYears: 7.5, lastUsed: null }];
+    service.listProfileSkills('profile/1').subscribe((result) => expect(result).toEqual(skills));
+    const request = http.expectOne('/api/profiles/profile%2F1/skills');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: skills });
+  });
+
+  it('creates and updates Profile Skills with the current Profile version', () => {
+    const skill = { skillId: 2, experienceYears: 7.5, lastUsed: '2025-04-01', version: 3 };
+    service.createProfileSkill('profile-1', skill).subscribe((result) => expect(result.profileVersion).toBe(4));
+    const createRequest = http.expectOne('/api/profiles/profile-1/skills');
+    expect(createRequest.request.method).toBe('POST');
+    expect(createRequest.request.body).toEqual(skill);
+    createRequest.flush({ data: { profileSkill: { profileSkillId: 5, ...skill, skillName: 'Java', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend' }, profileVersion: 4 } });
+
+    service.updateProfileSkill('profile-1', 'skill/2', { ...skill, experienceYears: 8, version: 4 }).subscribe((result) => expect(result.profileSkill.experienceYears).toBe(8));
+    const updateRequest = http.expectOne('/api/profiles/profile-1/skills/skill%2F2');
+    expect(updateRequest.request.method).toBe('PUT');
+    expect(updateRequest.request.body).toEqual({ ...skill, experienceYears: 8, version: 4 });
+    updateRequest.flush({ data: { profileSkill: { profileSkillId: 2, ...skill, experienceYears: 8, skillName: 'Java', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend' }, profileVersion: 5 } });
+  });
+
+  it('deletes Profile Skills with the Profile version in the JSON request body', () => {
+    service.deleteProfileSkill('profile-1', 8, 9).subscribe((result) => expect(result).toEqual({ profileVersion: 10 }));
+    const request = http.expectOne('/api/profiles/profile-1/skills/8');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toEqual({ profileVersion: 9 });
+    request.flush({ data: { profileVersion: 10 } });
+  });
+
   it('loads a complete paged Language Master response with trimmed search parameters', () => {
     service.listLanguageMaster(2, 10, '  eng  ').subscribe((page) => expect(page).toEqual({ content: [{ id: 2, name: 'English' }], page: 2, size: 10, totalElements: 11, totalPages: 2 }));
     const request = http.expectOne((candidate) => candidate.url === '/api/master/languages');
@@ -159,5 +190,16 @@ describe('ProfileService', () => {
     expect(request.request.params.get('size')).toBe('10');
     expect(request.request.params.get('search')).toBe('eng');
     request.flush({ data: { content: [{ id: 2, name: 'English' }], page: 2, size: 10, totalElements: 11, totalPages: 2 } });
+  });
+
+  it('loads a complete paged Skill Master response with trimmed search parameters', () => {
+    const page = { content: [{ id: 2, name: 'Java', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend' }], page: 2, size: 10, totalElements: 21, totalPages: 3 };
+    service.listSkillMaster(2, 10, '  jav  ').subscribe((result) => expect(result).toEqual(page));
+    const request = http.expectOne((candidate) => candidate.url === '/api/master/skills');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('page')).toBe('2');
+    expect(request.request.params.get('size')).toBe('10');
+    expect(request.request.params.get('search')).toBe('jav');
+    request.flush({ data: page });
   });
 });

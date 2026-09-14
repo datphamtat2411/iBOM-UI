@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
-import { Certificate, Education, LanguageMasterPage, ProfileDetail, ProfileLanguage, ProfileSummary } from '../../models/profile.models';
+import { Certificate, Education, LanguageMasterPage, ProfileDetail, ProfileLanguage, ProfileSkill, ProfileSummary, SkillMasterPage } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
 import { ProfileWorkspaceComponent } from './profile-workspace.component';
@@ -30,14 +30,16 @@ describe('ProfileWorkspaceComponent', () => {
     applyMutationVersion: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
-  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy; listProfileLanguages: jasmine.Spy; createProfileLanguage: jasmine.Spy; updateProfileLanguage: jasmine.Spy; deleteProfileLanguage: jasmine.Spy; listCertificates: jasmine.Spy; createCertificate: jasmine.Spy; updateCertificate: jasmine.Spy; deleteCertificate: jasmine.Spy; listLanguageMaster: jasmine.Spy };
+  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy; listProfileLanguages: jasmine.Spy; createProfileLanguage: jasmine.Spy; updateProfileLanguage: jasmine.Spy; deleteProfileLanguage: jasmine.Spy; listCertificates: jasmine.Spy; createCertificate: jasmine.Spy; updateCertificate: jasmine.Spy; deleteCertificate: jasmine.Spy; listProfileSkills: jasmine.Spy; createProfileSkill: jasmine.Spy; updateProfileSkill: jasmine.Spy; deleteProfileSkill: jasmine.Spy; listLanguageMaster: jasmine.Spy; listSkillMaster: jasmine.Spy };
 
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01' };
   const education: Education = { id: 1, schoolName: 'North University', degree: 'BSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: null, status: 'ONGOING' };
   const language: ProfileLanguage = { profileLanguageId: 1, languageId: 2, languageName: 'English', level: 'ADVANCED' };
   const certificate: Certificate = { id: 1, certificateName: 'AWS Developer', issueDate: '2025-04-01' };
+  const skill: ProfileSkill = { profileSkillId: 1, skillId: 2, skillName: 'Java', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend', experienceYears: 7.5, lastUsed: '2025-04-01' };
   const languageMasterPage: LanguageMasterPage = { content: [{ id: 2, name: 'English' }, { id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 2, totalPages: 1 };
+  const skillMasterPage: SkillMasterPage = { content: [{ id: 2, name: 'Java', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend' }, { id: 3, name: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }], page: 0, size: 10, totalElements: 2, totalPages: 1 };
 
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
@@ -56,7 +58,12 @@ describe('ProfileWorkspaceComponent', () => {
       createCertificate: jasmine.createSpy('createCertificate'),
       updateCertificate: jasmine.createSpy('updateCertificate'),
       deleteCertificate: jasmine.createSpy('deleteCertificate'),
+      listProfileSkills: jasmine.createSpy('listProfileSkills').and.returnValue(of([])),
+      createProfileSkill: jasmine.createSpy('createProfileSkill'),
+      updateProfileSkill: jasmine.createSpy('updateProfileSkill'),
+      deleteProfileSkill: jasmine.createSpy('deleteProfileSkill'),
       listLanguageMaster: jasmine.createSpy('listLanguageMaster').and.returnValue(of(languageMasterPage)),
+      listSkillMaster: jasmine.createSpy('listSkillMaster').and.returnValue(of(skillMasterPage)),
     };
     router = { navigate: jasmine.createSpy('navigate') };
     context = {
@@ -131,6 +138,22 @@ describe('ProfileWorkspaceComponent', () => {
       ...overrides,
     });
     fixture.componentInstance.certificateForm.markAsDirty();
+    fixture.detectChanges();
+  }
+
+  function openSkillCreate(): void {
+    fixture.componentInstance.startSkillCreate();
+    fixture.detectChanges();
+  }
+
+  function fillSkillDraft(overrides: Partial<{ skillId: number | string | null; experienceYears: number | null; lastUsed: string }> = {}): void {
+    fixture.componentInstance.skillForm.patchValue({
+      skillId: 2,
+      experienceYears: 7.5,
+      lastUsed: '2025-04-01',
+      ...overrides,
+    });
+    fixture.componentInstance.skillForm.markAsDirty();
     fixture.detectChanges();
   }
 
@@ -1237,6 +1260,275 @@ describe('ProfileWorkspaceComponent', () => {
 
     expect(fixture.componentInstance.certificates).toEqual([]);
     expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 4);
+  });
+
+  it('renders independent Skill loading, error, retry, empty, and populated states', () => {
+    expect(fixture.nativeElement.querySelector('#workspace-section-skills .empty-state')?.textContent).toContain('No Skills exist');
+
+    const loading = new Subject<ProfileSkill[]>();
+    profiles.listProfileSkills.and.returnValue(loading);
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-skills .section-state')?.textContent).toContain('Loading Skill records');
+
+    loading.next([skill]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-skills .skills-table')?.textContent).toContain('Java');
+
+    const failed = new Subject<ProfileSkill[]>();
+    profiles.listProfileSkills.and.returnValue(failed);
+    params.next(convertToParamMap({ profileId: '3' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-skills [role="alert"]')?.textContent).toContain('could not load Skill');
+  });
+
+  it('retries Skill loading at section level', () => {
+    const failed = new Subject<ProfileSkill[]>();
+    const retried = new Subject<ProfileSkill[]>();
+    profiles.listProfileSkills.and.returnValues(failed, retried);
+    params.next(convertToParamMap({ profileId: '2' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+
+    fixture.componentInstance.retrySkills();
+    expect(fixture.componentInstance.skillLoading).toBeTrue();
+    retried.next([skill]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.skills).toEqual([skill]);
+    expect(fixture.nativeElement.querySelector('#workspace-section-skills .skills-table')?.textContent).toContain('Java');
+  });
+
+  it('ignores stale Skill list responses after Profile switching', () => {
+    const first = new Subject<ProfileSkill[]>();
+    const second = new Subject<ProfileSkill[]>();
+    profiles.listProfileSkills.calls.reset();
+    profiles.listProfileSkills.and.returnValues(first, second);
+
+    params.next(convertToParamMap({ profileId: '2' }));
+    params.next(convertToParamMap({ profileId: '3' }));
+    first.next([skill]);
+
+    expect(fixture.componentInstance.skills).toEqual([]);
+    second.next([{ ...skill, profileSkillId: 2, skillName: 'TypeScript' }]);
+    expect(fixture.componentInstance.skills).toEqual([{ ...skill, profileSkillId: 2, skillName: 'TypeScript' }]);
+  });
+
+  it('searches and pages Skill Master using totalPages instead of treating the first page as complete', () => {
+    const firstSearchPage: SkillMasterPage = { content: [{ id: 3, name: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }], page: 0, size: 10, totalElements: 11, totalPages: 2 };
+    const secondPage: SkillMasterPage = { content: [{ id: 8, name: 'Kotlin', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend' }], page: 1, size: 10, totalElements: 11, totalPages: 2 };
+    profiles.listSkillMaster.and.returnValues(of(skillMasterPage), of(firstSearchPage), of(secondPage));
+    openSkillCreate();
+    fixture.componentInstance.skillMasterSearchDraft = '  kot ';
+    fixture.componentInstance.searchSkillMaster();
+
+    expect(profiles.listSkillMaster).toHaveBeenCalledWith(0, 10, 'kot');
+    expect(fixture.componentInstance.skillMasterTotalPages).toBe(2);
+    fixture.componentInstance.nextSkillMasterPage();
+    expect(profiles.listSkillMaster).toHaveBeenCalledWith(1, 10, 'kot');
+    expect(fixture.componentInstance.skillMasterOptions).toEqual(secondPage.content);
+  });
+
+  it('preserves the selected edit Skill and derives Category when the Master option is outside the displayed page', () => {
+    profiles.listSkillMaster.and.returnValue(of({ content: [{ id: 3, name: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }], page: 0, size: 10, totalElements: 1, totalPages: 1 }));
+    fixture.componentInstance.skills = [skill];
+    fixture.componentInstance.startSkillEdit(skill);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.skillOptions()).toContain(jasmine.objectContaining({ id: 2, name: 'Java' }));
+    expect(fixture.nativeElement.querySelector('#profile-skill')?.textContent).toContain('Java');
+    expect(fixture.nativeElement.querySelector('#profile-skill-category')?.textContent).toContain('Backend');
+    expect(fixture.nativeElement.querySelector('#profile-skill-category select, #profile-skill-category input')).toBeNull();
+  });
+
+  it('accepts decimal Experience Years, rejects negative and missing values, and keeps Last Used optional', () => {
+    openSkillCreate();
+    fillSkillDraft({ experienceYears: 7.5, lastUsed: '' });
+    expect(fixture.componentInstance.skillForm.controls.experienceYears.valid).toBeTrue();
+    expect(fixture.componentInstance.skillForm.controls.lastUsed.valid).toBeTrue();
+
+    fixture.componentInstance.skillForm.controls.experienceYears.setValue(-1);
+    fixture.componentInstance.submitSkill();
+    expect(profiles.createProfileSkill).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.skillForm.controls.experienceYears.errors?.['min']).toBeTruthy();
+
+    fixture.componentInstance.skillForm.controls.experienceYears.setValue(null);
+    fixture.componentInstance.submitSkill();
+    expect(fixture.componentInstance.skillForm.controls.experienceYears.errors?.['required']).toBeTrue();
+  });
+
+  it('rejects a future Last Used date and formats returned and absent dates', () => {
+    openSkillCreate();
+    fillSkillDraft({ lastUsed: '2999-01-01' });
+    fixture.componentInstance.submitSkill();
+
+    expect(profiles.createProfileSkill).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.skillForm.controls.lastUsed.errors?.['futureDate']).toBeTrue();
+    expect(fixture.componentInstance.skillLastUsedLabel(skill)).toBe('Apr 2025');
+    expect(fixture.componentInstance.skillLastUsedLabel({ ...skill, lastUsed: null })).toBe('—');
+  });
+
+  it('prevents local duplicate Skills while excluding the current record during edit', () => {
+    fixture.componentInstance.skills = [skill];
+    openSkillCreate();
+    fillSkillDraft({ skillId: 2 });
+    fixture.componentInstance.submitSkill();
+
+    expect(profiles.createProfileSkill).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.skillForm.controls.skillId.errors?.['duplicate']).toBe('This Skill is already assigned to this Profile.');
+
+    fixture.componentInstance.startSkillEdit(skill);
+    fixture.componentInstance.skillForm.markAsDirty();
+    fixture.componentInstance.submitSkill();
+    expect(profiles.updateProfileSkill).not.toHaveBeenCalled();
+  });
+
+  it('maps backend Skill duplicate and Master errors while preserving the retryable draft', () => {
+    profiles.createProfileSkill.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_SKILL_ALREADY_EXISTS', message: 'Skill already exists.' } })));
+    openSkillCreate();
+    fillSkillDraft({ skillId: 3, experienceYears: 2 });
+    fixture.componentInstance.submitSkill();
+
+    expect(fixture.componentInstance.skillForm.controls.skillId.errors?.['backend']).toBe('Skill already exists.');
+    expect(fixture.componentInstance.skillEditorMode).toBe('create');
+    expect(fixture.componentInstance.skillForm.controls.experienceYears.value).toBe(2);
+
+    profiles.createProfileSkill.and.returnValue(throwError(() => new HttpErrorResponse({ status: 404, error: { errorCode: 'SKILL_NOT_FOUND', message: 'Skill is unavailable.' } })));
+    fixture.componentInstance.submitSkill();
+    expect(fixture.componentInstance.skillForm.controls.skillId.errors?.['backend']).toBe('Skill is unavailable.');
+  });
+
+  it('creates and updates canonical Skill data, applies the Profile version, invalidates Preview, and sorts rows', () => {
+    const created: ProfileSkill = { ...skill, profileSkillId: 7, skillId: 3, skillName: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend', experienceYears: 8, lastUsed: null };
+    profiles.createProfileSkill.and.returnValue(of({ profileSkill: created, profileVersion: 4 }));
+    fixture.componentInstance.skills = [{ ...skill, experienceYears: 5 }];
+    openSkillCreate();
+    fillSkillDraft({ skillId: 3, experienceYears: 8, lastUsed: '' });
+    fixture.componentInstance.submitSkill();
+
+    expect(profiles.createProfileSkill).toHaveBeenCalledWith('1', { skillId: 3, experienceYears: 8, lastUsed: null, version: 3 });
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
+    expect(fixture.componentInstance.skills).toEqual([created, { ...skill, experienceYears: 5 }]);
+    expect(fixture.componentInstance.previewInvalidated).toBeTrue();
+    expect(fixture.componentInstance.skillEditorMode).toBeNull();
+
+    const updated: ProfileSkill = { ...created, skillName: 'TypeScript', experienceYears: 3 };
+    profiles.updateProfileSkill.and.returnValue(of({ profileSkill: updated, profileVersion: 5 }));
+    fixture.componentInstance.startSkillEdit(created);
+    fillSkillDraft({ skillId: 3, experienceYears: 3, lastUsed: '' });
+    fixture.componentInstance.submitSkill();
+
+    expect(profiles.updateProfileSkill).toHaveBeenCalledWith('1', 7, { skillId: 3, experienceYears: 3, lastUsed: null, version: 3 });
+    expect(fixture.componentInstance.skills).toEqual([{ ...skill, experienceYears: 5 }, updated]);
+  });
+
+  it('preserves a failed Skill mutation draft and allows retry', () => {
+    profiles.createProfileSkill.and.returnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Service unavailable' } })));
+    openSkillCreate();
+    fillSkillDraft({ skillId: 3, experienceYears: 2 });
+    fixture.componentInstance.submitSkill();
+
+    expect(fixture.componentInstance.skillEditorMode).toBe('create');
+    expect(fixture.componentInstance.skillForm.controls.skillId.value).toBe(3);
+    expect(fixture.componentInstance.skillForm.dirty).toBeTrue();
+    expect(fixture.componentInstance.skillErrorMessage).toBe('Service unavailable');
+
+    profiles.createProfileSkill.and.returnValue(of({ profileSkill: { ...skill, profileSkillId: 9, skillId: 3, skillName: 'TypeScript', experienceYears: 2 }, profileVersion: 4 }));
+    fixture.componentInstance.submitSkill();
+    expect(fixture.componentInstance.skillEditorMode).toBeNull();
+  });
+
+  it('preserves a Skill conflict draft and reloads Profile plus Skills', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshedSkills = new Subject<ProfileSkill[]>();
+    profiles.createProfileSkill.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT', message: 'Profile changed elsewhere.' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listProfileSkills.and.returnValue(refreshedSkills);
+    openSkillCreate();
+    fillSkillDraft({ skillId: 3, experienceYears: 2 });
+
+    fixture.componentInstance.submitSkill();
+    expect(fixture.componentInstance.skillConflict).toBeTrue();
+    expect(fixture.componentInstance.skillForm.controls.skillId.value).toBe(3);
+
+    fixture.componentInstance.reloadLatest();
+    expect(fixture.componentInstance.reloadConfirmation).toBeTrue();
+    fixture.componentInstance.confirmReloadLatest();
+    expect(context.reloadDetail).toHaveBeenCalledWith('1');
+    expect(fixture.componentInstance.skillEditorMode).toBeNull();
+
+    reload.next({ ...detail, version: 4 });
+    refreshedSkills.next([skill]);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.skills).toEqual([skill]);
+    expect(fixture.componentInstance.skillMessage).toContain('Latest Profile and Skill data loaded');
+  });
+
+  it('confirms Skill deletion, protects duplicate submission, applies version, and removes the sorted row', () => {
+    const pending = new Subject<{ profileVersion: number }>();
+    fixture.componentInstance.skills = [skill];
+    profiles.deleteProfileSkill.and.returnValue(pending);
+    fixture.detectChanges();
+    const deleteButton = fixture.nativeElement.querySelector('.skill-delete-button') as HTMLButtonElement;
+    expect(deleteButton.getAttribute('aria-label')).toBe('Delete Java (7.5 years)');
+    deleteButton.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.skillDeleteConfirmation).toBeTrue();
+
+    fixture.componentInstance.confirmSkillDelete();
+    fixture.componentInstance.confirmSkillDelete();
+    expect(profiles.deleteProfileSkill).toHaveBeenCalledTimes(1);
+    expect(profiles.deleteProfileSkill).toHaveBeenCalledWith('1', 1, 3);
+
+    pending.next({ profileVersion: 4 });
+    pending.complete();
+    expect(fixture.componentInstance.skills).toEqual([]);
+    expect(fixture.componentInstance.skillDeleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.skillMessage).toContain('Skill deleted');
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
+    expect(fixture.componentInstance.previewInvalidated).toBeTrue();
+  });
+
+  it('retains a Skill row and confirmation after delete failure', () => {
+    profiles.deleteProfileSkill.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Delete rejected' } })));
+    fixture.componentInstance.skills = [skill];
+    fixture.componentInstance.openSkillDeleteConfirmation(skill);
+    fixture.componentInstance.confirmSkillDelete();
+
+    expect(fixture.componentInstance.skills).toEqual([skill]);
+    expect(fixture.componentInstance.skillDeleteConfirmation).toBeTrue();
+    expect(fixture.componentInstance.skillDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('ignores a stale Skill mutation after Profile switching', () => {
+    const pending = new Subject<{ profileSkill: ProfileSkill; profileVersion: number }>();
+    profiles.createProfileSkill.and.returnValue(pending);
+    openSkillCreate();
+    fillSkillDraft({ skillId: 3, experienceYears: 2 });
+    fixture.componentInstance.submitSkill();
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2 });
+    params.next(convertToParamMap({ profileId: '2' }));
+    pending.next({ profileSkill: { ...skill, profileSkillId: 9, skillId: 3, skillName: 'TypeScript', experienceYears: 2 }, profileVersion: 4 });
+
+    expect(fixture.componentInstance.skills).toEqual([]);
+    expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 4);
+  });
+
+  it('includes Skill editor dirtiness in unsaved navigation confirmation', () => {
+    openSkillCreate();
+    fillSkillDraft({ skillId: 3, experienceYears: 2 });
+
+    const navigation = fixture.componentInstance.editSession.requestNavigation('/profiles/2');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Your unsaved editor changes will be discarded');
+    fixture.componentInstance.discardPendingNavigation();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(fixture.componentInstance.skillEditorMode).toBeNull();
+    void navigation;
   });
 
   it('includes Certificate editor dirtiness in unsaved navigation confirmation', () => {

@@ -14,6 +14,10 @@ import {
   EducationRequest,
   EducationResponse,
   LanguageMasterPage,
+  ProfileSkillMutationResponse,
+  ProfileSkillRequest,
+  ProfileSkillResponse,
+  SkillMasterPage,
   ProfileLanguageMutationResponse,
   ProfileLanguageRequest,
   ProfileLanguageResponse,
@@ -129,9 +133,40 @@ export class ProfileService {
     );
   }
 
+  listProfileSkills(profileId: string): Observable<ProfileSkillResponse[]> {
+    return this.http.get<ApiResponse<ProfileSkillResponse[]>>(this.skillUrl(profileId)).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  createProfileSkill(profileId: string, skill: ProfileSkillRequest): Observable<ProfileSkillMutationResponse> {
+    return this.http.post<ApiResponse<ProfileSkillMutationResponse>>(this.skillUrl(profileId), skill).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  updateProfileSkill(profileId: string, profileSkillId: number | string, skill: ProfileSkillRequest): Observable<ProfileSkillMutationResponse> {
+    return this.http.put<ApiResponse<ProfileSkillMutationResponse>>(this.skillUrl(profileId, profileSkillId), skill).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  deleteProfileSkill(profileId: string, profileSkillId: number | string, profileVersion: number): Observable<ProfileVersionResponse> {
+    return this.http.delete<ApiResponse<ProfileVersionResponse>>(this.skillUrl(profileId, profileSkillId), { body: { profileVersion } }).pipe(
+      map((response) => response.data),
+    );
+  }
+
   listLanguageMaster(page: number, size: number, search: string): Observable<LanguageMasterPage> {
     const params = new HttpParams({ fromObject: { page, size, search: search.trim() } });
     return this.http.get<ApiResponse<LanguageMasterPage>>(`${API_BASE_URL}/master/languages`, { params }).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  listSkillMaster(page: number, size: number, search: string): Observable<SkillMasterPage> {
+    const params = new HttpParams({ fromObject: { page, size, search: search.trim() } });
+    return this.http.get<ApiResponse<SkillMasterPage>>(`${API_BASE_URL}/master/skills`, { params }).pipe(
       map((response) => response.data),
     );
   }
@@ -144,6 +179,11 @@ export class ProfileService {
   private languageUrl(profileId: string, profileLanguageId?: number | string): string {
     const profileUrl = `${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}/languages`;
     return profileLanguageId === undefined ? profileUrl : `${profileUrl}/${encodeURIComponent(String(profileLanguageId))}`;
+  }
+
+  private skillUrl(profileId: string, profileSkillId?: number | string): string {
+    const profileUrl = `${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}/skills`;
+    return profileSkillId === undefined ? profileUrl : `${profileUrl}/${encodeURIComponent(String(profileSkillId))}`;
   }
 
   private certificateUrl(profileId: string, certificateId?: number | string): string {

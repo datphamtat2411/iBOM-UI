@@ -124,3 +124,44 @@ export interface LanguageMasterPage {
   totalElements: number;
   totalPages: number;
 }
+
+export interface ProfileSkill {
+  profileSkillId: number | string;
+  skillId: number | string;
+  skillName: string;
+  categoryId: number | string | null;
+  categoryCode: string | null;
+  categoryName: string | null;
+  experienceYears: number;
+  lastUsed: string | null;
+}
+
+export type ProfileSkillResponse = ProfileSkill;
+
+export interface ProfileSkillRequest {
+  skillId: number | string;
+  experienceYears: number;
+  lastUsed: string | null;
+  version: number;
+}
+
+export interface ProfileSkillMutationResponse {
+  profileSkill: ProfileSkillResponse;
+  profileVersion: number;
+}
+
+export interface SkillMasterOption {
+  id: number | string;
+  name: string;
+  categoryId: number | string | null;
+  categoryCode: string | null;
+  categoryName: string | null;
+}
+
+export interface SkillMasterPage {
+  content: SkillMasterOption[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}

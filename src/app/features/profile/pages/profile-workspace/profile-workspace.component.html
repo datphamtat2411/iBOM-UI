@@ -23,7 +23,7 @@
         </nav>
         <div class="workspace-sections">
              <section class="content-section" id="workspace-section-about" aria-labelledby="about-title">
-             <div class="section-title"><div><h2 id="about-title">About Me</h2><p>Identity and narrative details for this Profile.</p></div>@if (!isEditing && !educationEditorMode && !languageEditorMode && !certificateEditorMode) { <button class="btn edit-about-button" type="button" (click)="startEditing()">Edit</button> }</div>
+              <div class="section-title"><div><h2 id="about-title">About Me</h2><p>Identity and narrative details for this Profile.</p></div>@if (!isEditing && !educationEditorMode && !languageEditorMode && !certificateEditorMode && !skillEditorMode) { <button class="btn edit-about-button" type="button" (click)="startEditing()">Edit</button> }</div>
             @if (!isEditing) {
                 <div class="fact-grid">
                   <div class="fact"><label>Profile Name</label><p>{{ profile.profileName }}</p></div>
@@ -51,7 +51,7 @@
             }
           </section>
            <section class="content-section" id="workspace-section-education" aria-labelledby="education-title">
-              <div class="section-title"><div><h2 id="education-title">Education</h2><p>Academic background records for this Profile.</p></div>@if (!educationEditorMode && !isEditing && !languageEditorMode && !certificateEditorMode) { <button class="btn" type="button" (click)="startEducationCreate()">Add education</button> }</div>
+               <div class="section-title"><div><h2 id="education-title">Education</h2><p>Academic background records for this Profile.</p></div>@if (!educationEditorMode && !isEditing && !languageEditorMode && !certificateEditorMode && !skillEditorMode) { <button class="btn" type="button" (click)="startEducationCreate()">Add education</button> }</div>
              @if (educationMessage) { <div class="notice success" role="status">{{ educationMessage }}</div> }
              @if (educationLoading) {
                <div class="section-state" role="status" aria-live="polite"><p>Loading Education records.</p></div>
@@ -78,17 +78,17 @@
                    @for (education of educations; track education.id) {
                      <div class="record">
                        <div><h3>{{ education.degree }}</h3><p>{{ education.schoolName }}@if (education.fieldOfStudy) { · {{ education.fieldOfStudy }} }</p></div>
-                        <div class="record-meta"><div>{{ education.status }}</div><div>{{ educationDateLabel(education) }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startEducationEdit(education)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || isEducationDeleting">Edit</button><button class="btn danger education-delete-button" type="button" (click)="openEducationDeleteConfirmation(education)" [disabled]="isEditing || !!educationEditorMode || isEducationDeleting" [attr.aria-busy]="isEducationDeleting" [attr.aria-label]="'Delete ' + educationRecordLabel(education)"><span aria-hidden="true">&minus;</span></button></div></div>
+                         <div class="record-meta"><div>{{ education.status }}</div><div>{{ educationDateLabel(education) }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startEducationEdit(education)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isEducationDeleting">Edit</button><button class="btn danger education-delete-button" type="button" (click)="openEducationDeleteConfirmation(education)" [disabled]="isEditing || !!educationEditorMode || !!skillEditorMode || isEducationDeleting" [attr.aria-busy]="isEducationDeleting" [attr.aria-label]="'Delete ' + educationRecordLabel(education)"><span aria-hidden="true">&minus;</span></button></div></div>
                      </div>
                    }
                  </div>
                } @else if (!educationEditorMode) {
-                  <div class="empty-state"><p>No Education records exist in this Profile.</p><button class="btn" type="button" (click)="startEducationCreate()" [disabled]="isEditing || !!languageEditorMode || !!certificateEditorMode">Add education</button></div>
+                   <div class="empty-state"><p>No Education records exist in this Profile.</p><button class="btn" type="button" (click)="startEducationCreate()" [disabled]="isEditing || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode">Add education</button></div>
                }
              }
            </section>
             <section class="content-section" id="workspace-section-languages" aria-labelledby="languages-title">
-               <div class="section-title"><div><h2 id="languages-title">Languages</h2><p>Profile-specific language records and controlled proficiency levels.</p></div>@if (!languageEditorMode && !isEditing && !educationEditorMode && !certificateEditorMode) { <button class="btn" type="button" (click)="startLanguageCreate()">Add language</button> }</div>
+                <div class="section-title"><div><h2 id="languages-title">Languages</h2><p>Profile-specific language records and controlled proficiency levels.</p></div>@if (!languageEditorMode && !isEditing && !educationEditorMode && !certificateEditorMode && !skillEditorMode) { <button class="btn" type="button" (click)="startLanguageCreate()">Add language</button> }</div>
               @if (languageMessage) { <div class="notice success" role="status">{{ languageMessage }}</div> }
               @if (languageLoading) {
                 <div class="section-state" role="status" aria-live="polite"><p>Loading Language records.</p></div>
@@ -114,17 +114,17 @@
                     @for (language of languages; track language.profileLanguageId) {
                       <div class="record">
                         <div><h3>{{ language.languageName }}</h3><p>{{ languageLevelLabel(language.level) }}</p></div>
-                         <div class="record-meta"><div>LANGUAGE</div><div class="record-actions"><button class="btn text" type="button" (click)="startLanguageEdit(language)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || isLanguageDeleting">Edit</button><button class="btn danger language-delete-button" type="button" (click)="openLanguageDeleteConfirmation(language)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || isLanguageDeleting" [attr.aria-busy]="isLanguageDeleting" [attr.aria-label]="'Delete ' + languageRecordLabel(language)"><span aria-hidden="true">&minus;</span></button></div></div>
+                          <div class="record-meta"><div>LANGUAGE</div><div class="record-actions"><button class="btn text" type="button" (click)="startLanguageEdit(language)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isLanguageDeleting">Edit</button><button class="btn danger language-delete-button" type="button" (click)="openLanguageDeleteConfirmation(language)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!skillEditorMode || isLanguageDeleting" [attr.aria-busy]="isLanguageDeleting" [attr.aria-label]="'Delete ' + languageRecordLabel(language)"><span aria-hidden="true">&minus;</span></button></div></div>
                       </div>
                     }
                   </div>
                 } @else if (!languageEditorMode) {
-                  <div class="empty-state"><p>No Language records exist in this Profile.</p><button class="btn" type="button" (click)="startLanguageCreate()" [disabled]="isEditing || !!educationEditorMode || !!certificateEditorMode">Add language</button></div>
+                   <div class="empty-state"><p>No Language records exist in this Profile.</p><button class="btn" type="button" (click)="startLanguageCreate()" [disabled]="isEditing || !!educationEditorMode || !!certificateEditorMode || !!skillEditorMode">Add language</button></div>
                 }
               }
             </section>
              <section class="content-section" id="workspace-section-certificates" aria-labelledby="certificates-title">
-               <div class="section-title"><div><h2 id="certificates-title">Certificates</h2><p>Profile-specific certificate records for this CV version.</p></div>@if (!certificateEditorMode && !isEditing && !educationEditorMode && !languageEditorMode) { <button class="btn" type="button" (click)="startCertificateCreate()">Add certificate</button> }</div>
+               <div class="section-title"><div><h2 id="certificates-title">Certificates</h2><p>Profile-specific certificate records for this CV version.</p></div>@if (!certificateEditorMode && !isEditing && !educationEditorMode && !languageEditorMode && !skillEditorMode) { <button class="btn" type="button" (click)="startCertificateCreate()">Add certificate</button> }</div>
                @if (certificateMessage) { <div class="notice success" role="status">{{ certificateMessage }}</div> }
                @if (certificateLoading) {
                  <div class="section-state" role="status" aria-live="polite"><p>Loading Certificate records.</p></div>
@@ -147,16 +147,51 @@
                      @for (certificate of certificates; track certificate.id) {
                        <div class="record">
                          <div><h3>{{ certificate.certificateName }}</h3><p>Profile-specific certificate record</p></div>
-                         <div class="record-meta"><div>{{ certificate.issueDate }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startCertificateEdit(certificate)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || isCertificateDeleting">Edit</button><button class="btn danger certificate-delete-button" type="button" (click)="openCertificateDeleteConfirmation(certificate)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || isCertificateDeleting" [attr.aria-busy]="isCertificateDeleting" [attr.aria-label]="'Delete ' + certificateRecordLabel(certificate)"><span aria-hidden="true">&minus;</span></button></div></div>
+                          <div class="record-meta"><div>{{ certificate.issueDate }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startCertificateEdit(certificate)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isCertificateDeleting">Edit</button><button class="btn danger certificate-delete-button" type="button" (click)="openCertificateDeleteConfirmation(certificate)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isCertificateDeleting" [attr.aria-busy]="isCertificateDeleting" [attr.aria-label]="'Delete ' + certificateRecordLabel(certificate)"><span aria-hidden="true">&minus;</span></button></div></div>
                        </div>
                      }
                    </div>
                  } @else if (!certificateEditorMode) {
-                   <div class="empty-state"><p>No Certificates exist in this Profile. Add one when it is relevant to this CV version.</p><button class="btn" type="button" (click)="startCertificateCreate()" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode">Add certificate</button></div>
+                    <div class="empty-state"><p>No Certificates exist in this Profile. Add one when it is relevant to this CV version.</p><button class="btn" type="button" (click)="startCertificateCreate()" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!skillEditorMode">Add certificate</button></div>
                  }
                }
              </section>
-             @for (section of sections.slice(4); track section[0]) { <section class="content-section" [id]="'workspace-section-' + section[0]" [attr.aria-labelledby]="section[0] + '-title'"><h2 [id]="section[0] + '-title'">{{ section[1] }}</h2><p>No {{ section[1] }} data is available in this read-only workspace.</p><div class="structural-placeholder">Section structure reserved for Profile data.</div></section> }
+              @for (section of sections.slice(4, 5); track section[0]) { <section class="content-section" [id]="'workspace-section-' + section[0]" [attr.aria-labelledby]="section[0] + '-title'"><h2 [id]="section[0] + '-title'">{{ section[1] }}</h2><p>No {{ section[1] }} data is available in this read-only workspace.</p><div class="structural-placeholder">Section structure reserved for Profile data.</div></section> }
+              <section class="content-section" id="workspace-section-skills" aria-labelledby="skills-title">
+                <div class="section-title"><div><h2 id="skills-title">Skills</h2><p>Profile-specific skills with controlled Master Data classification.</p></div>@if (!skillEditorMode && !isEditing && !educationEditorMode && !languageEditorMode && !certificateEditorMode) { <button class="btn" type="button" (click)="startSkillCreate()">Add skill</button> }</div>
+                @if (skillMessage) { <div class="notice success" role="status">{{ skillMessage }}</div> }
+                @if (skillLoading) {
+                  <div class="section-state" role="status" aria-live="polite"><p>Loading Skill records.</p></div>
+                } @else if (skillError) {
+                  <div class="notice error" role="alert"><p>We could not load Skill records for this Profile.</p><button class="btn text" type="button" (click)="retrySkills()">Try again</button></div>
+                } @else {
+                  @if (skillEditorMode) {
+                    <form class="skill-editor" [formGroup]="skillForm" (ngSubmit)="submitSkill()" novalidate>
+                      @if (skillErrorMessage) { <div class="notice error" role="alert">{{ skillErrorMessage }}</div> }
+                      @if (skillConflict) { <div class="notice warning" role="alert"><strong>Latest Profile required.</strong> Your Skill draft is preserved, but saving is blocked until you reload the latest version. <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button></div> }
+                      <section class="form-section"><h3>Skill details</h3><div class="form-grid">
+                        <div class="field span-2"><label for="skill-master-search">Search Skill Master</label><div class="skill-master-search"><input id="skill-master-search" type="search" [value]="skillMasterSearchDraft" (input)="skillMasterSearchDraft = $any($event.target).value" [attr.aria-busy]="skillMasterLoading"><button class="btn" type="button" (click)="searchSkillMaster()" [disabled]="skillMasterLoading">Search</button></div><span class="helper">Select a controlled Skill Master value. New Skills cannot be created here.</span></div>
+                        <div class="field"><label for="profile-skill">Skill</label><select id="profile-skill" formControlName="skillId" [attr.aria-invalid]="skillFieldInvalid('skillId')"><option [ngValue]="null">Select a Skill</option>@for (option of skillOptions(); track option.id) { <option [ngValue]="option.id">{{ option.name }}</option> }</select>@if (skillFieldInvalid('skillId')) { <span class="field-error">{{ skillFieldError('skillId') }}</span> }</div>
+                        <div class="field"><label for="profile-skill-category">Category</label><div id="profile-skill-category" class="readonly-value">{{ selectedSkillCategory() }}</div><span class="helper">Category is derived from the selected Skill Master value and cannot be changed here.</span></div>
+                        <div class="field"><label for="profile-skill-experience">Experience Years</label><input id="profile-skill-experience" type="number" min="0" step="any" formControlName="experienceYears" [attr.aria-invalid]="skillFieldInvalid('experienceYears')">@if (skillFieldInvalid('experienceYears')) { <span class="field-error">{{ skillFieldError('experienceYears') }}</span> }</div>
+                        <div class="field"><label for="profile-skill-last-used">Last Used <span class="optional">(optional)</span></label><input id="profile-skill-last-used" type="date" formControlName="lastUsed" [max]="skillDateMax" [attr.aria-invalid]="skillFieldInvalid('lastUsed')">@if (skillFieldInvalid('lastUsed')) { <span class="field-error">{{ skillFieldError('lastUsed') }}</span> }</div>
+                      </div></section>
+                      @if (skillMasterError) { <div class="notice error" role="alert"><p>We could not load Skill Master options.</p><button class="btn text" type="button" (click)="searchSkillMaster()">Try again</button></div> }
+                      @if (skillMasterTotalPages > 1) { <div class="skill-pagination" aria-label="Skill Master pages"><button class="btn text" type="button" (click)="previousSkillMasterPage()" [disabled]="skillMasterLoading || skillMasterPage === 0">Previous</button><span class="mono" aria-live="polite">Page {{ skillMasterPage + 1 }} of {{ skillMasterTotalPages }}</span><button class="btn text" type="button" (click)="nextSkillMasterPage()" [disabled]="skillMasterLoading || skillMasterPage + 1 >= skillMasterTotalPages">Next</button></div> }
+                      <div class="sticky-actions"><span class="unsaved" [class.is-saving]="isSkillSubmitting" [class.is-dirty]="hasSkillChanges()" role="status" aria-live="polite">{{ isSkillSubmitting ? 'Saving...' : skillConflict ? 'Reload required' : hasSkillChanges() ? 'Unsaved changes' : 'No changes' }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isSkillSubmitting">Cancel</button><button class="btn primary" type="submit" [disabled]="skillForm.invalid || !hasSkillChanges() || isSkillSubmitting || skillConflict || skillMasterLoading || !!skillMasterError || !skillMasterReady" [attr.aria-busy]="isSkillSubmitting">{{ isSkillSubmitting ? 'Saving...' : skillEditorMode === 'edit' ? 'Save Skill' : 'Add Skill' }}</button></div></div>
+                    </form>
+                  }
+                  @if (skills.length) {
+                    <div class="skills-table-wrap"><table class="skills-table"><thead><tr><th scope="col">Skill</th><th scope="col">Category</th><th scope="col">Experience</th><th scope="col">Last Used</th><th scope="col">Actions</th></tr></thead><tbody>
+                      @for (skill of skills; track skill.profileSkillId) {
+                        <tr><td>{{ skill.skillName }}</td><td>{{ skillCategoryLabel(skill) }}</td><td class="mono">{{ skill.experienceYears }}</td><td class="mono">{{ skillLastUsedLabel(skill) }}</td><td><div class="record-actions"><button class="btn text" type="button" (click)="startSkillEdit(skill)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isSkillDeleting">Edit</button><button class="btn danger skill-delete-button" type="button" (click)="openSkillDeleteConfirmation(skill)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isSkillDeleting" [attr.aria-busy]="isSkillDeleting" [attr.aria-label]="'Delete ' + skillRecordLabel(skill)"><span aria-hidden="true">&minus;</span></button></div></td></tr>
+                      }
+                    </tbody></table></div>
+                  } @else if (!skillEditorMode) {
+                    <div class="empty-state"><p>No Skills exist in this Profile. Skills from another Profile are not inherited automatically.</p><button class="btn" type="button" (click)="startSkillCreate()" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode">Add skill</button></div>
+                  }
+                }
+              </section>
         </div>
       </div>
     }
@@ -189,6 +224,11 @@
   @if (certificateDeleteConfirmation) {
     @if (certificateDeleteTarget; as target) {
       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-certificate-title" aria-describedby="delete-certificate-copy"><h2 id="delete-certificate-title">Delete {{ certificateRecordLabel(target) }}?</h2><p id="delete-certificate-copy">This removes this Certificate record from the selected Profile only. This action cannot be undone.</p>@if (certificateDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ certificateDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelCertificateDelete()" [disabled]="isCertificateDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmCertificateDelete()" [disabled]="isCertificateDeleting" [attr.aria-busy]="isCertificateDeleting">{{ isCertificateDeleting ? 'Deleting...' : 'Delete Certificate' }}</button></div></section></div>
+    }
+  }
+  @if (skillDeleteConfirmation) {
+    @if (skillDeleteTarget; as target) {
+      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-skill-title" aria-describedby="delete-skill-copy"><h2 id="delete-skill-title">Delete {{ skillRecordLabel(target) }}?</h2><p id="delete-skill-copy">This removes this Skill record from the selected Profile only. This action cannot be undone.</p>@if (skillDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ skillDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelSkillDelete()" [disabled]="isSkillDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmSkillDelete()" [disabled]="isSkillDeleting" [attr.aria-busy]="isSkillDeleting">{{ isSkillDeleting ? 'Deleting...' : 'Delete Skill' }}</button></div></section></div>
     }
   }
 </section>

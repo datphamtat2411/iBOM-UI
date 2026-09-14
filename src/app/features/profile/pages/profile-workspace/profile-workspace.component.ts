@@ -15,7 +15,10 @@ import {
   LanguageMasterOption,
   ProfileLanguage,
   ProfileLanguageRequest,
+  ProfileSkill,
+  ProfileSkillRequest,
   ProfileDetail,
+  SkillMasterOption,
   UpdateProfileRequest,
 } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
@@ -45,6 +48,13 @@ type EditableCertificateField = keyof EditableCertificateValues;
 type EditableCertificateValues = {
   certificateName: string;
   issueDate: string;
+};
+type SkillEditorMode = 'create' | 'edit' | null;
+type EditableSkillField = keyof EditableSkillValues;
+type EditableSkillValues = {
+  skillId: number | string | null;
+  experienceYears: number | null;
+  lastUsed: string;
 };
 
 @Component({
@@ -102,6 +112,12 @@ export class ProfileWorkspaceComponent {
     issueDate: ['', [Validators.required, this.certificateIssueDateValidator()]],
   });
   readonly certificateDateMax = this.currentDate();
+  readonly skillForm = this.formBuilder.group({
+    skillId: this.formBuilder.control<number | string | null>(null, [Validators.required]),
+    experienceYears: this.formBuilder.control<number | null>(null, [Validators.required, Validators.min(0)]),
+    lastUsed: this.formBuilder.nonNullable.control('', [this.skillLastUsedValidator()]),
+  });
+  readonly skillDateMax = this.currentDate();
 
   activeSection = 'about';
   isEditing = false;
@@ -156,6 +172,18 @@ export class ProfileWorkspaceComponent {
   certificateDeleteConfirmation = false;
   certificateDeleteTarget: Certificate | null = null;
   certificateDeleteErrorMessage = '';
+  skills: ProfileSkill[] = [];
+  skillLoading = false;
+  skillError: unknown | null = null;
+  skillEditorMode: SkillEditorMode = null;
+  skillConflict = false;
+  isSkillSubmitting = false;
+  skillErrorMessage = '';
+  skillMessage = '';
+  isSkillDeleting = false;
+  skillDeleteConfirmation = false;
+  skillDeleteTarget: ProfileSkill | null = null;
+  skillDeleteErrorMessage = '';
   languageMasterOptions: LanguageMasterOption[] = [];
   languageMasterPage = 0;
   languageMasterSize = 10;
@@ -166,10 +194,22 @@ export class ProfileWorkspaceComponent {
   languageMasterLoading = false;
   languageMasterError: unknown | null = null;
   languageMasterReady = false;
+  skillMasterOptions: SkillMasterOption[] = [];
+  skillMasterPage = 0;
+  skillMasterSize = 10;
+  skillMasterTotalElements = 0;
+  skillMasterTotalPages = 0;
+  skillMasterSearch = '';
+  skillMasterSearchDraft = '';
+  skillMasterLoading = false;
+  skillMasterError: unknown | null = null;
+  skillMasterReady = false;
   private readonly educationListCancel = new Subject<void>();
   private readonly languageListCancel = new Subject<void>();
   private readonly certificateListCancel = new Subject<void>();
   private readonly languageMasterCancel = new Subject<void>();
+  private readonly skillListCancel = new Subject<void>();
+  private readonly skillMasterCancel = new Subject<void>();
   private educationListGeneration = 0;
   private educationMutationGeneration = 0;
   private languageListGeneration = 0;
@@ -177,6 +217,9 @@ export class ProfileWorkspaceComponent {
   private certificateListGeneration = 0;
   private certificateMutationGeneration = 0;
   private languageMasterGeneration = 0;
+  private skillListGeneration = 0;
+  private skillMutationGeneration = 0;
+  private skillMasterGeneration = 0;
   private activeProfileId: string | null = null;
   private editingEducationId: number | string | null = null;
   private originalEducationValues: EditableEducationValues | null = null;
@@ -184,6 +227,8 @@ export class ProfileWorkspaceComponent {
   private originalLanguageValues: EditableLanguageValues | null = null;
   private editingCertificateId: number | string | null = null;
   private originalCertificateValues: EditableCertificateValues | null = null;
+  private editingProfileSkillId: number | string | null = null;
+  private originalSkillValues: EditableSkillValues | null = null;
 
   constructor() {
     this.context.loadSummaries();
@@ -191,6 +236,7 @@ export class ProfileWorkspaceComponent {
     this.educationForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.languageForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.certificateForm.valueChanges.subscribe(() => this.syncDirtyState());
+    this.skillForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.educationForm.controls.status.valueChanges.subscribe(() => this.updateEducationDateValidation());
     this.route.paramMap.subscribe((params) => {
       this.closeEditor();
@@ -198,9 +244,11 @@ export class ProfileWorkspaceComponent {
       this.closeEducationDeleteConfirmation();
       this.closeLanguageDeleteConfirmation();
       this.closeCertificateDeleteConfirmation();
+      this.closeSkillDeleteConfirmation();
       this.resetEducationState();
       this.resetLanguageState();
       this.resetCertificateState();
+      this.resetSkillState();
       const profileId = params.get('profileId');
       this.activeProfileId = profileId;
       if (profileId) {
@@ -208,6 +256,7 @@ export class ProfileWorkspaceComponent {
         this.loadEducations(profileId);
         this.loadProfileLanguages(profileId);
         this.loadCertificates(profileId);
+        this.loadProfileSkills(profileId);
       } else {
         this.context.beginSelection(null);
       }
@@ -314,6 +363,11 @@ export class ProfileWorkspaceComponent {
     if (profileId) this.loadCertificates(profileId);
   }
 
+  retrySkills(): void {
+    const profileId = this.activeProfileId ?? this.context.selectedId();
+    if (profileId) this.loadProfileSkills(profileId);
+  }
+
   searchLanguageMaster(): void {
     this.languageMasterSearch = this.languageMasterSearchDraft.trim();
     this.loadLanguageMaster(0, this.languageMasterSearch);
@@ -327,6 +381,21 @@ export class ProfileWorkspaceComponent {
   nextLanguageMasterPage(): void {
     if (this.languageMasterLoading || this.languageMasterPage + 1 >= this.languageMasterTotalPages) return;
     this.loadLanguageMaster(this.languageMasterPage + 1, this.languageMasterSearch);
+  }
+
+  searchSkillMaster(): void {
+    this.skillMasterSearch = this.skillMasterSearchDraft.trim();
+    this.loadSkillMaster(0, this.skillMasterSearch);
+  }
+
+  previousSkillMasterPage(): void {
+    if (this.skillMasterLoading || this.skillMasterPage <= 0) return;
+    this.loadSkillMaster(this.skillMasterPage - 1, this.skillMasterSearch);
+  }
+
+  nextSkillMasterPage(): void {
+    if (this.skillMasterLoading || this.skillMasterPage + 1 >= this.skillMasterTotalPages) return;
+    this.loadSkillMaster(this.skillMasterPage + 1, this.skillMasterSearch);
   }
 
   openLanguageDeleteConfirmation(language: ProfileLanguage): void {
@@ -373,6 +442,54 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentLanguageOperation(profileId, operationGeneration, false)) return;
         this.isLanguageDeleting = false;
         this.languageDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Language right now. The record is still here and you can retry.';
+      },
+    });
+  }
+
+  openSkillDeleteConfirmation(skill: ProfileSkill): void {
+    if (this.isSkillDeleting || this.skillEditorMode) return;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!profileId || !profile || String(profile.id) !== profileId) return;
+
+    this.skillDeleteTarget = skill;
+    this.skillDeleteErrorMessage = '';
+    this.skillDeleteConfirmation = true;
+  }
+
+  cancelSkillDelete(): void {
+    if (this.isSkillDeleting) return;
+    this.closeSkillDeleteConfirmation();
+  }
+
+  confirmSkillDelete(): void {
+    const target = this.skillDeleteTarget;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!this.skillDeleteConfirmation || !target || this.isSkillDeleting || !profileId || !profile) return;
+    if (String(profile.id) !== profileId || !this.skills.some((skill) => String(skill.profileSkillId) === String(target.profileSkillId))) {
+      this.closeSkillDeleteConfirmation();
+      return;
+    }
+
+    const operationGeneration = ++this.skillMutationGeneration;
+    this.isSkillDeleting = true;
+    this.skillDeleteErrorMessage = '';
+    this.profileService.deleteProfileSkill(profileId, target.profileSkillId, profile.version).subscribe({
+      next: (result) => {
+        if (!this.isCurrentSkillOperation(profileId, operationGeneration, false)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+
+        this.skills = this.sortProfileSkills(this.skills.filter((skill) => String(skill.profileSkillId) !== String(target.profileSkillId)));
+        this.isSkillDeleting = false;
+        this.previewInvalidated = true;
+        this.skillMessage = 'Skill deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.closeSkillDeleteConfirmation();
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentSkillOperation(profileId, operationGeneration, false)) return;
+        this.isSkillDeleting = false;
+        this.skillDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Skill right now. The record is still here and you can retry.';
       },
     });
   }
@@ -512,6 +629,14 @@ export class ProfileWorkspaceComponent {
     this.openCertificateEditor(certificate);
   }
 
+  startSkillCreate(): void {
+    this.openSkillEditor();
+  }
+
+  startSkillEdit(skill: ProfileSkill): void {
+    this.openSkillEditor(skill);
+  }
+
   cancelEditing(): void {
     if (this.certificateEditorMode) {
       if (this.isCertificateSubmitting) return;
@@ -520,6 +645,15 @@ export class ProfileWorkspaceComponent {
         return;
       }
       this.closeCertificateEditor();
+      return;
+    }
+    if (this.skillEditorMode) {
+      if (this.isSkillSubmitting) return;
+      if (this.skillForm.dirty) {
+        this.cancelConfirmation = true;
+        return;
+      }
+      this.closeSkillEditor();
       return;
     }
     if (this.languageEditorMode) {
@@ -561,6 +695,10 @@ export class ProfileWorkspaceComponent {
     }
     if (this.certificateEditorMode) {
       this.closeCertificateEditor();
+      return;
+    }
+    if (this.skillEditorMode) {
+      this.closeSkillEditor();
       return;
     }
     if (this.educationEditorMode) {
@@ -746,6 +884,88 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  submitSkill(): void {
+    const mode = this.skillEditorMode;
+    if (!mode || this.isSkillSubmitting || this.skillConflict) return;
+
+    this.skillErrorMessage = '';
+    this.skillMessage = '';
+    this.clearSkillBackendErrors();
+    this.trimSkillFormValues();
+    if (!this.hasSkillChanges()) return;
+    if (!this.skillMasterReady || this.skillMasterLoading || this.skillMasterError) {
+      this.skillErrorMessage = this.skillMasterLoading
+        ? 'Skill options are still loading. Please try again when they are available.'
+        : 'Skill options are unavailable. Retry the Skill Master request before saving.';
+      this.syncDirtyState();
+      return;
+    }
+    if (this.skillForm.invalid) {
+      this.skillForm.markAllAsTouched();
+      this.syncDirtyState();
+      return;
+    }
+
+    const profile = this.context.detail();
+    const profileId = this.context.selectedId();
+    if (!profile || !profileId || String(profile.id) !== profileId) return;
+
+    const value = this.skillForm.getRawValue();
+    const selectedSkill = this.skillMasterOptions.some((option) => String(option.id) === String(value.skillId))
+      || (mode === 'edit' && this.skills.some((skill) => String(skill.profileSkillId) === String(this.editingProfileSkillId)
+        && String(skill.skillId) === String(value.skillId)));
+    if (!selectedSkill) {
+      this.setSkillFieldError('skillId', 'Select a Skill from Skill Master.', 'backend');
+      this.skillErrorMessage = 'Select a Skill from Skill Master.';
+      this.syncDirtyState();
+      return;
+    }
+
+    const duplicate = this.skills.some((skill) => String(skill.skillId) === String(value.skillId)
+      && (mode !== 'edit' || String(skill.profileSkillId) !== String(this.editingProfileSkillId)));
+    if (duplicate) {
+      this.setSkillFieldError('skillId', 'This Skill is already assigned to this Profile.', 'duplicate');
+      this.skillErrorMessage = 'This Skill is already assigned to this Profile.';
+      this.syncDirtyState();
+      return;
+    }
+
+    const request: ProfileSkillRequest = {
+      skillId: value.skillId as number | string,
+      experienceYears: Number(value.experienceYears),
+      lastUsed: value.lastUsed || null,
+      version: profile.version,
+    };
+    const profileSkillId = this.editingProfileSkillId;
+    const operationGeneration = this.skillMutationGeneration;
+    this.isSkillSubmitting = true;
+    const request$ = mode === 'edit' && profileSkillId !== null
+      ? this.profileService.updateProfileSkill(profileId, profileSkillId, request)
+      : this.profileService.createProfileSkill(profileId, request);
+
+    request$.subscribe({
+      next: (result) => {
+        if (!this.isCurrentSkillOperation(profileId, operationGeneration)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+
+        this.skills = this.sortProfileSkills(mode === 'edit' && profileSkillId !== null
+          ? this.skills.map((skill) => String(skill.profileSkillId) === String(profileSkillId) ? result.profileSkill : skill)
+          : [...this.skills, result.profileSkill]);
+        this.isSkillSubmitting = false;
+        this.skillConflict = false;
+        this.previewInvalidated = true;
+        this.skillMessage = mode === 'edit'
+          ? 'Skill updated. Preview is no longer current; generate a new preview before exporting.'
+          : 'Skill added. Preview is no longer current; generate a new preview before exporting.';
+        this.closeSkillEditor();
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentSkillOperation(profileId, operationGeneration)) return;
+        this.handleSkillSaveError(error);
+      },
+    });
+  }
+
   submitCertificate(): void {
     const mode = this.certificateEditorMode;
     if (!mode || this.isCertificateSubmitting || this.certificateConflict) return;
@@ -821,6 +1041,15 @@ export class ProfileWorkspaceComponent {
       this.fetchLatestCertificate();
       return;
     }
+    if (this.skillEditorMode) {
+      if (this.isReloading || !this.skillConflict) return;
+      if (this.skillForm.dirty) {
+        this.reloadConfirmation = true;
+        return;
+      }
+      this.fetchLatestSkill();
+      return;
+    }
     if (this.languageEditorMode) {
       if (this.isReloading || !this.languageConflict) return;
       if (this.languageForm.dirty) {
@@ -851,6 +1080,8 @@ export class ProfileWorkspaceComponent {
     this.reloadConfirmation = false;
     if (this.certificateEditorMode) {
       this.fetchLatestCertificate();
+    } else if (this.skillEditorMode) {
+      this.fetchLatestSkill();
     } else if (this.languageEditorMode) {
       this.fetchLatestLanguage();
     } else if (this.educationEditorMode) {
@@ -913,6 +1144,21 @@ export class ProfileWorkspaceComponent {
     return control.invalid && control.touched;
   }
 
+  skillFieldError(field: EditableSkillField): string {
+    const errors = this.skillForm.controls[field].errors;
+    if (errors?.['backend']) return errors['backend'];
+    if (errors?.['duplicate']) return errors['duplicate'];
+    if (errors?.['required']) return 'This field is required.';
+    if (errors?.['min']) return 'Enter a non-negative number.';
+    if (errors?.['futureDate']) return 'Last Used cannot be in the future.';
+    return errors ? 'This value is not valid.' : '';
+  }
+
+  skillFieldInvalid(field: EditableSkillField): boolean {
+    const control = this.skillForm.controls[field];
+    return control.invalid && control.touched;
+  }
+
   languageRecordLabel(language: ProfileLanguage): string {
     return `${language.languageName} (${this.languageLevelLabel(language.level)})`;
   }
@@ -930,6 +1176,55 @@ export class ProfileWorkspaceComponent {
       if (selected) options.unshift({ id: selected.languageId, name: selected.languageName });
     }
     return options;
+  }
+
+  skillOptions(): SkillMasterOption[] {
+    const selectedId = this.skillForm.controls.skillId.value;
+    const assignedIds = new Set(this.skills.map((skill) => String(skill.skillId)));
+    const options = this.skillMasterOptions.filter((option) => !assignedIds.has(String(option.id)) || String(option.id) === String(selectedId));
+    if (selectedId !== null && selectedId !== undefined && !options.some((option) => String(option.id) === String(selectedId))) {
+      const selected = this.skills.find((skill) => String(skill.skillId) === String(selectedId));
+      if (selected) options.unshift(this.skillMasterOption(selected));
+    }
+    return options;
+  }
+
+  selectedSkillCategory(): string {
+    const selectedId = this.skillForm.controls.skillId.value;
+    if (selectedId === null || selectedId === undefined) return '—';
+    const selected = this.skillMasterOptions.find((option) => String(option.id) === String(selectedId))
+      ?? this.skills.find((skill) => String(skill.skillId) === String(selectedId));
+    if (!selected) return '—';
+    return selected.categoryName?.trim() || selected.categoryCode?.trim() || '—';
+  }
+
+  skillCategoryLabel(skill: ProfileSkill): string {
+    return skill.categoryName?.trim() || skill.categoryCode?.trim() || '—';
+  }
+
+  skillLastUsedLabel(skill: ProfileSkill): string {
+    return this.formatSkillLastUsed(skill.lastUsed);
+  }
+
+  skillRecordLabel(skill: ProfileSkill): string {
+    return `${skill.skillName} (${skill.experienceYears} years)`;
+  }
+
+  private skillMasterOption(skill: ProfileSkill): SkillMasterOption {
+    return {
+      id: skill.skillId,
+      name: skill.skillName,
+      categoryId: skill.categoryId,
+      categoryCode: skill.categoryCode,
+      categoryName: skill.categoryName,
+    };
+  }
+
+  private formatSkillLastUsed(lastUsed: string | null | undefined): string {
+    if (!lastUsed) return '—';
+    const date = new Date(`${lastUsed.slice(0, 10)}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
   }
 
   educationDateLabel(education: Education): string {
@@ -1014,6 +1309,26 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  private loadProfileSkills(profileId: string): void {
+    this.skillListCancel.next();
+    const generation = ++this.skillListGeneration;
+    this.skills = [];
+    this.skillLoading = true;
+    this.skillError = null;
+    this.profileService.listProfileSkills(profileId).pipe(takeUntil(this.skillListCancel)).subscribe({
+      next: (skills) => {
+        if (!this.isCurrentSkillProfile(profileId, generation)) return;
+        this.skills = this.sortProfileSkills(skills);
+        this.skillLoading = false;
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentSkillProfile(profileId, generation)) return;
+        this.skillError = error;
+        this.skillLoading = false;
+      },
+    });
+  }
+
   private loadLanguageMaster(page: number, search: string): void {
     this.languageMasterCancel.next();
     const generation = ++this.languageMasterGeneration;
@@ -1036,6 +1351,32 @@ export class ProfileWorkspaceComponent {
         if (this.languageMasterGeneration !== generation) return;
         this.languageMasterError = error;
         this.languageMasterLoading = false;
+      },
+    });
+  }
+
+  private loadSkillMaster(page: number, search: string): void {
+    this.skillMasterCancel.next();
+    const generation = ++this.skillMasterGeneration;
+    this.skillMasterLoading = true;
+    this.skillMasterError = null;
+    this.skillMasterReady = false;
+    this.profileService.listSkillMaster(page, this.skillMasterSize, search).pipe(takeUntil(this.skillMasterCancel)).subscribe({
+      next: (result) => {
+        if (this.skillMasterGeneration !== generation) return;
+        this.skillMasterOptions = result.content;
+        this.skillMasterPage = result.page;
+        this.skillMasterTotalElements = result.totalElements;
+        this.skillMasterTotalPages = result.totalPages;
+        this.skillMasterSearch = search;
+        this.skillMasterSearchDraft = search;
+        this.skillMasterLoading = false;
+        this.skillMasterReady = true;
+      },
+      error: (error: unknown) => {
+        if (this.skillMasterGeneration !== generation) return;
+        this.skillMasterError = error;
+        this.skillMasterLoading = false;
       },
     });
   }
@@ -1119,6 +1460,30 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  private fetchLatestSkill(): void {
+    const profileId = this.context.selectedId();
+    if (!profileId) return;
+
+    this.closeSkillEditor();
+    this.isReloading = true;
+    this.skillErrorMessage = '';
+    this.skillMessage = '';
+    this.context.reloadDetail(profileId).subscribe({
+      next: () => {
+        if (this.context.selectedId() !== profileId || this.activeProfileId !== profileId) return;
+        this.isReloading = false;
+        this.skillConflict = false;
+        this.skillMessage = 'Latest Profile and Skill data loaded. Review it before editing.';
+        this.loadProfileSkills(profileId);
+      },
+      error: (error: unknown) => {
+        if (this.context.selectedId() !== profileId || this.activeProfileId !== profileId) return;
+        this.isReloading = false;
+        this.skillErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to reload the latest Profile right now. Please try again.';
+      },
+    });
+  }
+
   private fetchLatestCertificate(): void {
     const profileId = this.context.selectedId();
     if (!profileId) return;
@@ -1154,6 +1519,7 @@ export class ProfileWorkspaceComponent {
     this.closeEducationEditor();
     this.closeLanguageEditor();
     this.closeCertificateEditor();
+    this.closeSkillEditor();
     const profile = this.context.detail();
     if (profile) {
       this.editForm.reset(this.formValues(profile));
@@ -1191,6 +1557,31 @@ export class ProfileWorkspaceComponent {
     this.languageForm.markAsPristine();
     this.languageForm.markAsUntouched();
     this.clearLanguageBackendErrors();
+    this.syncDirtyState();
+  }
+
+  private closeSkillEditor(): void {
+    this.skillMutationGeneration++;
+    this.skillEditorMode = null;
+    this.editingProfileSkillId = null;
+    this.originalSkillValues = null;
+    this.isSkillSubmitting = false;
+    this.skillConflict = false;
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.skillForm.reset(this.emptySkillValues());
+    this.skillForm.markAsPristine();
+    this.skillForm.markAsUntouched();
+    this.clearSkillBackendErrors();
+    this.skillMasterCancel.next();
+    this.skillMasterGeneration++;
+    this.skillMasterOptions = [];
+    this.skillMasterPage = 0;
+    this.skillMasterTotalElements = 0;
+    this.skillMasterTotalPages = 0;
+    this.skillMasterLoading = false;
+    this.skillMasterError = null;
+    this.skillMasterReady = false;
     this.syncDirtyState();
   }
 
@@ -1237,6 +1628,13 @@ export class ProfileWorkspaceComponent {
     this.isCertificateDeleting = false;
   }
 
+  private closeSkillDeleteConfirmation(): void {
+    this.skillDeleteConfirmation = false;
+    this.skillDeleteTarget = null;
+    this.skillDeleteErrorMessage = '';
+    this.isSkillDeleting = false;
+  }
+
   private resetEducationState(): void {
     this.educationListCancel.next();
     this.educationListGeneration++;
@@ -1272,6 +1670,30 @@ export class ProfileWorkspaceComponent {
     this.certificateMessage = '';
     this.certificateErrorMessage = '';
     this.closeCertificateDeleteConfirmation();
+    this.previewInvalidated = false;
+  }
+
+  private resetSkillState(): void {
+    this.skillListCancel.next();
+    this.skillListGeneration++;
+    this.skillMutationGeneration++;
+    this.skillMasterCancel.next();
+    this.skillMasterGeneration++;
+    this.skills = [];
+    this.skillLoading = false;
+    this.skillError = null;
+    this.skillMessage = '';
+    this.skillErrorMessage = '';
+    this.closeSkillDeleteConfirmation();
+    this.skillMasterOptions = [];
+    this.skillMasterPage = 0;
+    this.skillMasterTotalElements = 0;
+    this.skillMasterTotalPages = 0;
+    this.skillMasterSearch = '';
+    this.skillMasterSearchDraft = '';
+    this.skillMasterLoading = false;
+    this.skillMasterError = null;
+    this.skillMasterReady = false;
     this.previewInvalidated = false;
   }
 
@@ -1399,6 +1821,54 @@ export class ProfileWorkspaceComponent {
     this.syncDirtyState();
   }
 
+  private openSkillEditor(skill?: ProfileSkill): void {
+    const profile = this.context.detail();
+    if (!profile || this.isEditing || this.educationEditorMode || this.languageEditorMode || this.certificateEditorMode || this.skillEditorMode) return;
+
+    const values = skill ? this.skillFormValues(skill) : this.emptySkillValues();
+    this.skillEditorMode = skill ? 'edit' : 'create';
+    this.editingProfileSkillId = skill ? skill.profileSkillId : null;
+    this.originalSkillValues = this.normalizeSkillValues(values);
+    this.skillForm.reset(values);
+    this.skillForm.markAsPristine();
+    this.skillForm.markAsUntouched();
+    this.skillMutationGeneration++;
+    this.skillConflict = false;
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.skillErrorMessage = '';
+    this.skillMessage = '';
+    this.loadSkillMaster(0, this.skillMasterSearch);
+    this.syncDirtyState();
+  }
+
+  private handleSkillSaveError(error: unknown): void {
+    this.isSkillSubmitting = false;
+    const response = this.apiError(error);
+    if (response?.errorCode === 'PROFILE_VERSION_CONFLICT') {
+      this.skillConflict = true;
+      this.skillErrorMessage = response.message?.trim() || 'This Profile changed elsewhere. Reload the latest version before saving again.';
+      this.syncDirtyState();
+      return;
+    }
+    if (response?.errorCode === 'VALIDATION_ERROR') {
+      this.applySkillFieldErrors(response.data);
+      this.skillErrorMessage = 'Please correct the highlighted fields.';
+      this.syncDirtyState();
+      return;
+    }
+
+    const businessField: Record<string, EditableSkillField> = {
+      PROFILE_SKILL_ALREADY_EXISTS: 'skillId',
+      PROFILE_SKILL_LAST_USED_IN_FUTURE: 'lastUsed',
+      SKILL_NOT_FOUND: 'skillId',
+    };
+    const field = response?.errorCode ? businessField[response.errorCode] : undefined;
+    if (field) this.setSkillFieldError(field, response?.message || 'This value is not valid.');
+    this.skillErrorMessage = response?.message?.trim() || 'Unable to save this Skill right now. Your changes are still here.';
+    this.syncDirtyState();
+  }
+
   private openCertificateEditor(certificate?: Certificate): void {
     const profile = this.context.detail();
     if (!profile || this.isEditing || this.educationEditorMode || this.languageEditorMode || this.certificateEditorMode) return;
@@ -1477,6 +1947,14 @@ export class ProfileWorkspaceComponent {
     this.certificateForm.updateValueAndValidity({ emitEvent: false });
   }
 
+  private trimSkillFormValues(): void {
+    const value = this.skillForm.getRawValue();
+    this.skillForm.patchValue({
+      lastUsed: value.lastUsed.trim(),
+    }, { emitEvent: false });
+    this.skillForm.updateValueAndValidity({ emitEvent: false });
+  }
+
   private applyLanguageFieldErrors(data: unknown): void {
     const errors = (data as { errors?: unknown } | undefined)?.errors;
     if (!Array.isArray(errors)) return;
@@ -1543,6 +2021,19 @@ export class ProfileWorkspaceComponent {
     }
   }
 
+  private applySkillFieldErrors(data: unknown): void {
+    const errors = (data as { errors?: unknown } | undefined)?.errors;
+    if (!Array.isArray(errors)) return;
+    for (const error of errors) {
+      if (!error || typeof error !== 'object') continue;
+      const { field, message } = error as { field?: unknown; message?: unknown };
+      const normalizedField = typeof field === 'string' ? field.split('.').pop() : undefined;
+      if (normalizedField && typeof message === 'string' && normalizedField in this.skillForm.controls) {
+        this.setSkillFieldError(normalizedField as EditableSkillField, message);
+      }
+    }
+  }
+
   private clearEducationBackendErrors(): void {
     for (const control of Object.values(this.educationForm.controls)) {
       if (!control.errors?.['backend']) continue;
@@ -1571,6 +2062,16 @@ export class ProfileWorkspaceComponent {
     }
   }
 
+  private clearSkillBackendErrors(): void {
+    for (const control of Object.values(this.skillForm.controls)) {
+      if (!control.errors?.['backend'] && !control.errors?.['duplicate']) continue;
+      const errors = { ...control.errors };
+      delete errors['backend'];
+      delete errors['duplicate'];
+      control.setErrors(Object.keys(errors).length ? errors : null);
+    }
+  }
+
   private setEducationFieldError(field: EditableEducationField, message: string): void {
     const control = this.educationForm.controls[field];
     control.setErrors({ ...control.errors, backend: message.trim() || 'This value is not valid.' });
@@ -1585,6 +2086,12 @@ export class ProfileWorkspaceComponent {
 
   private setCertificateFieldError(field: EditableCertificateField, message: string, key = 'backend'): void {
     const control = this.certificateForm.controls[field];
+    control.setErrors({ ...control.errors, [key]: message.trim() || 'This value is not valid.' });
+    control.markAsTouched();
+  }
+
+  private setSkillFieldError(field: EditableSkillField, message: string, key = 'backend'): void {
+    const control = this.skillForm.controls[field];
     control.setErrors({ ...control.errors, [key]: message.trim() || 'This value is not valid.' });
     control.markAsTouched();
   }
@@ -1612,6 +2119,10 @@ export class ProfileWorkspaceComponent {
     return { certificateName: '', issueDate: '' };
   }
 
+  private emptySkillValues(): EditableSkillValues {
+    return { skillId: null, experienceYears: null, lastUsed: '' };
+  }
+
   private educationFormValues(education: Education): EditableEducationValues {
     return {
       schoolName: education.schoolName,
@@ -1631,6 +2142,14 @@ export class ProfileWorkspaceComponent {
     return { certificateName: certificate.certificateName, issueDate: certificate.issueDate };
   }
 
+  private skillFormValues(skill: ProfileSkill): EditableSkillValues {
+    return {
+      skillId: skill.skillId,
+      experienceYears: skill.experienceYears,
+      lastUsed: skill.lastUsed?.slice(0, 10) ?? '',
+    };
+  }
+
   private educationDateRangeValidator(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       const value = control.value as Partial<EditableEducationValues> | null;
@@ -1642,6 +2161,13 @@ export class ProfileWorkspaceComponent {
   }
 
   private certificateIssueDateValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const value = typeof control.value === 'string' ? control.value : '';
+      return value && value > this.currentDate() ? { futureDate: true } : null;
+    };
+  }
+
+  private skillLastUsedValidator(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       const value = typeof control.value === 'string' ? control.value : '';
       return value && value > this.currentDate() ? { futureDate: true } : null;
@@ -1681,6 +2207,16 @@ export class ProfileWorkspaceComponent {
     return { certificateName: value.certificateName.trim(), issueDate: value.issueDate.trim() };
   }
 
+  private normalizeSkillValues(value: EditableSkillValues): EditableSkillValues {
+    const rawExperience = value.experienceYears as number | string | null;
+    const experienceYears = rawExperience === null || rawExperience === '' ? null : Number(rawExperience);
+    return {
+      skillId: value.skillId,
+      experienceYears: Number.isNaN(experienceYears) ? null : experienceYears,
+      lastUsed: value.lastUsed.trim(),
+    };
+  }
+
   hasEducationChanges(): boolean {
     const original = this.originalEducationValues;
     if (!original) return false;
@@ -1707,6 +2243,15 @@ export class ProfileWorkspaceComponent {
     return current.certificateName !== original.certificateName || current.issueDate !== original.issueDate;
   }
 
+  hasSkillChanges(): boolean {
+    const original = this.originalSkillValues;
+    if (!original) return false;
+    const current = this.normalizeSkillValues(this.skillForm.getRawValue());
+    return current.skillId !== original.skillId
+      || current.experienceYears !== original.experienceYears
+      || current.lastUsed !== original.lastUsed;
+  }
+
   private isCurrentEducationProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.educationListGeneration === generation;
@@ -1720,6 +2265,11 @@ export class ProfileWorkspaceComponent {
   private isCurrentCertificateProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.certificateListGeneration === generation;
+  }
+
+  private isCurrentSkillProfile(profileId: string, generation: number): boolean {
+    return this.activeProfileId === profileId
+      && this.skillListGeneration === generation;
   }
 
   private isCurrentEducationOperation(profileId: string, generation: number, requiresEditor = true): boolean {
@@ -1744,6 +2294,14 @@ export class ProfileWorkspaceComponent {
       && String(this.context.detail()?.id) === profileId
       && this.certificateMutationGeneration === generation
       && (!requiresEditor || this.certificateEditorMode !== null);
+  }
+
+  private isCurrentSkillOperation(profileId: string, generation: number, requiresEditor = true): boolean {
+    return this.activeProfileId === profileId
+      && this.context.selectedId() === profileId
+      && String(this.context.detail()?.id) === profileId
+      && this.skillMutationGeneration === generation
+      && (!requiresEditor || this.skillEditorMode !== null);
   }
 
   private sortEducations(educations: Education[]): Education[] {
@@ -1786,6 +2344,19 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  private sortProfileSkills(skills: ProfileSkill[]): ProfileSkill[] {
+    return skills.sort((left, right) => {
+      const experienceDifference = right.experienceYears - left.experienceYears;
+      if (experienceDifference) return experienceDifference;
+      const nameDifference = left.skillName.toLocaleLowerCase().localeCompare(right.skillName.toLocaleLowerCase());
+      if (nameDifference) return nameDifference;
+      const leftId = Number(left.profileSkillId);
+      const rightId = Number(right.profileSkillId);
+      if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
+      return String(left.profileSkillId).localeCompare(String(right.profileSkillId));
+    });
+  }
+
   private languageLevelValidator(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => this.languageLevels?.some((option) => option.value === control.value)
       ? null
@@ -1824,6 +2395,7 @@ export class ProfileWorkspaceComponent {
     this.editSession.setDirty((this.isEditing && (this.editForm.dirty || this.hasAboutMeChanges()))
       || (this.educationEditorMode !== null && (this.educationForm.dirty || this.hasEducationChanges()))
       || (this.languageEditorMode !== null && (this.languageForm.dirty || this.hasLanguageChanges()))
-      || (this.certificateEditorMode !== null && (this.certificateForm.dirty || this.hasCertificateChanges())));
+      || (this.certificateEditorMode !== null && (this.certificateForm.dirty || this.hasCertificateChanges()))
+      || (this.skillEditorMode !== null && (this.skillForm.dirty || this.hasSkillChanges())));
   }
 }
