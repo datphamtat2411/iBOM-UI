@@ -20,6 +20,22 @@ export const profileRoutes: Routes = [
       ),
   },
   {
+    path: ':profileId/projects/new',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('./pages/project-editor/project-editor.component').then(
+        (component) => component.ProjectEditorComponent,
+      ),
+  },
+  {
+    path: ':profileId/projects/:projectId',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('./pages/project-editor/project-editor.component').then(
+        (component) => component.ProjectEditorComponent,
+      ),
+  },
+  {
     path: ':profileId',
     canActivate: [profileDirtyNavigationGuard],
     loadComponent: () =>

@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
-import { Certificate, Education, LanguageMasterPage, ProfileDetail, ProfileLanguage, ProfileSkill, ProfileSummary, SkillMasterPage } from '../../models/profile.models';
+import { Certificate, Education, LanguageMasterPage, ProfileDetail, ProfileLanguage, ProfileSkill, ProfileSummary, Project, SkillMasterPage } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
 import { ProfileWorkspaceComponent } from './profile-workspace.component';
@@ -30,13 +30,14 @@ describe('ProfileWorkspaceComponent', () => {
     applyMutationVersion: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
-  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy; listProfileLanguages: jasmine.Spy; createProfileLanguage: jasmine.Spy; updateProfileLanguage: jasmine.Spy; deleteProfileLanguage: jasmine.Spy; listCertificates: jasmine.Spy; createCertificate: jasmine.Spy; updateCertificate: jasmine.Spy; deleteCertificate: jasmine.Spy; listProfileSkills: jasmine.Spy; createProfileSkill: jasmine.Spy; updateProfileSkill: jasmine.Spy; deleteProfileSkill: jasmine.Spy; listLanguageMaster: jasmine.Spy; listSkillMaster: jasmine.Spy };
+  let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy; listProfileLanguages: jasmine.Spy; createProfileLanguage: jasmine.Spy; updateProfileLanguage: jasmine.Spy; deleteProfileLanguage: jasmine.Spy; listCertificates: jasmine.Spy; createCertificate: jasmine.Spy; updateCertificate: jasmine.Spy; deleteCertificate: jasmine.Spy; listProjects: jasmine.Spy; deleteProject: jasmine.Spy; listProfileSkills: jasmine.Spy; createProfileSkill: jasmine.Spy; updateProfileSkill: jasmine.Spy; deleteProfileSkill: jasmine.Spy; listLanguageMaster: jasmine.Spy; listSkillMaster: jasmine.Spy };
 
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01' };
   const education: Education = { id: 1, schoolName: 'North University', degree: 'BSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: null, status: 'ONGOING' };
   const language: ProfileLanguage = { profileLanguageId: 1, languageId: 2, languageName: 'English', level: 'ADVANCED' };
   const certificate: Certificate = { id: 1, certificateName: 'AWS Developer', issueDate: '2025-04-01' };
+  const project: Project = { id: 1, name: 'Order Platform', description: 'Modernized order flow', startDate: '2025-01-01', endDate: null, status: 'ONGOING', position: 'Backend Lead', teamSize: 5, responsibilities: 'Design services\nReview incidents', programmingLanguages: 'Java', tools: 'Kafka' };
   const skill: ProfileSkill = { profileSkillId: 1, skillId: 2, skillName: 'Java', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend', experienceYears: 7.5, lastUsed: '2025-04-01' };
   const languageMasterPage: LanguageMasterPage = { content: [{ id: 2, name: 'English' }, { id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 2, totalPages: 1 };
   const skillMasterPage: SkillMasterPage = { content: [{ id: 2, name: 'Java', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend' }, { id: 3, name: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }], page: 0, size: 10, totalElements: 2, totalPages: 1 };
@@ -58,6 +59,8 @@ describe('ProfileWorkspaceComponent', () => {
       createCertificate: jasmine.createSpy('createCertificate'),
       updateCertificate: jasmine.createSpy('updateCertificate'),
       deleteCertificate: jasmine.createSpy('deleteCertificate'),
+      listProjects: jasmine.createSpy('listProjects').and.returnValue(of([])),
+      deleteProject: jasmine.createSpy('deleteProject'),
       listProfileSkills: jasmine.createSpy('listProfileSkills').and.returnValue(of([])),
       createProfileSkill: jasmine.createSpy('createProfileSkill'),
       updateProfileSkill: jasmine.createSpy('updateProfileSkill'),
@@ -1513,6 +1516,133 @@ describe('ProfileWorkspaceComponent', () => {
     pending.next({ profileSkill: { ...skill, profileSkillId: 9, skillId: 3, skillName: 'TypeScript', experienceYears: 2 }, profileVersion: 4 });
 
     expect(fixture.componentInstance.skills).toEqual([]);
+    expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 4);
+  });
+
+  it('renders independent Project loading, error, retry, empty, and populated states', () => {
+    expect(fixture.nativeElement.querySelector('#workspace-section-projects .empty-state')?.textContent).toContain('No Project records exist');
+
+    const loading = new Subject<Project[]>();
+    profiles.listProjects.and.returnValue(loading);
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-projects .section-state')?.textContent).toContain('Loading Project records');
+
+    loading.next([project]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-projects .project-record')?.textContent).toContain('Order Platform');
+
+    const failed = new Subject<Project[]>();
+    profiles.listProjects.and.returnValue(failed);
+    params.next(convertToParamMap({ profileId: '3' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#workspace-section-projects [role="alert"]')?.textContent).toContain('could not load Project');
+  });
+
+  it('retries Project loading at section level', () => {
+    const failed = new Subject<Project[]>();
+    const retried = new Subject<Project[]>();
+    profiles.listProjects.and.returnValues(failed, retried);
+    params.next(convertToParamMap({ profileId: '2' }));
+    failed.error(new Error('unavailable'));
+    fixture.detectChanges();
+
+    fixture.componentInstance.retryProjects();
+    expect(fixture.componentInstance.projectLoading).toBeTrue();
+    retried.next([project]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.projects).toEqual([project]);
+    expect(fixture.nativeElement.querySelector('#workspace-section-projects .project-record')?.textContent).toContain('Backend Lead');
+  });
+
+  it('preserves backend Project order and renders readable card details', () => {
+    const completed: Project = { ...project, id: 2, name: 'Completed Platform', status: 'COMPLETED', startDate: '2024-02-01', endDate: '2025-03-15', teamSize: null, programmingLanguages: 'Java\nSQL', tools: 'PostgreSQL' };
+    fixture.componentInstance.projects = [completed, project];
+    fixture.detectChanges();
+
+    const cards = fixture.nativeElement.querySelectorAll('.project-record');
+    expect(cards.length).toBe(2);
+    expect(cards[0].textContent).toContain('Feb 1, 2024 - Mar 15, 2025');
+    expect(cards[0].textContent).toContain('Java\nSQL');
+    expect(cards[0].textContent).not.toContain('people');
+    expect(cards[1].textContent).toContain('Jan 1, 2025 - Present');
+    expect(cards[1].textContent).toContain('5 people');
+  });
+
+  it('navigates to the shared Project Editor routes for create and edit', () => {
+    fixture.componentInstance.startProjectCreate();
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 'new']);
+
+    fixture.componentInstance.projects = [project];
+    fixture.componentInstance.startProjectEdit(project);
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 1]);
+  });
+
+  it('confirms Project deletion, protects duplicate submission, applies version, and reloads backend order', () => {
+    const pending = new Subject<{ profileVersion: number }>();
+    profiles.deleteProject.and.returnValue(pending);
+    profiles.listProjects.and.returnValue(of([]));
+    fixture.componentInstance.projects = [project];
+    fixture.detectChanges();
+
+    const deleteButton = fixture.nativeElement.querySelector('.project-delete-button') as HTMLButtonElement;
+    expect(deleteButton.getAttribute('aria-label')).toBe('Delete Order Platform (Backend Lead)');
+    deleteButton.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.projectDeleteConfirmation).toBeTrue();
+
+    fixture.componentInstance.confirmProjectDelete();
+    fixture.componentInstance.confirmProjectDelete();
+    expect(profiles.deleteProject).toHaveBeenCalledTimes(1);
+    expect(profiles.deleteProject).toHaveBeenCalledWith('1', 1, 3);
+
+    pending.next({ profileVersion: 4 });
+    pending.complete();
+
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
+    expect(fixture.componentInstance.projects).toEqual([]);
+    expect(fixture.componentInstance.projectDeleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.projectMessage).toContain('Project deleted');
+  });
+
+  it('retains a Project row and confirmation after delete failure', () => {
+    profiles.deleteProject.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Delete rejected' } })));
+    fixture.componentInstance.projects = [project];
+    fixture.componentInstance.openProjectDeleteConfirmation(project);
+    fixture.componentInstance.confirmProjectDelete();
+
+    expect(fixture.componentInstance.projects).toEqual([project]);
+    expect(fixture.componentInstance.projectDeleteConfirmation).toBeTrue();
+    expect(fixture.componentInstance.projectDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('ignores stale Project list and delete responses after Profile switching', () => {
+    const first = new Subject<Project[]>();
+    const second = new Subject<Project[]>();
+    profiles.listProjects.calls.reset();
+    profiles.listProjects.and.returnValues(first, second);
+    params.next(convertToParamMap({ profileId: '2' }));
+    params.next(convertToParamMap({ profileId: '3' }));
+    first.next([project]);
+
+    expect(fixture.componentInstance.projects).toEqual([]);
+    second.next([{ ...project, id: 2, name: 'Other Profile Project' }]);
+    expect(fixture.componentInstance.projects).toEqual([{ ...project, id: 2, name: 'Other Profile Project' }]);
+
+    const pending = new Subject<{ profileVersion: number }>();
+    profiles.deleteProject.and.returnValue(pending);
+    profiles.listProjects.and.returnValue(of([]));
+    context.selectedId.set('1');
+    context.detail.set(detail);
+    params.next(convertToParamMap({ profileId: '1' }));
+    fixture.componentInstance.projects = [project];
+    fixture.componentInstance.openProjectDeleteConfirmation(project);
+    fixture.componentInstance.confirmProjectDelete();
+    params.next(convertToParamMap({ profileId: '2' }));
+    pending.next({ profileVersion: 4 });
+
     expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 4);
   });
 

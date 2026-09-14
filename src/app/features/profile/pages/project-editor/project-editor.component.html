@@ -1,0 +1,50 @@
+<section class="project-editor-page" aria-labelledby="project-editor-title">
+  @if (isLoading) {
+    <div class="project-editor-state" role="status" aria-live="polite"><h1>Loading Project</h1><p>Loading the Project editor.</p></div>
+  } @else if (loadErrorMessage) {
+    <div class="project-editor-state error" role="alert"><h1>Unable to load Project</h1><p>{{ loadErrorMessage }}</p><button class="btn" type="button" (click)="returnToWorkspace()">Return to Workspace</button></div>
+  } @else {
+    <div class="editor-wrap">
+      <div class="editor-context"><div><span class="mono small muted">{{ profileName().toUpperCase() }} · PROJECT</span><h1 id="project-editor-title">{{ editorTitle() }}</h1></div><span class="status info">{{ statusLabel() }}</span></div>
+      @if (errorMessage && !conflict) { <div class="notice error" role="alert"><span>{{ errorMessage }}</span></div> }
+      @if (conflict) { <div class="notice warning" role="alert"><span><strong>Latest Profile required.</strong> {{ errorMessage || 'Your Project draft is preserved, but saving is blocked until you reload the latest version.' }}</span><button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button></div> }
+      @if (saveMessage) { <div class="notice success" role="status">{{ saveMessage }}</div> }
+
+      <form id="project-form" [formGroup]="projectForm" (ngSubmit)="submit()" novalidate>
+        <section class="form-section"><h2>Project identity</h2><div class="form-grid">
+          <div class="field span-2"><label for="project-name">Project Name</label><input id="project-name" type="text" formControlName="name" maxlength="255" required [attr.aria-invalid]="projectFieldInvalid('name')">@if (projectFieldInvalid('name')) { <span class="field-error">{{ projectFieldError('name') }}</span> }</div>
+          <div class="field"><label for="project-position">Position</label><input id="project-position" type="text" formControlName="position" maxlength="255" required [attr.aria-invalid]="projectFieldInvalid('position')">@if (projectFieldInvalid('position')) { <span class="field-error">{{ projectFieldError('position') }}</span> }</div>
+          <div class="field"><label for="team-size">Team Size <span class="optional">(optional)</span></label><input id="team-size" type="number" min="1" step="1" formControlName="teamSize" [attr.aria-invalid]="projectFieldInvalid('teamSize')">@if (projectFieldInvalid('teamSize')) { <span class="field-error">{{ projectFieldError('teamSize') }}</span> }</div>
+        </div></section>
+
+        <section class="form-section"><h2>Timeline and status</h2><div class="form-grid">
+          <div class="field"><label for="start-date">Start Date <span class="optional">(optional)</span></label><input id="start-date" type="date" formControlName="startDate" [attr.aria-invalid]="projectFieldInvalid('startDate')">@if (projectFieldInvalid('startDate')) { <span class="field-error">{{ projectFieldError('startDate') }}</span> }</div>
+          <div class="field"><label for="completion-status">Completion Status</label><select id="completion-status" formControlName="status" required [attr.aria-invalid]="projectFieldInvalid('status')">@for (status of statusOptions; track status.value) { <option [ngValue]="status.value">{{ status.label }}</option> }</select>@if (projectFieldInvalid('status')) { <span class="field-error">{{ projectFieldError('status') }}</span> }</div>
+          <div class="field"><label for="end-date">End Date <span class="optional">(required when completed)</span></label><input id="end-date" type="date" formControlName="endDate" [attr.aria-invalid]="projectFieldInvalid('endDate')"><span class="helper">End Date is disabled and submitted as null while status is Ongoing.</span>@if (projectFieldInvalid('endDate')) { <span class="field-error">{{ projectFieldError('endDate') }}</span> }</div>
+        </div></section>
+
+        <section class="form-section"><h2>Scope and contribution</h2><div class="form-grid">
+          <div class="field span-2"><label for="description">Description</label><textarea id="description" class="description-area" formControlName="description" required [attr.aria-invalid]="projectFieldInvalid('description')"></textarea>@if (projectFieldInvalid('description')) { <span class="field-error">{{ projectFieldError('description') }}</span> }</div>
+          <div class="field span-2"><label for="responsibilities">Responsibilities <span class="optional">(optional)</span></label><textarea id="responsibilities" class="responsibility-lines" formControlName="responsibilities"></textarea><span class="helper">Use one responsibility per line. Long-form text is preserved in the generated document.</span></div>
+        </div></section>
+
+        <section class="form-section"><h2>Technology</h2><div class="form-grid">
+          <div class="field"><label for="programming-languages">Programming Languages <span class="optional">(optional)</span></label><textarea id="programming-languages" formControlName="programmingLanguages"></textarea><span class="helper">Free text specific to this Profile.</span></div>
+          <div class="field"><label for="tools">Tools / Technologies <span class="optional">(optional)</span></label><textarea id="tools" formControlName="tools"></textarea><span class="helper">This is not constrained to Skill Master Data.</span></div>
+        </div></section>
+      </form>
+
+      <div class="sticky-actions"><span class="unsaved" [class.is-saving]="saveState === 'saving'" [class.is-dirty]="saveState === 'dirty'" [class.is-saved]="saveState === 'saved'" role="status" aria-live="polite">{{ saveStateLabel() }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isSubmitting">Cancel</button><button class="btn primary" type="submit" form="project-form" [disabled]="projectForm.invalid || (editorMode === 'edit' && !hasProjectChanges()) || isSubmitting || conflict" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Saving...' : editorMode === 'edit' ? 'Save Project' : 'Add Project' }}</button></div></div>
+    </div>
+  }
+
+  @if (editSession.pendingNavigation(); as pending) {
+    <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="navigation-warning-title" aria-describedby="navigation-warning-copy"><h2 id="navigation-warning-title">Leave without saving?</h2><p id="navigation-warning-copy">Your unsaved Project changes will be discarded if you continue to <span class="mono">{{ pending.url }}</span>.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepPendingNavigation()">Keep Editing</button><button class="btn primary" type="button" (click)="discardPendingNavigation()">Discard and Continue</button></div></section></div>
+  }
+  @if (cancelConfirmation) {
+    <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-warning-title" aria-describedby="cancel-warning-copy"><h2 id="cancel-warning-title">Discard Project changes?</h2><p id="cancel-warning-copy">Your entered values will be discarded from this editor.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepEditing()">Keep Editing</button><button class="btn primary" type="button" (click)="discardEditing()">Discard</button></div></section></div>
+  }
+  @if (reloadConfirmation) {
+    <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="reload-warning-title" aria-describedby="reload-warning-copy"><h2 id="reload-warning-title">Reload the latest Profile?</h2><p id="reload-warning-copy">This replaces the current Project draft with the newest saved Profile and Project data. You cannot save the current draft after reloading.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepEditing()">Keep Editing</button><button class="btn primary" type="button" (click)="confirmReloadLatest()">Discard and Reload Latest</button></div></section></div>
+  }
+</section>

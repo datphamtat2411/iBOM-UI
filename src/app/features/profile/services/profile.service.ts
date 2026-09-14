@@ -22,6 +22,9 @@ import {
   ProfileLanguageRequest,
   ProfileLanguageResponse,
   ProfileDetail,
+  ProjectMutationResponse,
+  ProjectRequest,
+  ProjectResponse,
   ProfileSummary,
   ProfileVersionResponse,
   UpdateProfileRequest,
@@ -81,6 +84,30 @@ export class ProfileService {
 
   deleteEducation(profileId: string, educationId: number | string, profileVersion: number): Observable<ProfileVersionResponse> {
     return this.http.delete<ApiResponse<ProfileVersionResponse>>(this.educationUrl(profileId, educationId), { body: { profileVersion } }).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  listProjects(profileId: string): Observable<ProjectResponse[]> {
+    return this.http.get<ApiResponse<ProjectResponse[]>>(this.projectUrl(profileId)).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  createProject(profileId: string, project: ProjectRequest): Observable<ProjectMutationResponse> {
+    return this.http.post<ApiResponse<ProjectMutationResponse>>(this.projectUrl(profileId), project).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  updateProject(profileId: string, projectId: number | string, project: ProjectRequest): Observable<ProjectMutationResponse> {
+    return this.http.put<ApiResponse<ProjectMutationResponse>>(this.projectUrl(profileId, projectId), project).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  deleteProject(profileId: string, projectId: number | string, profileVersion: number): Observable<ProfileVersionResponse> {
+    return this.http.delete<ApiResponse<ProfileVersionResponse>>(this.projectUrl(profileId, projectId), { body: { profileVersion } }).pipe(
       map((response) => response.data),
     );
   }
@@ -174,6 +201,11 @@ export class ProfileService {
   private educationUrl(profileId: string, educationId?: number | string): string {
     const profileUrl = `${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}/educations`;
     return educationId === undefined ? profileUrl : `${profileUrl}/${encodeURIComponent(String(educationId))}`;
+  }
+
+  private projectUrl(profileId: string, projectId?: number | string): string {
+    const profileUrl = `${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}/projects`;
+    return projectId === undefined ? profileUrl : `${profileUrl}/${encodeURIComponent(String(projectId))}`;
   }
 
   private languageUrl(profileId: string, profileLanguageId?: number | string): string {

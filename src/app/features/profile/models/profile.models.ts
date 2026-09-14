@@ -71,6 +71,43 @@ export interface ProfileVersionResponse {
   profileVersion: number;
 }
 
+export type ProjectStatus = 'ONGOING' | 'COMPLETED';
+
+export interface Project {
+  id: number | string;
+  name: string;
+  description: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: ProjectStatus;
+  position: string;
+  teamSize: number | null;
+  responsibilities: string | null;
+  programmingLanguages: string | null;
+  tools: string | null;
+}
+
+export type ProjectResponse = Project;
+
+export interface ProjectRequest {
+  name: string;
+  description: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: ProjectStatus;
+  position: string;
+  teamSize: number | null;
+  responsibilities: string | null;
+  programmingLanguages: string | null;
+  tools: string | null;
+  version: number;
+}
+
+export interface ProjectMutationResponse {
+  project: ProjectResponse;
+  profileVersion: number;
+}
+
 export interface Certificate {
   id: number | string;
   certificateName: string;

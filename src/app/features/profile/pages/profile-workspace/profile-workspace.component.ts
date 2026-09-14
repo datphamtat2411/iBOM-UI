@@ -15,6 +15,7 @@ import {
   LanguageMasterOption,
   ProfileLanguage,
   ProfileLanguageRequest,
+  Project,
   ProfileSkill,
   ProfileSkillRequest,
   ProfileDetail,
@@ -172,6 +173,14 @@ export class ProfileWorkspaceComponent {
   certificateDeleteConfirmation = false;
   certificateDeleteTarget: Certificate | null = null;
   certificateDeleteErrorMessage = '';
+  projects: Project[] = [];
+  projectLoading = false;
+  projectError: unknown | null = null;
+  projectMessage = '';
+  isProjectDeleting = false;
+  projectDeleteConfirmation = false;
+  projectDeleteTarget: Project | null = null;
+  projectDeleteErrorMessage = '';
   skills: ProfileSkill[] = [];
   skillLoading = false;
   skillError: unknown | null = null;
@@ -207,6 +216,7 @@ export class ProfileWorkspaceComponent {
   private readonly educationListCancel = new Subject<void>();
   private readonly languageListCancel = new Subject<void>();
   private readonly certificateListCancel = new Subject<void>();
+  private readonly projectListCancel = new Subject<void>();
   private readonly languageMasterCancel = new Subject<void>();
   private readonly skillListCancel = new Subject<void>();
   private readonly skillMasterCancel = new Subject<void>();
@@ -216,6 +226,8 @@ export class ProfileWorkspaceComponent {
   private languageMutationGeneration = 0;
   private certificateListGeneration = 0;
   private certificateMutationGeneration = 0;
+  private projectListGeneration = 0;
+  private projectMutationGeneration = 0;
   private languageMasterGeneration = 0;
   private skillListGeneration = 0;
   private skillMutationGeneration = 0;
@@ -244,10 +256,12 @@ export class ProfileWorkspaceComponent {
       this.closeEducationDeleteConfirmation();
       this.closeLanguageDeleteConfirmation();
       this.closeCertificateDeleteConfirmation();
+      this.closeProjectDeleteConfirmation();
       this.closeSkillDeleteConfirmation();
       this.resetEducationState();
       this.resetLanguageState();
       this.resetCertificateState();
+      this.resetProjectState();
       this.resetSkillState();
       const profileId = params.get('profileId');
       this.activeProfileId = profileId;
@@ -256,6 +270,7 @@ export class ProfileWorkspaceComponent {
         this.loadEducations(profileId);
         this.loadProfileLanguages(profileId);
         this.loadCertificates(profileId);
+        this.loadProjects(profileId);
         this.loadProfileSkills(profileId);
       } else {
         this.context.beginSelection(null);
@@ -366,6 +381,75 @@ export class ProfileWorkspaceComponent {
   retrySkills(): void {
     const profileId = this.activeProfileId ?? this.context.selectedId();
     if (profileId) this.loadProfileSkills(profileId);
+  }
+
+  retryProjects(): void {
+    const profileId = this.activeProfileId ?? this.context.selectedId();
+    if (profileId) this.loadProjects(profileId);
+  }
+
+  startProjectCreate(): void {
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!profileId || !profile || String(profile.id) !== profileId || this.isProjectDeleting) return;
+    void this.router.navigate(['/profiles', profileId, 'projects', 'new']);
+  }
+
+  startProjectEdit(project: Project): void {
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!profileId || !profile || String(profile.id) !== profileId || this.isProjectDeleting) return;
+    if (!this.projects.some((item) => String(item.id) === String(project.id))) return;
+    void this.router.navigate(['/profiles', profileId, 'projects', project.id]);
+  }
+
+  openProjectDeleteConfirmation(project: Project): void {
+    if (this.isProjectDeleting) return;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!profileId || !profile || String(profile.id) !== profileId) return;
+    if (!this.projects.some((item) => String(item.id) === String(project.id))) return;
+
+    this.projectDeleteTarget = project;
+    this.projectDeleteErrorMessage = '';
+    this.projectDeleteConfirmation = true;
+  }
+
+  cancelProjectDelete(): void {
+    if (this.isProjectDeleting) return;
+    this.closeProjectDeleteConfirmation();
+  }
+
+  confirmProjectDelete(): void {
+    const target = this.projectDeleteTarget;
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!this.projectDeleteConfirmation || !target || this.isProjectDeleting || !profileId || !profile) return;
+    if (String(profile.id) !== profileId || !this.projects.some((project) => String(project.id) === String(target.id))) {
+      this.closeProjectDeleteConfirmation();
+      return;
+    }
+
+    const operationGeneration = ++this.projectMutationGeneration;
+    this.isProjectDeleting = true;
+    this.projectDeleteErrorMessage = '';
+    this.profileService.deleteProject(profileId, target.id, profile.version).subscribe({
+      next: (result) => {
+        if (!this.isCurrentProjectOperation(profileId, operationGeneration, false)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+
+        this.isProjectDeleting = false;
+        this.closeProjectDeleteConfirmation();
+        this.previewInvalidated = true;
+        this.projectMessage = 'Project deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.loadProjects(profileId);
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentProjectOperation(profileId, operationGeneration, false)) return;
+        this.isProjectDeleting = false;
+        this.projectDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Project right now. The record is still here and you can retry.';
+      },
+    });
   }
 
   searchLanguageMaster(): void {
@@ -1239,6 +1323,22 @@ export class ProfileWorkspaceComponent {
     return `${certificate.certificateName} (${certificate.issueDate})`;
   }
 
+  projectDateRange(project: Project): string {
+    const start = project.startDate ? this.formatProjectDate(project.startDate) : 'Date not set';
+    const end = project.status === 'ONGOING' || !project.endDate ? 'Present' : this.formatProjectDate(project.endDate);
+    return `${start} - ${end}`;
+  }
+
+  projectRecordLabel(project: Project): string {
+    return `${project.name} (${project.position})`;
+  }
+
+  private formatProjectDate(value: string): string {
+    const date = new Date(`${value.slice(0, 10)}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(date);
+  }
+
   discardPendingNavigation(): void {
     this.closeEditor();
     this.editSession.resolveNavigation(true);
@@ -1305,6 +1405,26 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentCertificateProfile(profileId, generation)) return;
         this.certificateError = error;
         this.certificateLoading = false;
+      },
+    });
+  }
+
+  private loadProjects(profileId: string): void {
+    this.projectListCancel.next();
+    const generation = ++this.projectListGeneration;
+    this.projects = [];
+    this.projectLoading = true;
+    this.projectError = null;
+    this.profileService.listProjects(profileId).pipe(takeUntil(this.projectListCancel)).subscribe({
+      next: (projects) => {
+        if (!this.isCurrentProjectProfile(profileId, generation)) return;
+        this.projects = projects;
+        this.projectLoading = false;
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentProjectProfile(profileId, generation)) return;
+        this.projectError = error;
+        this.projectLoading = false;
       },
     });
   }
@@ -1628,6 +1748,13 @@ export class ProfileWorkspaceComponent {
     this.isCertificateDeleting = false;
   }
 
+  private closeProjectDeleteConfirmation(): void {
+    this.projectDeleteConfirmation = false;
+    this.projectDeleteTarget = null;
+    this.projectDeleteErrorMessage = '';
+    this.isProjectDeleting = false;
+  }
+
   private closeSkillDeleteConfirmation(): void {
     this.skillDeleteConfirmation = false;
     this.skillDeleteTarget = null;
@@ -1671,6 +1798,18 @@ export class ProfileWorkspaceComponent {
     this.certificateErrorMessage = '';
     this.closeCertificateDeleteConfirmation();
     this.previewInvalidated = false;
+  }
+
+  private resetProjectState(): void {
+    this.projectListCancel.next();
+    this.projectListGeneration++;
+    this.projectMutationGeneration++;
+    this.projects = [];
+    this.projectLoading = false;
+    this.projectError = null;
+    this.projectMessage = '';
+    this.previewInvalidated = false;
+    this.closeProjectDeleteConfirmation();
   }
 
   private resetSkillState(): void {
@@ -2267,6 +2406,11 @@ export class ProfileWorkspaceComponent {
       && this.certificateListGeneration === generation;
   }
 
+  private isCurrentProjectProfile(profileId: string, generation: number): boolean {
+    return this.activeProfileId === profileId
+      && this.projectListGeneration === generation;
+  }
+
   private isCurrentSkillProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.skillListGeneration === generation;
@@ -2294,6 +2438,13 @@ export class ProfileWorkspaceComponent {
       && String(this.context.detail()?.id) === profileId
       && this.certificateMutationGeneration === generation
       && (!requiresEditor || this.certificateEditorMode !== null);
+  }
+
+  private isCurrentProjectOperation(profileId: string, generation: number, _requiresEditor = true): boolean {
+    return this.activeProfileId === profileId
+      && this.context.selectedId() === profileId
+      && String(this.context.detail()?.id) === profileId
+      && this.projectMutationGeneration === generation;
   }
 
   private isCurrentSkillOperation(profileId: string, generation: number, requiresEditor = true): boolean {

@@ -88,6 +88,49 @@ describe('ProfileService', () => {
     request.flush({ data: { profileVersion: 10 } });
   });
 
+  it('lists Projects for the selected Profile and unwraps data in backend order', () => {
+    const projects = [{ id: 4, name: 'Orders', description: 'Order flow', startDate: null, endDate: null, status: 'ONGOING' as const, position: 'Lead', teamSize: null, responsibilities: null, programmingLanguages: null, tools: null }];
+    service.listProjects('profile/1').subscribe((result) => expect(result).toEqual(projects));
+    const request = http.expectOne('/api/profiles/profile%2F1/projects');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: projects });
+  });
+
+  it('creates and updates Projects with the current Profile version', () => {
+    const project = {
+      name: 'Orders',
+      description: 'Modernized order flow',
+      startDate: '2025-01-01',
+      endDate: null,
+      status: 'ONGOING' as const,
+      position: 'Lead',
+      teamSize: 5,
+      responsibilities: 'Design services',
+      programmingLanguages: 'Java',
+      tools: 'Kafka',
+      version: 3,
+    };
+    service.createProject('profile-1', project).subscribe((result) => expect(result.profileVersion).toBe(4));
+    const createRequest = http.expectOne('/api/profiles/profile-1/projects');
+    expect(createRequest.request.method).toBe('POST');
+    expect(createRequest.request.body).toEqual(project);
+    createRequest.flush({ data: { project: { id: 5, ...project }, profileVersion: 4 } });
+
+    service.updateProject('profile-1', 'project/2', { ...project, name: 'Updated Orders', version: 4 }).subscribe((result) => expect(result.project.name).toBe('Updated Orders'));
+    const updateRequest = http.expectOne('/api/profiles/profile-1/projects/project%2F2');
+    expect(updateRequest.request.method).toBe('PUT');
+    expect(updateRequest.request.body).toEqual({ ...project, name: 'Updated Orders', version: 4 });
+    updateRequest.flush({ data: { project: { id: 2, ...project, name: 'Updated Orders' }, profileVersion: 5 } });
+  });
+
+  it('deletes a Project with the Profile version in the JSON request body', () => {
+    service.deleteProject('profile-1', 8, 9).subscribe((result) => expect(result).toEqual({ profileVersion: 10 }));
+    const request = http.expectOne('/api/profiles/profile-1/projects/8');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toEqual({ profileVersion: 9 });
+    request.flush({ data: { profileVersion: 10 } });
+  });
+
   it('lists Certificates for the selected Profile and unwraps data', () => {
     service.listCertificates('profile/1').subscribe((certificates) => expect(certificates).toEqual([{ id: 4, certificateName: 'AWS Developer', issueDate: '2025-04-01' }]));
     const request = http.expectOne('/api/profiles/profile%2F1/certificates');
