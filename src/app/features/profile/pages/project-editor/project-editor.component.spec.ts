@@ -191,6 +191,19 @@ describe('ProjectEditorComponent', () => {
     expect(fixture.componentInstance.projectFieldError('endDate')).toContain('on or after');
   });
 
+  it('clears a Project End Date when switching to Ongoing and does not restore it for Completed', () => {
+    fillProjectDraft({ status: 'COMPLETED', startDate: '2025-03-01', endDate: '2025-06-01' });
+
+    fixture.componentInstance.projectForm.controls.status.setValue('ONGOING');
+    expect(fixture.componentInstance.projectForm.controls.endDate.value).toBe('');
+    expect(fixture.componentInstance.projectForm.controls.endDate.disabled).toBeTrue();
+
+    fixture.componentInstance.projectForm.controls.status.setValue('COMPLETED');
+    expect(fixture.componentInstance.projectForm.controls.endDate.value).toBe('');
+    expect(fixture.componentInstance.projectForm.controls.endDate.enabled).toBeTrue();
+    expect(fixture.componentInstance.projectForm.controls.endDate.errors?.['required']).toBeTrue();
+  });
+
   it('disables ongoing End Date, sends exact LocalDate values, preserves multiline text, and keeps technologies free text', () => {
     const created: Project = { ...project, id: 8, name: 'Canonical Project', startDate: '2025-02-03', teamSize: null };
     profiles.createProject.and.returnValue(of({ project: created, profileVersion: 4 }));

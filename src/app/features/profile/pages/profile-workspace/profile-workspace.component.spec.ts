@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
@@ -150,8 +150,14 @@ describe('ProfileWorkspaceComponent', () => {
   }
 
   function fillSkillDraft(overrides: Partial<{ skillId: number | string | null; experienceYears: number | null; lastUsed: string }> = {}): void {
+    const skillId = overrides.skillId === undefined ? 2 : overrides.skillId;
+    if (skillId === null) {
+      fixture.componentInstance.clearSkillMasterInput();
+    } else {
+      const option = fixture.componentInstance.skillMasterOptions.find((item) => String(item.id) === String(skillId));
+      if (option) fixture.componentInstance.selectSkillMasterOption(option);
+    }
     fixture.componentInstance.skillForm.patchValue({
-      skillId: 2,
       experienceYears: 7.5,
       lastUsed: '2025-04-01',
       ...overrides,
@@ -700,6 +706,33 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.educationForm.controls.endDate.touched).toBeTrue();
   });
 
+  it('clears an Education End Date when switching to Ongoing and does not restore it for Completed', () => {
+    openEducationCreate();
+    fillEducationDraft({ status: 'COMPLETED', endDate: '2024-06-30' });
+
+    fixture.componentInstance.educationForm.controls.status.setValue('ONGOING');
+    expect(fixture.componentInstance.educationForm.controls.endDate.value).toBe('');
+    expect(fixture.componentInstance.educationForm.controls.endDate.disabled).toBeTrue();
+
+    fixture.componentInstance.educationForm.controls.status.setValue('COMPLETED');
+    expect(fixture.componentInstance.educationForm.controls.endDate.value).toBe('');
+    expect(fixture.componentInstance.educationForm.controls.endDate.enabled).toBeTrue();
+    expect(fixture.componentInstance.educationForm.controls.endDate.errors?.['required']).toBeTrue();
+  });
+
+  it('submits an Ongoing Education with a null End Date after clearing the form value', () => {
+    profiles.createEducation.and.returnValue(of({ education, profileVersion: 4 }));
+    openEducationCreate();
+    fillEducationDraft({ status: 'COMPLETED', endDate: '2024-06-30' });
+    fixture.componentInstance.educationForm.controls.status.setValue('ONGOING');
+    fixture.componentInstance.educationForm.markAsDirty();
+
+    fixture.componentInstance.submitEducation();
+
+    expect(fixture.componentInstance.educationForm.controls.endDate.value).toBe('');
+    expect(profiles.createEducation).toHaveBeenCalledWith('1', jasmine.objectContaining({ status: 'ONGOING', endDate: null }));
+  });
+
   it('rejects an Education date range where the start is after the end', () => {
     openEducationCreate();
     fillEducationDraft({ status: 'COMPLETED', endDate: '2019-06-30' });
@@ -885,61 +918,230 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.languages).toEqual([{ ...language, profileLanguageId: 2, languageName: 'Japanese' }]);
   });
 
-  it('requires a Language and exposes only controlled proficiency options', () => {
+  it('starts Add Language with both selections empty and blocks save until both are selected', () => {
     fixture.componentInstance.startLanguageCreate();
-    fixture.componentInstance.languageForm.controls.level.setValue('ADVANCED');
-    fixture.componentInstance.languageForm.markAsDirty();
     fixture.detectChanges();
 
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBeNull();
+    expect(fixture.componentInstance.languageForm.controls.level.value).toBeNull();
+    expect(fixture.nativeElement.querySelector('#profile-language-level')?.textContent).toContain('Select a proficiency');
     expect(fixture.componentInstance.languageLevels.map((level) => level.value)).toEqual(['BEGINNER', 'INTERMEDIATE', 'UPPER_INTERMEDIATE', 'ADVANCED', 'NATIVE']);
-    expect(fixture.nativeElement.querySelectorAll('#profile-language-level option').length).toBe(5);
+    expect(fixture.nativeElement.querySelectorAll('#profile-language-level option').length).toBe(6);
     fixture.componentInstance.submitLanguage();
 
     expect(profiles.createProfileLanguage).not.toHaveBeenCalled();
     expect(fixture.componentInstance.languageForm.controls.languageId.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.languageForm.controls.level.errors?.['required']).toBeTrue();
   });
 
-  it('searches and pages Language Master without assuming the first page is complete', () => {
+  it('reopens Add Language with no selections after cancelling a draft', () => {
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.selectLanguageMasterOption(fixture.componentInstance.languageMasterOptions.find((option) => option.id === 3)!);
+    fixture.componentInstance.languageForm.patchValue({ level: 'INTERMEDIATE' });
+    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.cancelEditing();
+    expect(fixture.componentInstance.cancelConfirmation).toBeTrue();
+    fixture.componentInstance.discardEditing();
+
+    fixture.componentInstance.startLanguageCreate();
+
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBeNull();
+    expect(fixture.componentInstance.languageForm.controls.level.value).toBeNull();
+  });
+
+  it('keeps existing Language and Proficiency selected in edit mode', () => {
+    fixture.componentInstance.startLanguageEdit(language);
+
+    expect(fixture.componentInstance.languageForm.getRawValue()).toEqual({ languageId: 2, level: 'ADVANCED' });
+  });
+
+  it('searches Language Master from the same field and loads later pages inside the result popup', fakeAsync(() => {
     const firstSearchPage: LanguageMasterPage = { content: [{ id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 2, totalPages: 2 };
     const secondPage: LanguageMasterPage = { content: [{ id: 8, name: 'Korean' }], page: 1, size: 1, totalElements: 2, totalPages: 2 };
     profiles.listLanguageMaster.and.returnValues(of(languageMasterPage), of(firstSearchPage), of(secondPage));
     fixture.componentInstance.startLanguageCreate();
-    fixture.componentInstance.languageMasterSearchDraft = '  kor ';
-    fixture.componentInstance.searchLanguageMaster();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement;
+    input.value = '  kor ';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
 
     expect(profiles.listLanguageMaster).toHaveBeenCalledWith(0, 10, 'kor');
     expect(fixture.componentInstance.languageMasterTotalPages).toBe(2);
-    fixture.componentInstance.nextLanguageMasterPage();
+    fixture.componentInstance.loadMoreLanguageMaster();
     expect(profiles.listLanguageMaster).toHaveBeenCalledWith(1, 10, 'kor');
-    expect(fixture.componentInstance.languageMasterOptions).toEqual(secondPage.content);
-  });
+    expect(fixture.componentInstance.languageMasterOptions).toEqual([...firstSearchPage.content, ...secondPage.content]);
+  }));
+
+  it('debounces Language Master typing and ignores a stale search response', fakeAsync(() => {
+    const ja = new Subject<LanguageMasterPage>();
+    const java = new Subject<LanguageMasterPage>();
+    profiles.listLanguageMaster.and.returnValues(of(languageMasterPage), ja, java);
+    fixture.componentInstance.startLanguageCreate();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement;
+
+    input.value = 'ja';
+    input.dispatchEvent(new Event('input'));
+    tick(299);
+    expect(profiles.listLanguageMaster).toHaveBeenCalledTimes(1);
+    tick(1);
+    expect(profiles.listLanguageMaster).toHaveBeenCalledWith(0, 10, 'ja');
+
+    input.value = 'java';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    expect(profiles.listLanguageMaster).toHaveBeenCalledWith(0, 10, 'java');
+
+    ja.next({ content: [{ id: 4, name: 'Jasmine' }], page: 0, size: 10, totalElements: 1, totalPages: 1 });
+    expect(fixture.componentInstance.languageMasterOptions).toEqual([]);
+    java.next({ content: [{ id: 5, name: 'JavaScript' }], page: 0, size: 10, totalElements: 1, totalPages: 1 });
+    expect(fixture.componentInstance.languageMasterOptions).toEqual([{ id: 5, name: 'JavaScript' }]);
+  }));
+
+  it('selects Language from the combobox, rejects free text, and invalidates changes', fakeAsync(() => {
+    fixture.componentInstance.startLanguageCreate();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement;
+    input.value = 'Java';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    const option = fixture.nativeElement.querySelector('[data-master-id="2"]') as HTMLButtonElement;
+    option.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBe(2);
+    expect(input.value).toBe('English');
+
+    input.value = 'English (typed)';
+    input.dispatchEvent(new Event('input'));
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBeNull();
+
+    fixture.componentInstance.languageForm.controls.level.setValue('ADVANCED');
+    fixture.componentInstance.submitLanguage();
+    expect(profiles.createProfileLanguage).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.languageForm.controls.languageId.errors?.['required']).toBeTrue();
+
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBeNull();
+    tick(300);
+  }));
+
+  it('represents Language loading, empty, and error states in the selector popup', fakeAsync(() => {
+    const pending = new Subject<LanguageMasterPage>();
+    profiles.listLanguageMaster.and.returnValues(of(languageMasterPage), pending);
+    fixture.componentInstance.startLanguageCreate();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement;
+    input.value = 'missing';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup')?.textContent).toContain('Searching');
+
+    pending.next({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup')?.textContent).toContain('No Language Master matches');
+
+    profiles.listLanguageMaster.and.returnValue(throwError(() => new Error('unavailable')));
+    input.value = 'failed';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup')?.textContent).toContain('Unable to load Language Master');
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup .btn')?.textContent).toContain('Retry');
+  }));
+
+  it('supports keyboard Language option navigation and selection', fakeAsync(() => {
+    profiles.listLanguageMaster.and.returnValues(of(languageMasterPage), of({ content: [{ id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 1, totalPages: 1 }));
+    fixture.componentInstance.startLanguageCreate();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement;
+    input.value = 'ja';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBe(3);
+    expect(input.value).toBe('Japanese');
+  }));
+
+  it('does not apply a pending Language search after closing the editor or switching Profile', fakeAsync(() => {
+    const pending = new Subject<LanguageMasterPage>();
+    profiles.listLanguageMaster.and.returnValues(of(languageMasterPage), pending);
+    fixture.componentInstance.startLanguageCreate();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement;
+    input.value = 'java';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.componentInstance.discardEditing();
+    pending.next({ content: [{ id: 9, name: 'Stale' }], page: 0, size: 10, totalElements: 1, totalPages: 1 });
+    expect(fixture.componentInstance.languageEditorMode).toBeNull();
+    expect(fixture.componentInstance.languageMasterOptions).toEqual([]);
+
+    const pendingSkill = new Subject<SkillMasterPage>();
+    profiles.listSkillMaster.and.returnValues(of(skillMasterPage), pendingSkill);
+    openSkillCreate();
+    const skillInput = fixture.nativeElement.querySelector('#profile-skill') as HTMLInputElement;
+    skillInput.value = 'java';
+    skillInput.dispatchEvent(new Event('input'));
+    tick(300);
+    params.next(convertToParamMap({ profileId: '2' }));
+    pendingSkill.next({ content: [{ id: 9, name: 'Stale Skill', categoryId: null, categoryCode: null, categoryName: null }], page: 0, size: 10, totalElements: 1, totalPages: 1 });
+
+    expect(fixture.componentInstance.skillEditorMode).toBeNull();
+    expect(fixture.componentInstance.skillMasterOptions).toEqual([]);
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBeNull();
+    expect(fixture.componentInstance.skillForm.controls.skillId.value).toBeNull();
+  }));
 
   it('preserves the selected edit Language when it is outside the displayed Master page', () => {
     profiles.listLanguageMaster.and.returnValue(of({ content: [{ id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 1, totalPages: 1 }));
     fixture.componentInstance.languages = [language];
     fixture.componentInstance.startLanguageEdit(language);
     fixture.detectChanges();
+    fixture.detectChanges();
 
     expect(fixture.componentInstance.languageOptions()).toContain(jasmine.objectContaining({ id: 2, name: 'English' }));
-    expect(fixture.nativeElement.querySelector('#profile-language')?.textContent).toContain('English');
+    expect((fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement).value).toBe('English');
   });
 
-  it('prevents local duplicate Languages before submission', () => {
+  it('keeps the current edit Language immediately usable before a Master response arrives', () => {
+    const pending = new Subject<LanguageMasterPage>();
+    profiles.listLanguageMaster.and.returnValue(pending);
+    fixture.componentInstance.languages = [language];
+    fixture.componentInstance.startLanguageEdit(language);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement).value).toBe('English');
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBe(2);
+  });
+
+  it('renders an already assigned Language as disabled instead of allowing a duplicate selection', () => {
     fixture.componentInstance.languages = [language];
     fixture.componentInstance.startLanguageCreate();
-    fixture.componentInstance.languageForm.patchValue({ languageId: 2, level: 'BEGINNER' });
-    fixture.componentInstance.languageForm.markAsDirty();
-    fixture.componentInstance.submitLanguage();
+    fixture.componentInstance.languageMasterFocused();
+    fixture.detectChanges();
 
-    expect(profiles.createProfileLanguage).not.toHaveBeenCalled();
-    expect(fixture.componentInstance.languageForm.controls.languageId.errors?.['duplicate']).toBe('This Language is already assigned to this Profile.');
+    const duplicate = fixture.nativeElement.querySelector('[data-master-id="2"]') as HTMLButtonElement;
+    expect(duplicate.disabled).toBeTrue();
+    duplicate.click();
+    expect(fixture.componentInstance.languageForm.controls.languageId.value).toBeNull();
   });
 
   it('maps backend duplicate errors to Language and keeps the editor draft retryable', () => {
     profiles.createProfileLanguage.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_LANGUAGE_ALREADY_EXISTS', message: 'Language already exists.' } })));
     fixture.componentInstance.startLanguageCreate();
-    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'INTERMEDIATE' });
-    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.selectLanguageMasterOption(fixture.componentInstance.languageMasterOptions.find((option) => option.id === 3)!);
+    fixture.componentInstance.languageForm.controls.level.setValue('INTERMEDIATE');
     fixture.componentInstance.submitLanguage();
 
     expect(fixture.componentInstance.languageEditorMode).toBe('create');
@@ -952,7 +1154,8 @@ describe('ProfileWorkspaceComponent', () => {
     profiles.createProfileLanguage.and.returnValue(of({ profileLanguage: created, profileVersion: 4 }));
     fixture.componentInstance.languages = [{ ...language, profileLanguageId: 4, languageName: 'english', level: 'ADVANCED' }];
     fixture.componentInstance.startLanguageCreate();
-    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'NATIVE' });
+    fixture.componentInstance.selectLanguageMasterOption(fixture.componentInstance.languageMasterOptions.find((option) => option.id === 3)!);
+    fixture.componentInstance.languageForm.controls.level.setValue('NATIVE');
     fixture.componentInstance.languageForm.markAsDirty();
     fixture.componentInstance.submitLanguage();
 
@@ -979,8 +1182,8 @@ describe('ProfileWorkspaceComponent', () => {
   it('preserves a failed Language mutation draft and allows retry', () => {
     profiles.createProfileLanguage.and.returnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Service unavailable' } })));
     fixture.componentInstance.startLanguageCreate();
-    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'INTERMEDIATE' });
-    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.selectLanguageMasterOption(fixture.componentInstance.languageMasterOptions.find((option) => option.id === 3)!);
+    fixture.componentInstance.languageForm.controls.level.setValue('INTERMEDIATE');
     fixture.componentInstance.submitLanguage();
 
     expect(fixture.componentInstance.languageEditorMode).toBe('create');
@@ -997,8 +1200,8 @@ describe('ProfileWorkspaceComponent', () => {
     const pending = new Subject<{ profileLanguage: ProfileLanguage; profileVersion: number }>();
     profiles.createProfileLanguage.and.returnValue(pending);
     fixture.componentInstance.startLanguageCreate();
-    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'INTERMEDIATE' });
-    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.selectLanguageMasterOption(fixture.componentInstance.languageMasterOptions.find((option) => option.id === 3)!);
+    fixture.componentInstance.languageForm.controls.level.setValue('INTERMEDIATE');
     fixture.componentInstance.submitLanguage();
     context.selectedId.set('2');
     context.detail.set({ ...detail, id: 2 });
@@ -1318,20 +1521,95 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.skills).toEqual([{ ...skill, profileSkillId: 2, skillName: 'TypeScript' }]);
   });
 
-  it('searches and pages Skill Master using totalPages instead of treating the first page as complete', () => {
+  it('searches Skill Master from the same field and exposes later pages with load more', fakeAsync(() => {
     const firstSearchPage: SkillMasterPage = { content: [{ id: 3, name: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }], page: 0, size: 10, totalElements: 11, totalPages: 2 };
     const secondPage: SkillMasterPage = { content: [{ id: 8, name: 'Kotlin', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend' }], page: 1, size: 10, totalElements: 11, totalPages: 2 };
     profiles.listSkillMaster.and.returnValues(of(skillMasterPage), of(firstSearchPage), of(secondPage));
     openSkillCreate();
-    fixture.componentInstance.skillMasterSearchDraft = '  kot ';
-    fixture.componentInstance.searchSkillMaster();
+    const input = fixture.nativeElement.querySelector('#profile-skill') as HTMLInputElement;
+    input.value = '  kot ';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
 
     expect(profiles.listSkillMaster).toHaveBeenCalledWith(0, 10, 'kot');
     expect(fixture.componentInstance.skillMasterTotalPages).toBe(2);
-    fixture.componentInstance.nextSkillMasterPage();
+    fixture.componentInstance.loadMoreSkillMaster();
     expect(profiles.listSkillMaster).toHaveBeenCalledWith(1, 10, 'kot');
-    expect(fixture.componentInstance.skillMasterOptions).toEqual(secondPage.content);
-  });
+    expect(fixture.componentInstance.skillMasterOptions).toEqual([...firstSearchPage.content, ...secondPage.content]);
+  }));
+
+  it('debounces Skill Master typing and ignores a stale search response', fakeAsync(() => {
+    const java = new Subject<SkillMasterPage>();
+    const jav = new Subject<SkillMasterPage>();
+    profiles.listSkillMaster.and.returnValues(of(skillMasterPage), java, jav);
+    openSkillCreate();
+    const input = fixture.nativeElement.querySelector('#profile-skill') as HTMLInputElement;
+
+    input.value = 'jav';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    input.value = 'java';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+
+    java.next({ content: [{ id: 4, name: 'JavaFX', categoryId: null, categoryCode: 'UI', categoryName: null }], page: 0, size: 10, totalElements: 1, totalPages: 1 });
+    expect(fixture.componentInstance.skillMasterOptions).toEqual([]);
+    jav.next({ content: [{ id: 5, name: 'JavaScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }], page: 0, size: 10, totalElements: 1, totalPages: 1 });
+    expect(fixture.componentInstance.skillMasterOptions).toEqual([{ id: 5, name: 'JavaScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }]);
+  }));
+
+  it('selects Skill from the combobox, derives Category context, and clears it with the Skill', fakeAsync(() => {
+    openSkillCreate();
+    const input = fixture.nativeElement.querySelector('#profile-skill') as HTMLInputElement;
+    input.value = 'type';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+
+    const option = fixture.nativeElement.querySelector('[data-master-id="3"]') as HTMLButtonElement;
+    expect(option.textContent).toContain('Frontend');
+    option.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.skillForm.controls.skillId.value).toBe(3);
+    expect(fixture.componentInstance.selectedSkillCategory()).toBe('Frontend');
+    expect(fixture.nativeElement.querySelector('#profile-skill-category')?.textContent).toContain('Frontend');
+
+    input.value = 'typed only';
+    input.dispatchEvent(new Event('input'));
+    expect(fixture.componentInstance.skillForm.controls.skillId.value).toBeNull();
+    expect(fixture.componentInstance.selectedSkillCategory()).toBe('—');
+
+    fixture.componentInstance.skillForm.patchValue({ experienceYears: 2, lastUsed: '' });
+    fixture.componentInstance.submitSkill();
+    expect(profiles.createProfileSkill).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.skillForm.controls.skillId.errors?.['required']).toBeTrue();
+    tick(300);
+  }));
+
+  it('represents Skill loading, empty, and retryable error states in the selector popup', fakeAsync(() => {
+    const pending = new Subject<SkillMasterPage>();
+    profiles.listSkillMaster.and.returnValues(of(skillMasterPage), pending);
+    openSkillCreate();
+    const input = fixture.nativeElement.querySelector('#profile-skill') as HTMLInputElement;
+    input.value = 'missing';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup')?.textContent).toContain('Searching');
+
+    pending.next({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup')?.textContent).toContain('No Skill Master matches');
+
+    profiles.listSkillMaster.and.returnValue(throwError(() => new Error('unavailable')));
+    input.value = 'failed';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup')?.textContent).toContain('Unable to load Skill Master');
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup .btn')?.textContent).toContain('Retry');
+  }));
 
   it('preserves the selected edit Skill and derives Category when the Master option is outside the displayed page', () => {
     profiles.listSkillMaster.and.returnValue(of({ content: [{ id: 3, name: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }], page: 0, size: 10, totalElements: 1, totalPages: 1 }));
@@ -1340,7 +1618,7 @@ describe('ProfileWorkspaceComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.skillOptions()).toContain(jasmine.objectContaining({ id: 2, name: 'Java' }));
-    expect(fixture.nativeElement.querySelector('#profile-skill')?.textContent).toContain('Java');
+    expect((fixture.nativeElement.querySelector('#profile-skill') as HTMLInputElement).value).toBe('Java');
     expect(fixture.nativeElement.querySelector('#profile-skill-category')?.textContent).toContain('Backend');
     expect(fixture.nativeElement.querySelector('#profile-skill-category select, #profile-skill-category input')).toBeNull();
   });
@@ -1372,19 +1650,21 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.skillLastUsedLabel({ ...skill, lastUsed: null })).toBe('—');
   });
 
-  it('prevents local duplicate Skills while excluding the current record during edit', () => {
+  it('renders an already assigned Skill as disabled while keeping the current edit Skill usable', () => {
     fixture.componentInstance.skills = [skill];
     openSkillCreate();
     fillSkillDraft({ skillId: 2 });
-    fixture.componentInstance.submitSkill();
+    fixture.componentInstance.skillMasterFocused();
+    fixture.detectChanges();
 
-    expect(profiles.createProfileSkill).not.toHaveBeenCalled();
-    expect(fixture.componentInstance.skillForm.controls.skillId.errors?.['duplicate']).toBe('This Skill is already assigned to this Profile.');
+    const duplicate = fixture.nativeElement.querySelector('[data-master-id="2"]') as HTMLButtonElement;
+    expect(duplicate.disabled).toBeTrue();
 
+    fixture.componentInstance.discardEditing();
     fixture.componentInstance.startSkillEdit(skill);
-    fixture.componentInstance.skillForm.markAsDirty();
-    fixture.componentInstance.submitSkill();
-    expect(profiles.updateProfileSkill).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.skillForm.controls.skillId.value).toBe(2);
+    expect(fixture.componentInstance.selectedSkillCategory()).toBe('Backend');
   });
 
   it('maps backend Skill duplicate and Master errors while preserving the retryable draft', () => {
@@ -1564,11 +1844,65 @@ describe('ProfileWorkspaceComponent', () => {
 
     const cards = fixture.nativeElement.querySelectorAll('.project-record');
     expect(cards.length).toBe(2);
-    expect(cards[0].textContent).toContain('Feb 1, 2024 - Mar 15, 2025');
-    expect(cards[0].textContent).toContain('Java\nSQL');
+    expect(cards[0].textContent).toContain('Feb 2024 – Mar 2025');
+    expect(cards[0].textContent).not.toContain('Feb 1, 2024');
+    expect(cards[0].textContent).not.toContain('Java\nSQL');
     expect(cards[0].textContent).not.toContain('people');
-    expect(cards[1].textContent).toContain('Jan 1, 2025 - Present');
+    expect(cards[1].textContent).toContain('Jan 2025 – Present');
     expect(cards[1].textContent).toContain('5 people');
+    expect(cards[0].textContent).toContain('Show details');
+    expect(cards[1].textContent).toContain('Show details');
+  });
+
+  it('expands Project details independently and preserves multiline content', () => {
+    const completed: Project = { ...project, id: 2, name: 'Completed Platform', status: 'COMPLETED', startDate: '2024-02-01', endDate: '2025-03-15', teamSize: null, programmingLanguages: 'Java\nSQL', tools: 'PostgreSQL' };
+    fixture.componentInstance.projects = [completed, project];
+    fixture.detectChanges();
+
+    const showButtons = fixture.nativeElement.querySelectorAll('.project-details-toggle') as NodeListOf<HTMLButtonElement>;
+    showButtons[0].click();
+    fixture.detectChanges();
+
+    const cards = fixture.nativeElement.querySelectorAll('.project-record');
+    expect(cards[0].querySelector('.project-details')?.textContent).toContain('Java\nSQL');
+    expect(cards[0].querySelector('.project-details')?.textContent).toContain('Design services\nReview incidents');
+    expect(cards[1].querySelector('.project-details')).toBeNull();
+    expect((cards[0].querySelector('.project-details-toggle') as HTMLButtonElement).textContent).toContain('Hide details');
+    expect((cards[1].querySelector('.project-details-toggle') as HTMLButtonElement).textContent).toContain('Show details');
+  });
+
+  it('clears Project expansion state on Profile switching and removes it after deletion', () => {
+    const otherProject = { ...project, id: 2, name: 'Other Profile Project' };
+    fixture.componentInstance.projects = [project];
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('.project-details-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.project-details')).toBeTruthy();
+
+    profiles.listProjects.and.returnValue(of([otherProject]));
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2 });
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.project-details')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.project-record')?.textContent).toContain('Other Profile Project');
+
+    context.selectedId.set('1');
+    context.detail.set(detail);
+    profiles.listProjects.and.returnValue(of([project]));
+    params.next(convertToParamMap({ profileId: '1' }));
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('.project-details-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    profiles.deleteProject.and.returnValue(of({ profileVersion: 4 }));
+    profiles.listProjects.and.returnValue(of([]));
+    fixture.componentInstance.openProjectDeleteConfirmation(project);
+    fixture.componentInstance.confirmProjectDelete();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.projects).toEqual([]);
+    expect(fixture.nativeElement.querySelector('.project-details')).toBeNull();
   });
 
   it('navigates to the shared Project Editor routes for create and edit', () => {
@@ -1678,8 +2012,8 @@ describe('ProfileWorkspaceComponent', () => {
 
   it('includes Language editor dirtiness in unsaved navigation confirmation', () => {
     fixture.componentInstance.startLanguageCreate();
-    fixture.componentInstance.languageForm.patchValue({ languageId: 3, level: 'INTERMEDIATE' });
-    fixture.componentInstance.languageForm.markAsDirty();
+    fixture.componentInstance.selectLanguageMasterOption(fixture.componentInstance.languageMasterOptions.find((option) => option.id === 3)!);
+    fixture.componentInstance.languageForm.controls.level.setValue('INTERMEDIATE');
 
     const navigation = fixture.componentInstance.editSession.requestNavigation('/profiles/2');
     fixture.detectChanges();

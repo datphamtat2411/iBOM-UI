@@ -537,7 +537,9 @@ export class ProjectEditorComponent {
 
   private updateEndDateState(): void {
     const endDate = this.projectForm.controls.endDate;
-    if (this.projectForm.controls.status.value === 'ONGOING') {
+    const ongoing = this.projectForm.controls.status.value === 'ONGOING';
+    if (ongoing) {
+      endDate.setValue('', { emitEvent: false });
       endDate.setValidators([]);
       endDate.disable({ emitEvent: false });
     } else {

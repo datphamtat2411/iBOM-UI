@@ -42,7 +42,7 @@ type LanguageEditorMode = 'create' | 'edit' | null;
 type EditableLanguageField = keyof EditableLanguageValues;
 type EditableLanguageValues = {
   languageId: number | string | null;
-  level: LanguageLevel;
+  level: LanguageLevel | null;
 };
 type CertificateEditorMode = 'create' | 'edit' | null;
 type EditableCertificateField = keyof EditableCertificateValues;
@@ -57,6 +57,7 @@ type EditableSkillValues = {
   experienceYears: number | null;
   lastUsed: string;
 };
+type MasterComboboxState = 'idle' | 'loading' | 'results' | 'empty' | 'error' | 'selected';
 
 @Component({
   selector: 'app-profile-workspace',
@@ -106,7 +107,7 @@ export class ProfileWorkspaceComponent {
   ];
   readonly languageForm = this.formBuilder.group({
     languageId: this.formBuilder.control<number | string | null>(null, [Validators.required]),
-    level: this.formBuilder.nonNullable.control<LanguageLevel>('BEGINNER', [Validators.required, this.languageLevelValidator()]),
+    level: this.formBuilder.control<LanguageLevel | null>(null, [Validators.required, this.languageLevelValidator()]),
   });
   readonly certificateForm = this.formBuilder.nonNullable.group({
     certificateName: ['', [Validators.required, Validators.maxLength(255)]],
@@ -174,6 +175,7 @@ export class ProfileWorkspaceComponent {
   certificateDeleteTarget: Certificate | null = null;
   certificateDeleteErrorMessage = '';
   projects: Project[] = [];
+  private readonly expandedProjectIds = new Set<string>();
   projectLoading = false;
   projectError: unknown | null = null;
   projectMessage = '';
@@ -203,6 +205,11 @@ export class ProfileWorkspaceComponent {
   languageMasterLoading = false;
   languageMasterError: unknown | null = null;
   languageMasterReady = false;
+  languageMasterState: MasterComboboxState = 'idle';
+  languageMasterDropdownOpen = false;
+  languageMasterHighlightedIndex = -1;
+  languageInputValue = '';
+  selectedLanguageMasterOption: LanguageMasterOption | null = null;
   skillMasterOptions: SkillMasterOption[] = [];
   skillMasterPage = 0;
   skillMasterSize = 10;
@@ -213,6 +220,11 @@ export class ProfileWorkspaceComponent {
   skillMasterLoading = false;
   skillMasterError: unknown | null = null;
   skillMasterReady = false;
+  skillMasterState: MasterComboboxState = 'idle';
+  skillMasterDropdownOpen = false;
+  skillMasterHighlightedIndex = -1;
+  skillInputValue = '';
+  selectedSkillMasterOption: SkillMasterOption | null = null;
   private readonly educationListCancel = new Subject<void>();
   private readonly languageListCancel = new Subject<void>();
   private readonly certificateListCancel = new Subject<void>();
@@ -232,15 +244,19 @@ export class ProfileWorkspaceComponent {
   private skillListGeneration = 0;
   private skillMutationGeneration = 0;
   private skillMasterGeneration = 0;
+  private languageSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  private skillSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private activeProfileId: string | null = null;
   private editingEducationId: number | string | null = null;
   private originalEducationValues: EditableEducationValues | null = null;
   private editingProfileLanguageId: number | string | null = null;
   private originalLanguageValues: EditableLanguageValues | null = null;
+  private originalLanguageInputValue = '';
   private editingCertificateId: number | string | null = null;
   private originalCertificateValues: EditableCertificateValues | null = null;
   private editingProfileSkillId: number | string | null = null;
   private originalSkillValues: EditableSkillValues | null = null;
+  private originalSkillInputValue = '';
 
   constructor() {
     this.context.loadSummaries();
@@ -439,6 +455,7 @@ export class ProfileWorkspaceComponent {
         if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
 
         this.isProjectDeleting = false;
+        this.expandedProjectIds.delete(String(target.id));
         this.closeProjectDeleteConfirmation();
         this.previewInvalidated = true;
         this.projectMessage = 'Project deleted. Preview is no longer current; generate a new preview before exporting.';
@@ -452,34 +469,184 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  languageMasterInputChanged(value: string): void {
+    this.languageInputValue = value;
+    this.languageMasterSearchDraft = value;
+    this.languageMasterDropdownOpen = true;
+    this.languageMasterHighlightedIndex = -1;
+    this.clearLanguageBackendErrors();
+
+    const selected = this.selectedLanguageMasterOption;
+    if (!selected || value.trim() !== selected.name.trim()) {
+      this.selectedLanguageMasterOption = null;
+      this.languageForm.controls.languageId.setValue(null);
+      this.languageForm.controls.languageId.markAsDirty();
+      this.languageForm.markAsDirty();
+    }
+    this.syncDirtyState();
+    this.scheduleLanguageMasterSearch(value);
+  }
+
+  clearLanguageMasterInput(): void {
+    this.languageMasterInputChanged('');
+  }
+
+  languageMasterFocused(): void {
+    this.languageMasterDropdownOpen = true;
+  }
+
+  languageMasterBlurred(): void {
+    setTimeout(() => {
+      if (this.languageEditorMode) this.languageMasterDropdownOpen = false;
+    }, 0);
+  }
+
+  languageMasterKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.languageMasterDropdownOpen = false;
+      this.languageMasterHighlightedIndex = -1;
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.languageMasterDropdownOpen = true;
+      this.languageMasterHighlightedIndex = this.nextMasterOptionIndex(
+        this.languageOptions(),
+        this.languageMasterHighlightedIndex,
+        event.key === 'ArrowDown' ? 1 : -1,
+        (option) => this.languageMasterOptionDisabled(option),
+      );
+      return;
+    }
+    if (event.key === 'Enter' && this.languageMasterDropdownOpen && this.languageMasterHighlightedIndex >= 0) {
+      event.preventDefault();
+      const option = this.languageOptions()[this.languageMasterHighlightedIndex];
+      if (option) this.selectLanguageMasterOption(option);
+    }
+  }
+
+  languageMasterOptionId(): string | null {
+    const option = this.languageOptions()[this.languageMasterHighlightedIndex];
+    return option && !this.languageMasterOptionDisabled(option) ? `language-master-option-${option.id}` : null;
+  }
+
+  selectLanguageMasterOption(option: LanguageMasterOption): void {
+    if (this.languageMasterOptionDisabled(option)) return;
+    const changed = String(this.languageForm.controls.languageId.value) !== String(option.id)
+      || this.languageInputValue.trim() !== option.name.trim();
+    this.selectedLanguageMasterOption = option;
+    this.languageInputValue = option.name;
+    this.languageMasterSearchDraft = option.name;
+    this.languageForm.controls.languageId.setValue(option.id);
+    if (changed) this.languageForm.markAsDirty();
+    this.languageMasterDropdownOpen = false;
+    this.languageMasterHighlightedIndex = -1;
+    this.languageMasterState = 'selected';
+    this.languageMasterReady = true;
+    this.clearLanguageBackendErrors();
+    this.syncDirtyState();
+  }
+
   searchLanguageMaster(): void {
-    this.languageMasterSearch = this.languageMasterSearchDraft.trim();
+    this.clearSearchTimer('language');
+    this.languageMasterSearch = this.languageInputValue.trim();
+    this.languageMasterDropdownOpen = true;
     this.loadLanguageMaster(0, this.languageMasterSearch);
   }
 
-  previousLanguageMasterPage(): void {
-    if (this.languageMasterLoading || this.languageMasterPage <= 0) return;
-    this.loadLanguageMaster(this.languageMasterPage - 1, this.languageMasterSearch);
+  loadMoreLanguageMaster(): void {
+    if (this.languageMasterLoading || this.languageMasterPage + 1 >= this.languageMasterTotalPages) return;
+    this.loadLanguageMaster(this.languageMasterPage + 1, this.languageMasterSearch, true);
   }
 
-  nextLanguageMasterPage(): void {
-    if (this.languageMasterLoading || this.languageMasterPage + 1 >= this.languageMasterTotalPages) return;
-    this.loadLanguageMaster(this.languageMasterPage + 1, this.languageMasterSearch);
+  skillMasterInputChanged(value: string): void {
+    this.skillInputValue = value;
+    this.skillMasterSearchDraft = value;
+    this.skillMasterDropdownOpen = true;
+    this.skillMasterHighlightedIndex = -1;
+    this.clearSkillBackendErrors();
+
+    const selected = this.selectedSkillMasterOption;
+    if (!selected || value.trim() !== selected.name.trim()) {
+      this.selectedSkillMasterOption = null;
+      this.skillForm.controls.skillId.setValue(null);
+      this.skillForm.controls.skillId.markAsDirty();
+      this.skillForm.markAsDirty();
+    }
+    this.syncDirtyState();
+    this.scheduleSkillMasterSearch(value);
+  }
+
+  clearSkillMasterInput(): void {
+    this.skillMasterInputChanged('');
+  }
+
+  skillMasterFocused(): void {
+    this.skillMasterDropdownOpen = true;
+  }
+
+  skillMasterBlurred(): void {
+    setTimeout(() => {
+      if (this.skillEditorMode) this.skillMasterDropdownOpen = false;
+    }, 0);
+  }
+
+  skillMasterKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.skillMasterDropdownOpen = false;
+      this.skillMasterHighlightedIndex = -1;
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.skillMasterDropdownOpen = true;
+      this.skillMasterHighlightedIndex = this.nextMasterOptionIndex(
+        this.skillOptions(),
+        this.skillMasterHighlightedIndex,
+        event.key === 'ArrowDown' ? 1 : -1,
+        (option) => this.skillMasterOptionDisabled(option),
+      );
+      return;
+    }
+    if (event.key === 'Enter' && this.skillMasterDropdownOpen && this.skillMasterHighlightedIndex >= 0) {
+      event.preventDefault();
+      const option = this.skillOptions()[this.skillMasterHighlightedIndex];
+      if (option) this.selectSkillMasterOption(option);
+    }
+  }
+
+  skillMasterOptionId(): string | null {
+    const option = this.skillOptions()[this.skillMasterHighlightedIndex];
+    return option && !this.skillMasterOptionDisabled(option) ? `skill-master-option-${option.id}` : null;
+  }
+
+  selectSkillMasterOption(option: SkillMasterOption): void {
+    if (this.skillMasterOptionDisabled(option)) return;
+    const changed = String(this.skillForm.controls.skillId.value) !== String(option.id)
+      || this.skillInputValue.trim() !== option.name.trim();
+    this.selectedSkillMasterOption = option;
+    this.skillInputValue = option.name;
+    this.skillMasterSearchDraft = option.name;
+    this.skillForm.controls.skillId.setValue(option.id);
+    if (changed) this.skillForm.markAsDirty();
+    this.skillMasterDropdownOpen = false;
+    this.skillMasterHighlightedIndex = -1;
+    this.skillMasterState = 'selected';
+    this.skillMasterReady = true;
+    this.clearSkillBackendErrors();
+    this.syncDirtyState();
   }
 
   searchSkillMaster(): void {
-    this.skillMasterSearch = this.skillMasterSearchDraft.trim();
+    this.clearSearchTimer('skill');
+    this.skillMasterSearch = this.skillInputValue.trim();
+    this.skillMasterDropdownOpen = true;
     this.loadSkillMaster(0, this.skillMasterSearch);
   }
 
-  previousSkillMasterPage(): void {
-    if (this.skillMasterLoading || this.skillMasterPage <= 0) return;
-    this.loadSkillMaster(this.skillMasterPage - 1, this.skillMasterSearch);
-  }
-
-  nextSkillMasterPage(): void {
+  loadMoreSkillMaster(): void {
     if (this.skillMasterLoading || this.skillMasterPage + 1 >= this.skillMasterTotalPages) return;
-    this.loadSkillMaster(this.skillMasterPage + 1, this.skillMasterSearch);
+    this.loadSkillMaster(this.skillMasterPage + 1, this.skillMasterSearch, true);
   }
 
   openLanguageDeleteConfirmation(language: ProfileLanguage): void {
@@ -905,14 +1072,7 @@ export class ProfileWorkspaceComponent {
     this.languageErrorMessage = '';
     this.languageMessage = '';
     this.clearLanguageBackendErrors();
-    if (!this.hasLanguageChanges()) return;
-    if (!this.languageMasterReady || this.languageMasterLoading || this.languageMasterError) {
-      this.languageErrorMessage = this.languageMasterLoading
-        ? 'Language options are still loading. Please try again when they are available.'
-        : 'Language options are unavailable. Retry the Language Master request before saving.';
-      this.syncDirtyState();
-      return;
-    }
+    if (mode === 'edit' && !this.hasLanguageChanges()) return;
     if (this.languageForm.invalid) {
       this.languageForm.markAllAsTouched();
       this.syncDirtyState();
@@ -924,6 +1084,17 @@ export class ProfileWorkspaceComponent {
     if (!profile || !profileId || String(profile.id) !== profileId) return;
 
     const value = this.languageForm.getRawValue();
+    if (value.level === null) {
+      this.languageForm.controls.level.markAsTouched();
+      this.syncDirtyState();
+      return;
+    }
+    if (!this.isCommittedLanguageSelection()) {
+      this.setLanguageFieldError('languageId', 'Select a Language from Language Master.', 'backend');
+      this.languageErrorMessage = 'Select a Language from Language Master.';
+      this.syncDirtyState();
+      return;
+    }
     const duplicate = this.languages.some((language) => String(language.languageId) === String(value.languageId)
       && (mode !== 'edit' || String(language.profileLanguageId) !== String(this.editingProfileLanguageId)));
     if (duplicate) {
@@ -976,14 +1147,7 @@ export class ProfileWorkspaceComponent {
     this.skillMessage = '';
     this.clearSkillBackendErrors();
     this.trimSkillFormValues();
-    if (!this.hasSkillChanges()) return;
-    if (!this.skillMasterReady || this.skillMasterLoading || this.skillMasterError) {
-      this.skillErrorMessage = this.skillMasterLoading
-        ? 'Skill options are still loading. Please try again when they are available.'
-        : 'Skill options are unavailable. Retry the Skill Master request before saving.';
-      this.syncDirtyState();
-      return;
-    }
+    if (mode === 'edit' && !this.hasSkillChanges()) return;
     if (this.skillForm.invalid) {
       this.skillForm.markAllAsTouched();
       this.syncDirtyState();
@@ -995,10 +1159,7 @@ export class ProfileWorkspaceComponent {
     if (!profile || !profileId || String(profile.id) !== profileId) return;
 
     const value = this.skillForm.getRawValue();
-    const selectedSkill = this.skillMasterOptions.some((option) => String(option.id) === String(value.skillId))
-      || (mode === 'edit' && this.skills.some((skill) => String(skill.profileSkillId) === String(this.editingProfileSkillId)
-        && String(skill.skillId) === String(value.skillId)));
-    if (!selectedSkill) {
+    if (!this.isCommittedSkillSelection()) {
       this.setSkillFieldError('skillId', 'Select a Skill from Skill Master.', 'backend');
       this.skillErrorMessage = 'Select a Skill from Skill Master.';
       this.syncDirtyState();
@@ -1253,31 +1414,55 @@ export class ProfileWorkspaceComponent {
 
   languageOptions(): LanguageMasterOption[] {
     const selectedId = this.languageForm.controls.languageId.value;
-    const assignedIds = new Set(this.languages.map((language) => String(language.languageId)));
-    const options = this.languageMasterOptions.filter((option) => !assignedIds.has(String(option.id)) || String(option.id) === String(selectedId));
+    const options = [...this.languageMasterOptions];
     if (selectedId !== null && selectedId !== undefined && !options.some((option) => String(option.id) === String(selectedId))) {
-      const selected = this.languages.find((language) => String(language.languageId) === String(selectedId));
-      if (selected) options.unshift({ id: selected.languageId, name: selected.languageName });
+      const current = this.languages.find((language) => String(language.languageId) === String(selectedId));
+      const selected = this.selectedLanguageMasterOption ?? (current ? this.languageMasterOption(current) : undefined);
+      if (selected) options.unshift(selected);
     }
     return options;
   }
 
+  languageMasterOptionDisabled(option: LanguageMasterOption): boolean {
+    return this.languages.some((language) => String(language.languageId) === String(option.id)
+      && String(language.profileLanguageId) !== String(this.editingProfileLanguageId));
+  }
+
+  isLanguageMasterOptionSelected(option: LanguageMasterOption): boolean {
+    return !!this.selectedLanguageMasterOption && String(this.selectedLanguageMasterOption.id) === String(option.id);
+  }
+
   skillOptions(): SkillMasterOption[] {
     const selectedId = this.skillForm.controls.skillId.value;
-    const assignedIds = new Set(this.skills.map((skill) => String(skill.skillId)));
-    const options = this.skillMasterOptions.filter((option) => !assignedIds.has(String(option.id)) || String(option.id) === String(selectedId));
+    const options = [...this.skillMasterOptions];
     if (selectedId !== null && selectedId !== undefined && !options.some((option) => String(option.id) === String(selectedId))) {
-      const selected = this.skills.find((skill) => String(skill.skillId) === String(selectedId));
-      if (selected) options.unshift(this.skillMasterOption(selected));
+      const current = this.skills.find((skill) => String(skill.skillId) === String(selectedId));
+      const selected = this.selectedSkillMasterOption ?? (current ? this.skillMasterOption(current) : undefined);
+      if (selected) options.unshift(selected);
     }
     return options;
+  }
+
+  skillMasterOptionDisabled(option: SkillMasterOption): boolean {
+    return this.skills.some((skill) => String(skill.skillId) === String(option.id)
+      && String(skill.profileSkillId) !== String(this.editingProfileSkillId));
+  }
+
+  isSkillMasterOptionSelected(option: SkillMasterOption): boolean {
+    return !!this.selectedSkillMasterOption && String(this.selectedSkillMasterOption.id) === String(option.id);
+  }
+
+  skillOptionCategory(option: SkillMasterOption): string {
+    return option.categoryName?.trim() || option.categoryCode?.trim() || 'Category unavailable';
   }
 
   selectedSkillCategory(): string {
     const selectedId = this.skillForm.controls.skillId.value;
     if (selectedId === null || selectedId === undefined) return '—';
-    const selected = this.skillMasterOptions.find((option) => String(option.id) === String(selectedId))
-      ?? this.skills.find((skill) => String(skill.skillId) === String(selectedId));
+    const selected = this.selectedSkillMasterOption?.id !== undefined
+      && String(this.selectedSkillMasterOption.id) === String(selectedId)
+      ? this.selectedSkillMasterOption
+      : null;
     if (!selected) return '—';
     return selected.categoryName?.trim() || selected.categoryCode?.trim() || '—';
   }
@@ -1304,6 +1489,43 @@ export class ProfileWorkspaceComponent {
     };
   }
 
+  private languageMasterOption(language: ProfileLanguage): LanguageMasterOption {
+    return { id: language.languageId, name: language.languageName };
+  }
+
+  private isCommittedLanguageSelection(): boolean {
+    const selected = this.selectedLanguageMasterOption;
+    const id = this.languageForm.controls.languageId.value;
+    return !!selected
+      && id !== null
+      && String(selected.id) === String(id)
+      && this.languageInputValue.trim() === selected.name.trim();
+  }
+
+  private isCommittedSkillSelection(): boolean {
+    const selected = this.selectedSkillMasterOption;
+    const id = this.skillForm.controls.skillId.value;
+    return !!selected
+      && id !== null
+      && String(selected.id) === String(id)
+      && this.skillInputValue.trim() === selected.name.trim();
+  }
+
+  private nextMasterOptionIndex<T extends LanguageMasterOption | SkillMasterOption>(
+    options: T[],
+    currentIndex: number,
+    direction: 1 | -1,
+    disabled: (option: T) => boolean,
+  ): number {
+    if (!options.length) return -1;
+    const startIndex = currentIndex < 0 ? (direction === 1 ? -1 : options.length) : currentIndex;
+    for (let step = 1; step <= options.length; step++) {
+      const index = (startIndex + direction * step + options.length) % options.length;
+      if (!disabled(options[index])) return index;
+    }
+    return -1;
+  }
+
   private formatSkillLastUsed(lastUsed: string | null | undefined): string {
     if (!lastUsed) return '—';
     const date = new Date(`${lastUsed.slice(0, 10)}T00:00:00Z`);
@@ -1326,7 +1548,20 @@ export class ProfileWorkspaceComponent {
   projectDateRange(project: Project): string {
     const start = project.startDate ? this.formatProjectDate(project.startDate) : 'Date not set';
     const end = project.status === 'ONGOING' || !project.endDate ? 'Present' : this.formatProjectDate(project.endDate);
-    return `${start} - ${end}`;
+    return `${start} – ${end}`;
+  }
+
+  isProjectExpanded(project: Project): boolean {
+    return this.expandedProjectIds.has(String(project.id));
+  }
+
+  toggleProjectDetails(project: Project): void {
+    const projectId = String(project.id);
+    if (this.expandedProjectIds.has(projectId)) {
+      this.expandedProjectIds.delete(projectId);
+    } else if (this.projects.some((item) => String(item.id) === projectId)) {
+      this.expandedProjectIds.add(projectId);
+    }
   }
 
   projectRecordLabel(project: Project): string {
@@ -1336,7 +1571,7 @@ export class ProfileWorkspaceComponent {
   private formatProjectDate(value: string): string {
     const date = new Date(`${value.slice(0, 10)}T00:00:00Z`);
     if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(date);
+    return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
   }
 
   discardPendingNavigation(): void {
@@ -1419,6 +1654,9 @@ export class ProfileWorkspaceComponent {
       next: (projects) => {
         if (!this.isCurrentProjectProfile(profileId, generation)) return;
         this.projects = projects;
+        for (const projectId of this.expandedProjectIds) {
+          if (!projects.some((project) => String(project.id) === projectId)) this.expandedProjectIds.delete(projectId);
+        }
         this.projectLoading = false;
       },
       error: (error: unknown) => {
@@ -1449,56 +1687,129 @@ export class ProfileWorkspaceComponent {
     });
   }
 
-  private loadLanguageMaster(page: number, search: string): void {
+  private scheduleLanguageMasterSearch(value: string): void {
+    this.clearSearchTimer('language');
+    this.languageMasterCancel.next();
+    this.languageMasterGeneration++;
+    this.languageMasterError = null;
+    this.languageMasterReady = false;
+    this.languageMasterOptions = [];
+    this.languageMasterPage = 0;
+    this.languageMasterTotalElements = 0;
+    this.languageMasterTotalPages = 0;
+    this.languageMasterSearch = value.trim();
+    if (!value.trim()) {
+      this.languageMasterLoading = true;
+      this.languageMasterState = 'loading';
+      this.loadLanguageMaster(0, '');
+      return;
+    }
+
+    this.languageMasterLoading = true;
+    this.languageMasterState = 'loading';
+    this.languageSearchTimer = setTimeout(() => {
+      this.languageSearchTimer = null;
+      this.loadLanguageMaster(0, value.trim());
+    }, 300);
+  }
+
+  private scheduleSkillMasterSearch(value: string): void {
+    this.clearSearchTimer('skill');
+    this.skillMasterCancel.next();
+    this.skillMasterGeneration++;
+    this.skillMasterError = null;
+    this.skillMasterReady = false;
+    this.skillMasterOptions = [];
+    this.skillMasterPage = 0;
+    this.skillMasterTotalElements = 0;
+    this.skillMasterTotalPages = 0;
+    this.skillMasterSearch = value.trim();
+    if (!value.trim()) {
+      this.skillMasterLoading = true;
+      this.skillMasterState = 'loading';
+      this.loadSkillMaster(0, '');
+      return;
+    }
+
+    this.skillMasterLoading = true;
+    this.skillMasterState = 'loading';
+    this.skillSearchTimer = setTimeout(() => {
+      this.skillSearchTimer = null;
+      this.loadSkillMaster(0, value.trim());
+    }, 300);
+  }
+
+  private loadLanguageMaster(page: number, search: string, append = false): void {
     this.languageMasterCancel.next();
     const generation = ++this.languageMasterGeneration;
     this.languageMasterLoading = true;
     this.languageMasterError = null;
     this.languageMasterReady = false;
+    this.languageMasterState = 'loading';
     this.profileService.listLanguageMaster(page, this.languageMasterSize, search).pipe(takeUntil(this.languageMasterCancel)).subscribe({
       next: (result) => {
         if (this.languageMasterGeneration !== generation) return;
-        this.languageMasterOptions = result.content;
+        this.languageMasterOptions = append
+          ? this.mergeMasterOptions(this.languageMasterOptions, result.content)
+          : this.mergeMasterOptions([], result.content);
         this.languageMasterPage = result.page;
         this.languageMasterTotalElements = result.totalElements;
         this.languageMasterTotalPages = result.totalPages;
-        this.languageMasterSearch = search;
-        this.languageMasterSearchDraft = search;
+        this.languageMasterSearch = search.trim();
         this.languageMasterLoading = false;
         this.languageMasterReady = true;
+        this.languageMasterState = this.languageMasterOptions.length ? 'results' : 'empty';
       },
       error: (error: unknown) => {
         if (this.languageMasterGeneration !== generation) return;
         this.languageMasterError = error;
         this.languageMasterLoading = false;
+        this.languageMasterState = 'error';
       },
     });
   }
 
-  private loadSkillMaster(page: number, search: string): void {
+  private loadSkillMaster(page: number, search: string, append = false): void {
     this.skillMasterCancel.next();
     const generation = ++this.skillMasterGeneration;
     this.skillMasterLoading = true;
     this.skillMasterError = null;
     this.skillMasterReady = false;
+    this.skillMasterState = 'loading';
     this.profileService.listSkillMaster(page, this.skillMasterSize, search).pipe(takeUntil(this.skillMasterCancel)).subscribe({
       next: (result) => {
         if (this.skillMasterGeneration !== generation) return;
-        this.skillMasterOptions = result.content;
+        this.skillMasterOptions = append
+          ? this.mergeMasterOptions(this.skillMasterOptions, result.content)
+          : this.mergeMasterOptions([], result.content);
         this.skillMasterPage = result.page;
         this.skillMasterTotalElements = result.totalElements;
         this.skillMasterTotalPages = result.totalPages;
-        this.skillMasterSearch = search;
-        this.skillMasterSearchDraft = search;
+        this.skillMasterSearch = search.trim();
         this.skillMasterLoading = false;
         this.skillMasterReady = true;
+        this.skillMasterState = this.skillMasterOptions.length ? 'results' : 'empty';
       },
       error: (error: unknown) => {
         if (this.skillMasterGeneration !== generation) return;
         this.skillMasterError = error;
         this.skillMasterLoading = false;
+        this.skillMasterState = 'error';
       },
     });
+  }
+
+  private clearSearchTimer(kind: 'language' | 'skill'): void {
+    const timer = kind === 'language' ? this.languageSearchTimer : this.skillSearchTimer;
+    if (timer !== null) clearTimeout(timer);
+    if (kind === 'language') this.languageSearchTimer = null;
+    else this.skillSearchTimer = null;
+  }
+
+  private mergeMasterOptions<T extends LanguageMasterOption | SkillMasterOption>(current: T[], incoming: T[]): T[] {
+    const options = new Map<string, T>();
+    for (const option of [...current, ...incoming]) options.set(String(option.id), option);
+    return [...options.values()];
   }
 
   private fetchLatest(): void {
@@ -1677,6 +1988,8 @@ export class ProfileWorkspaceComponent {
     this.languageForm.markAsPristine();
     this.languageForm.markAsUntouched();
     this.clearLanguageBackendErrors();
+    this.resetLanguageMasterSelector();
+    this.originalLanguageInputValue = '';
     this.syncDirtyState();
   }
 
@@ -1693,16 +2006,49 @@ export class ProfileWorkspaceComponent {
     this.skillForm.markAsPristine();
     this.skillForm.markAsUntouched();
     this.clearSkillBackendErrors();
+    this.resetSkillMasterSelector();
+    this.originalSkillInputValue = '';
+    this.syncDirtyState();
+  }
+
+  private resetLanguageMasterSelector(): void {
+    this.clearSearchTimer('language');
+    this.languageMasterCancel.next();
+    this.languageMasterGeneration++;
+    this.languageMasterOptions = [];
+    this.languageMasterPage = 0;
+    this.languageMasterTotalElements = 0;
+    this.languageMasterTotalPages = 0;
+    this.languageMasterSearch = '';
+    this.languageMasterSearchDraft = '';
+    this.languageMasterLoading = false;
+    this.languageMasterError = null;
+    this.languageMasterReady = false;
+    this.languageMasterState = 'idle';
+    this.languageMasterDropdownOpen = false;
+    this.languageMasterHighlightedIndex = -1;
+    this.languageInputValue = '';
+    this.selectedLanguageMasterOption = null;
+  }
+
+  private resetSkillMasterSelector(): void {
+    this.clearSearchTimer('skill');
     this.skillMasterCancel.next();
     this.skillMasterGeneration++;
     this.skillMasterOptions = [];
     this.skillMasterPage = 0;
     this.skillMasterTotalElements = 0;
     this.skillMasterTotalPages = 0;
+    this.skillMasterSearch = '';
+    this.skillMasterSearchDraft = '';
     this.skillMasterLoading = false;
     this.skillMasterError = null;
     this.skillMasterReady = false;
-    this.syncDirtyState();
+    this.skillMasterState = 'idle';
+    this.skillMasterDropdownOpen = false;
+    this.skillMasterHighlightedIndex = -1;
+    this.skillInputValue = '';
+    this.selectedSkillMasterOption = null;
   }
 
   private closeCertificateEditor(): void {
@@ -1784,6 +2130,7 @@ export class ProfileWorkspaceComponent {
     this.languageMessage = '';
     this.languageErrorMessage = '';
     this.closeLanguageDeleteConfirmation();
+    this.resetLanguageMasterSelector();
     this.previewInvalidated = false;
   }
 
@@ -1805,6 +2152,7 @@ export class ProfileWorkspaceComponent {
     this.projectListGeneration++;
     this.projectMutationGeneration++;
     this.projects = [];
+    this.expandedProjectIds.clear();
     this.projectLoading = false;
     this.projectError = null;
     this.projectMessage = '';
@@ -1816,23 +2164,13 @@ export class ProfileWorkspaceComponent {
     this.skillListCancel.next();
     this.skillListGeneration++;
     this.skillMutationGeneration++;
-    this.skillMasterCancel.next();
-    this.skillMasterGeneration++;
     this.skills = [];
     this.skillLoading = false;
     this.skillError = null;
     this.skillMessage = '';
     this.skillErrorMessage = '';
     this.closeSkillDeleteConfirmation();
-    this.skillMasterOptions = [];
-    this.skillMasterPage = 0;
-    this.skillMasterTotalElements = 0;
-    this.skillMasterTotalPages = 0;
-    this.skillMasterSearch = '';
-    this.skillMasterSearchDraft = '';
-    this.skillMasterLoading = false;
-    this.skillMasterError = null;
-    this.skillMasterReady = false;
+    this.resetSkillMasterSelector();
     this.previewInvalidated = false;
   }
 
@@ -1921,6 +2259,12 @@ export class ProfileWorkspaceComponent {
     const values = language ? this.languageFormValues(language) : this.emptyLanguageValues();
     this.languageEditorMode = language ? 'edit' : 'create';
     this.editingProfileLanguageId = language ? language.profileLanguageId : null;
+    this.selectedLanguageMasterOption = language ? this.languageMasterOption(language) : null;
+    this.languageInputValue = language?.languageName ?? '';
+    this.languageMasterSearchDraft = this.languageInputValue;
+    this.originalLanguageInputValue = this.languageInputValue.trim();
+    this.languageMasterDropdownOpen = false;
+    this.languageMasterHighlightedIndex = -1;
     this.originalLanguageValues = this.normalizeLanguageValues(values);
     this.languageForm.reset(values);
     this.languageForm.markAsPristine();
@@ -1931,7 +2275,7 @@ export class ProfileWorkspaceComponent {
     this.reloadConfirmation = false;
     this.languageErrorMessage = '';
     this.languageMessage = '';
-    this.loadLanguageMaster(0, this.languageMasterSearch);
+    this.loadLanguageMaster(0, '');
     this.syncDirtyState();
   }
 
@@ -1967,6 +2311,12 @@ export class ProfileWorkspaceComponent {
     const values = skill ? this.skillFormValues(skill) : this.emptySkillValues();
     this.skillEditorMode = skill ? 'edit' : 'create';
     this.editingProfileSkillId = skill ? skill.profileSkillId : null;
+    this.selectedSkillMasterOption = skill ? this.skillMasterOption(skill) : null;
+    this.skillInputValue = skill?.skillName ?? '';
+    this.skillMasterSearchDraft = this.skillInputValue;
+    this.originalSkillInputValue = this.skillInputValue.trim();
+    this.skillMasterDropdownOpen = false;
+    this.skillMasterHighlightedIndex = -1;
     this.originalSkillValues = this.normalizeSkillValues(values);
     this.skillForm.reset(values);
     this.skillForm.markAsPristine();
@@ -1977,7 +2327,7 @@ export class ProfileWorkspaceComponent {
     this.reloadConfirmation = false;
     this.skillErrorMessage = '';
     this.skillMessage = '';
-    this.loadSkillMaster(0, this.skillMasterSearch);
+    this.loadSkillMaster(0, '');
     this.syncDirtyState();
   }
 
@@ -2251,7 +2601,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private emptyLanguageValues(): EditableLanguageValues {
-    return { languageId: null, level: 'BEGINNER' };
+    return { languageId: null, level: null };
   }
 
   private emptyCertificateValues(): EditableCertificateValues {
@@ -2322,7 +2672,14 @@ export class ProfileWorkspaceComponent {
 
   private updateEducationDateValidation(): void {
     const endDate = this.educationForm.controls.endDate;
-    endDate.setValidators(this.educationForm.controls.status.value === 'COMPLETED' ? [Validators.required] : []);
+    const ongoing = this.educationForm.controls.status.value === 'ONGOING';
+    if (ongoing) {
+      endDate.setValue('', { emitEvent: false });
+      endDate.disable({ emitEvent: false });
+    } else {
+      endDate.enable({ emitEvent: false });
+    }
+    endDate.setValidators(ongoing ? [] : [Validators.required]);
     endDate.updateValueAndValidity({ emitEvent: false });
     this.educationForm.updateValueAndValidity({ emitEvent: false });
   }
@@ -2372,7 +2729,9 @@ export class ProfileWorkspaceComponent {
     const original = this.originalLanguageValues;
     if (!original) return false;
     const current = this.normalizeLanguageValues(this.languageForm.getRawValue());
-    return current.languageId !== original.languageId || current.level !== original.level;
+    return current.languageId !== original.languageId
+      || current.level !== original.level
+      || this.languageInputValue.trim() !== this.originalLanguageInputValue;
   }
 
   hasCertificateChanges(): boolean {
@@ -2388,7 +2747,8 @@ export class ProfileWorkspaceComponent {
     const current = this.normalizeSkillValues(this.skillForm.getRawValue());
     return current.skillId !== original.skillId
       || current.experienceYears !== original.experienceYears
-      || current.lastUsed !== original.lastUsed;
+      || current.lastUsed !== original.lastUsed
+      || this.skillInputValue.trim() !== this.originalSkillInputValue;
   }
 
   private isCurrentEducationProfile(profileId: string, generation: number): boolean {
