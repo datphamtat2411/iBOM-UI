@@ -2,6 +2,7 @@ import { Component, computed, HostListener, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
+import { NotificationService } from '../../core/notifications/notification.service';
 import { ProfileContextService } from '../profile/services/profile-context.service';
 import { ProfileEditSessionService } from '../profile/services/profile-edit-session.service';
 
@@ -17,6 +18,7 @@ export class ApplicationShellComponent {
   private readonly router = inject(Router);
   private readonly profileEditSession = inject(ProfileEditSessionService);
   readonly profileContext = inject(ProfileContextService);
+  readonly notifications = inject(NotificationService);
 
   readonly user = this.authService.user;
   readonly logoutError = this.authService.logoutError;

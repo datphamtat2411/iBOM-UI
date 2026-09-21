@@ -4,6 +4,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import { ProfileDetail, Project } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
@@ -22,6 +23,7 @@ describe('ProjectEditorComponent', () => {
     reloadDetail: jasmine.Spy;
     applyMutationVersion: jasmine.Spy;
   };
+  let notifications: { showSuccess: jasmine.Spy };
   let profiles: { listProjects: jasmine.Spy; createProject: jasmine.Spy; updateProject: jasmine.Spy };
 
   const detail: ProfileDetail = {
@@ -55,6 +57,7 @@ describe('ProjectEditorComponent', () => {
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
     router = { navigate: jasmine.createSpy('navigate') };
+    notifications = { showSuccess: jasmine.createSpy('showSuccess') };
     profiles = {
       listProjects: jasmine.createSpy('listProjects').and.returnValue(of([project])),
       createProject: jasmine.createSpy('createProject'),
@@ -77,6 +80,7 @@ describe('ProjectEditorComponent', () => {
         { provide: ActivatedRoute, useValue: { paramMap: params } },
         { provide: Router, useValue: router },
         ProfileEditSessionService,
+        { provide: NotificationService, useValue: notifications },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(ProjectEditorComponent);
@@ -241,6 +245,59 @@ describe('ProjectEditorComponent', () => {
     expect(fixture.componentInstance.saveState).toBe('saved');
     expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1']);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Project added successfully.');
+  });
+
+  it('keeps Project create mode for Save & add another with a pristine reset and no navigation', () => {
+    const created: Project = { ...project, id: 8, name: 'First Project', startDate: null, teamSize: null };
+    profiles.createProject.and.returnValue(of({ project: created, profileVersion: 4 }));
+    fillProjectDraft({ name: 'First Project', startDate: '', teamSize: null });
+
+    fixture.componentInstance.submit('add-another');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.editorMode).toBe('create');
+    expect(fixture.componentInstance.project).toBeNull();
+    expect(fixture.componentInstance.savedProject).toBeNull();
+    expect(fixture.componentInstance.projectForm.getRawValue()).toEqual({
+      name: '', description: '', startDate: '', endDate: '', status: 'ONGOING', position: '', teamSize: null,
+      responsibilities: '', programmingLanguages: '', tools: '',
+    });
+    expect(fixture.componentInstance.projectForm.pristine).toBeTrue();
+    expect(fixture.componentInstance.projectForm.untouched).toBeTrue();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Project added successfully.');
+    expect(document.activeElement?.id).toBe('project-name');
+  });
+
+  it('uses the returned Project Profile version for the next create', () => {
+    const first: Project = { ...project, id: 8, name: 'First Project' };
+    const second: Project = { ...project, id: 9, name: 'Second Project' };
+    context.applyMutationVersion.and.callFake((_profileId: string, version: number) => {
+      context.detail.set({ ...detail, version, hasPreviewed: false });
+      return true;
+    });
+    profiles.createProject.and.returnValues(
+      of({ project: first, profileVersion: 4 }),
+      of({ project: second, profileVersion: 5 }),
+    );
+    fillProjectDraft({ name: 'First Project' });
+    fixture.componentInstance.submit('add-another');
+    fillProjectDraft({ name: 'Second Project' });
+    fixture.componentInstance.submit();
+
+    expect(profiles.createProject.calls.argsFor(0)[1]).toEqual(jasmine.objectContaining({ version: 3 }));
+    expect(profiles.createProject.calls.argsFor(1)[1]).toEqual(jasmine.objectContaining({ version: 4 }));
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1']);
+  });
+
+  it('renders Save & add another only for Project create mode', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Save & add another');
+
+    openEdit();
+    expect(fixture.nativeElement.textContent).not.toContain('Save & add another');
   });
 
   it('prevents duplicate saves and preserves a retryable draft after an ordinary failure', () => {
@@ -277,6 +334,7 @@ describe('ProjectEditorComponent', () => {
     fixture.componentInstance.submit();
     expect(fixture.componentInstance.projectForm.controls.endDate.errors?.['backend']).toBe('End Date is required.');
     expect(fixture.componentInstance.editorMode).toBe('create');
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
   it('preserves a conflict draft and reloads the latest Profile and canonical Project after confirmation', () => {

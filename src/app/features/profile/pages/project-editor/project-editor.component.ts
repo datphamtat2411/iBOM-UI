@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import { Project, ProjectRequest, ProjectStatus } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
@@ -12,6 +13,7 @@ import { ProfileService } from '../../services/profile.service';
 
 type ProjectEditorMode = 'create' | 'edit';
 type ProjectSaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'failure' | 'conflict';
+type ProjectPostSaveIntent = 'close' | 'add-another';
 type EditableProjectField = keyof EditableProjectValues;
 type EditableProjectValues = {
   name: string;
@@ -38,6 +40,7 @@ export class ProjectEditorComponent {
   private readonly profileService = inject(ProfileService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly notifications = inject(NotificationService);
   readonly context = inject(ProfileContextService);
   readonly editSession = inject(ProfileEditSessionService);
 
@@ -147,8 +150,9 @@ export class ProjectEditorComponent {
       || current.tools !== original.tools;
   }
 
-  submit(): void {
+  submit(intent: ProjectPostSaveIntent = 'close'): void {
     if (this.isSubmitting || this.conflict) return;
+    const addAnother = intent === 'add-another' && this.editorMode === 'create';
 
     this.errorMessage = '';
     this.saveMessage = '';
@@ -195,16 +199,24 @@ export class ProjectEditorComponent {
     request$.subscribe({
       next: (result) => {
         if (!this.isCurrentOperation(profileId, operationGeneration)) return;
-        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) {
+          this.isSubmitting = false;
+          return;
+        }
+
+        this.isSubmitting = false;
+        this.conflict = false;
+        const message = this.editorMode === 'edit' ? 'Project updated successfully.' : 'Project added successfully.';
+        this.notifications.showSuccess(message);
+        if (addAnother) {
+          this.resetCreateAfterSave();
+          return;
+        }
 
         this.project = result.project;
         this.savedProject = result.project;
-        this.isSubmitting = false;
-        this.conflict = false;
         this.saveState = 'saved';
-        this.saveMessage = this.editorMode === 'edit'
-          ? 'Project updated. Preview is no longer current; generate a new preview before exporting.'
-          : 'Project added. Preview is no longer current; generate a new preview before exporting.';
+        this.saveMessage = message;
         this.originalValues = this.normalizeProjectValues(this.formValues(result.project));
         this.projectForm.reset(this.formValues(result.project));
         this.projectForm.markAsPristine();
@@ -314,6 +326,28 @@ export class ProjectEditorComponent {
         this.loadErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to load this Profile right now. Please try again.';
       },
     });
+  }
+
+  private resetCreateAfterSave(): void {
+    this.requestGeneration++;
+    this.editorMode = 'create';
+    this.projectId = null;
+    this.project = null;
+    this.savedProject = null;
+    this.conflict = false;
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.errorMessage = '';
+    this.saveMessage = '';
+    this.saveState = 'clean';
+    const values = this.emptyProjectValues();
+    this.originalValues = values;
+    this.projectForm.reset(values);
+    this.projectForm.markAsPristine();
+    this.projectForm.markAsUntouched();
+    this.updateEndDateState();
+    this.editSession.setDirty(false);
+    document.getElementById('project-name')?.focus();
   }
 
   private loadProjects(profileId: string): void {

@@ -34,7 +34,7 @@
         </div></section>
       </form>
 
-      <div class="sticky-actions"><span class="unsaved" [class.is-saving]="saveState === 'saving'" [class.is-dirty]="saveState === 'dirty'" [class.is-saved]="saveState === 'saved'" role="status" aria-live="polite">{{ saveStateLabel() }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isSubmitting">Cancel</button><button class="btn primary" type="submit" form="project-form" [disabled]="projectForm.invalid || (editorMode === 'edit' && !hasProjectChanges()) || isSubmitting || conflict" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Saving...' : editorMode === 'edit' ? 'Save Project' : 'Add Project' }}</button></div></div>
+       <div class="sticky-actions"><span class="unsaved" [class.is-saving]="saveState === 'saving'" [class.is-dirty]="saveState === 'dirty'" [class.is-saved]="saveState === 'saved'" role="status" aria-live="polite">{{ saveStateLabel() }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isSubmitting">Cancel</button>@if (editorMode === 'create') { <button class="btn" type="button" (click)="submit('add-another')" [disabled]="projectForm.invalid || isSubmitting || conflict" [attr.aria-busy]="isSubmitting">Save &amp; add another</button> }<button class="btn primary" type="submit" form="project-form" [disabled]="projectForm.invalid || (editorMode === 'edit' && !hasProjectChanges()) || isSubmitting || conflict" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Saving...' : 'Save Project' }}</button></div></div>
     </div>
   }
 

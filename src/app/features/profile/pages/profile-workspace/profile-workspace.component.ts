@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import {
   Certificate,
   CertificateRequest,
@@ -58,6 +59,7 @@ type EditableSkillValues = {
   lastUsed: string;
 };
 type MasterComboboxState = 'idle' | 'loading' | 'results' | 'empty' | 'error' | 'selected';
+type MutationPostSaveIntent = 'close' | 'add-another';
 
 @Component({
   selector: 'app-profile-workspace',
@@ -71,6 +73,7 @@ export class ProfileWorkspaceComponent {
   private readonly profileService = inject(ProfileService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly notifications = inject(NotificationService);
   readonly context = inject(ProfileContextService);
   readonly editSession = inject(ProfileEditSessionService);
 
@@ -458,7 +461,8 @@ export class ProfileWorkspaceComponent {
         this.expandedProjectIds.delete(String(target.id));
         this.closeProjectDeleteConfirmation();
         this.previewInvalidated = true;
-        this.projectMessage = 'Project deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.projectMessage = 'Project deleted successfully.';
+        this.notifications.showSuccess(this.projectMessage);
         this.loadProjects(profileId);
       },
       error: (error: unknown) => {
@@ -686,7 +690,8 @@ export class ProfileWorkspaceComponent {
         this.languages = this.languages.filter((language) => String(language.profileLanguageId) !== String(target.profileLanguageId));
         this.isLanguageDeleting = false;
         this.previewInvalidated = true;
-        this.languageMessage = 'Language deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.languageMessage = 'Language deleted successfully.';
+        this.notifications.showSuccess(this.languageMessage);
         this.closeLanguageDeleteConfirmation();
       },
       error: (error: unknown) => {
@@ -734,7 +739,8 @@ export class ProfileWorkspaceComponent {
         this.skills = this.sortProfileSkills(this.skills.filter((skill) => String(skill.profileSkillId) !== String(target.profileSkillId)));
         this.isSkillDeleting = false;
         this.previewInvalidated = true;
-        this.skillMessage = 'Skill deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.skillMessage = 'Skill deleted successfully.';
+        this.notifications.showSuccess(this.skillMessage);
         this.closeSkillDeleteConfirmation();
       },
       error: (error: unknown) => {
@@ -782,7 +788,8 @@ export class ProfileWorkspaceComponent {
         this.certificates = this.certificates.filter((certificate) => String(certificate.id) !== String(target.id));
         this.isCertificateDeleting = false;
         this.previewInvalidated = true;
-        this.certificateMessage = 'Certificate deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.certificateMessage = 'Certificate deleted successfully.';
+        this.notifications.showSuccess(this.certificateMessage);
         this.closeCertificateDeleteConfirmation();
       },
       error: (error: unknown) => {
@@ -830,7 +837,8 @@ export class ProfileWorkspaceComponent {
         this.educations = this.educations.filter((education) => String(education.id) !== String(target.id));
         this.isEducationDeleting = false;
         this.previewInvalidated = true;
-        this.educationMessage = 'Education deleted. Preview is no longer current; generate a new preview before exporting.';
+        this.educationMessage = 'Education deleted successfully.';
+        this.notifications.showSuccess(this.educationMessage);
         this.closeEducationDeleteConfirmation();
       },
       error: (error: unknown) => {
@@ -996,18 +1004,18 @@ export class ProfileWorkspaceComponent {
         this.isSubmitting = false;
         this.conflict = false;
         this.previewInvalidated = !updated.hasPreviewed;
-        this.saveMessage = this.previewInvalidated
-          ? 'About Me saved. Preview is no longer current; generate a new preview before exporting.'
-          : 'About Me saved.';
+        this.saveMessage = 'About Me updated successfully.';
+        this.notifications.showSuccess(this.saveMessage);
         this.closeEditor();
       },
       error: (error: unknown) => this.handleSaveError(error),
     });
   }
 
-  submitEducation(): void {
+  submitEducation(intent: MutationPostSaveIntent = 'close'): void {
     const mode = this.educationEditorMode;
     if (!mode || this.isEducationSubmitting || this.educationConflict) return;
+    const addAnother = intent === 'add-another' && mode === 'create';
 
     this.educationErrorMessage = '';
     this.educationMessage = '';
@@ -1045,7 +1053,10 @@ export class ProfileWorkspaceComponent {
     request$.subscribe({
       next: (result) => {
         if (!this.isCurrentEducationOperation(profileId, operationGeneration)) return;
-        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) {
+          this.isEducationSubmitting = false;
+          return;
+        }
 
         this.educations = mode === 'edit' && educationId !== null
           ? this.educations.map((education) => String(education.id) === String(educationId) ? result.education : education)
@@ -1053,10 +1064,10 @@ export class ProfileWorkspaceComponent {
         this.isEducationSubmitting = false;
         this.educationConflict = false;
         this.previewInvalidated = true;
-        this.educationMessage = mode === 'edit'
-          ? 'Education updated. Preview is no longer current; generate a new preview before exporting.'
-          : 'Education added. Preview is no longer current; generate a new preview before exporting.';
-        this.closeEducationEditor();
+        this.educationMessage = mode === 'edit' ? 'Education updated successfully.' : 'Education added successfully.';
+        this.notifications.showSuccess(this.educationMessage);
+        if (addAnother) this.resetEducationForAnother();
+        else this.closeEducationEditor();
       },
       error: (error: unknown) => {
         if (!this.isCurrentEducationOperation(profileId, operationGeneration)) return;
@@ -1065,9 +1076,10 @@ export class ProfileWorkspaceComponent {
     });
   }
 
-  submitLanguage(): void {
+  submitLanguage(intent: MutationPostSaveIntent = 'close'): void {
     const mode = this.languageEditorMode;
     if (!mode || this.isLanguageSubmitting || this.languageConflict) return;
+    const addAnother = intent === 'add-another' && mode === 'create';
 
     this.languageErrorMessage = '';
     this.languageMessage = '';
@@ -1119,7 +1131,10 @@ export class ProfileWorkspaceComponent {
     request$.subscribe({
       next: (result) => {
         if (!this.isCurrentLanguageOperation(profileId, operationGeneration)) return;
-        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) {
+          this.isLanguageSubmitting = false;
+          return;
+        }
 
         this.languages = mode === 'edit' && languageId !== null
           ? this.sortProfileLanguages(this.languages.map((language) => String(language.profileLanguageId) === String(languageId) ? result.profileLanguage : language))
@@ -1127,10 +1142,10 @@ export class ProfileWorkspaceComponent {
         this.isLanguageSubmitting = false;
         this.languageConflict = false;
         this.previewInvalidated = true;
-        this.languageMessage = mode === 'edit'
-          ? 'Language updated. Preview is no longer current; generate a new preview before exporting.'
-          : 'Language added. Preview is no longer current; generate a new preview before exporting.';
-        this.closeLanguageEditor();
+        this.languageMessage = mode === 'edit' ? 'Language updated successfully.' : 'Language added successfully.';
+        this.notifications.showSuccess(this.languageMessage);
+        if (addAnother) this.resetLanguageForAnother();
+        else this.closeLanguageEditor();
       },
       error: (error: unknown) => {
         if (!this.isCurrentLanguageOperation(profileId, operationGeneration)) return;
@@ -1139,9 +1154,10 @@ export class ProfileWorkspaceComponent {
     });
   }
 
-  submitSkill(): void {
+  submitSkill(intent: MutationPostSaveIntent = 'close'): void {
     const mode = this.skillEditorMode;
     if (!mode || this.isSkillSubmitting || this.skillConflict) return;
+    const addAnother = intent === 'add-another' && mode === 'create';
 
     this.skillErrorMessage = '';
     this.skillMessage = '';
@@ -1191,7 +1207,10 @@ export class ProfileWorkspaceComponent {
     request$.subscribe({
       next: (result) => {
         if (!this.isCurrentSkillOperation(profileId, operationGeneration)) return;
-        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) {
+          this.isSkillSubmitting = false;
+          return;
+        }
 
         this.skills = this.sortProfileSkills(mode === 'edit' && profileSkillId !== null
           ? this.skills.map((skill) => String(skill.profileSkillId) === String(profileSkillId) ? result.profileSkill : skill)
@@ -1199,10 +1218,10 @@ export class ProfileWorkspaceComponent {
         this.isSkillSubmitting = false;
         this.skillConflict = false;
         this.previewInvalidated = true;
-        this.skillMessage = mode === 'edit'
-          ? 'Skill updated. Preview is no longer current; generate a new preview before exporting.'
-          : 'Skill added. Preview is no longer current; generate a new preview before exporting.';
-        this.closeSkillEditor();
+        this.skillMessage = mode === 'edit' ? 'Skill updated successfully.' : 'Skill added successfully.';
+        this.notifications.showSuccess(this.skillMessage);
+        if (addAnother) this.resetSkillForAnother();
+        else this.closeSkillEditor();
       },
       error: (error: unknown) => {
         if (!this.isCurrentSkillOperation(profileId, operationGeneration)) return;
@@ -1211,9 +1230,10 @@ export class ProfileWorkspaceComponent {
     });
   }
 
-  submitCertificate(): void {
+  submitCertificate(intent: MutationPostSaveIntent = 'close'): void {
     const mode = this.certificateEditorMode;
     if (!mode || this.isCertificateSubmitting || this.certificateConflict) return;
+    const addAnother = intent === 'add-another' && mode === 'create';
 
     this.certificateErrorMessage = '';
     this.certificateMessage = '';
@@ -1256,7 +1276,10 @@ export class ProfileWorkspaceComponent {
     request$.subscribe({
       next: (result) => {
         if (!this.isCurrentCertificateOperation(profileId, operationGeneration)) return;
-        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
+        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) {
+          this.isCertificateSubmitting = false;
+          return;
+        }
 
         this.certificates = this.sortCertificates(mode === 'edit' && certificateId !== null
           ? this.certificates.map((certificate) => String(certificate.id) === String(certificateId) ? result.certificate : certificate)
@@ -1264,10 +1287,10 @@ export class ProfileWorkspaceComponent {
         this.isCertificateSubmitting = false;
         this.certificateConflict = false;
         this.previewInvalidated = true;
-        this.certificateMessage = mode === 'edit'
-          ? 'Certificate updated. Preview is no longer current; generate a new preview before exporting.'
-          : 'Certificate added. Preview is no longer current; generate a new preview before exporting.';
-        this.closeCertificateEditor();
+        this.certificateMessage = mode === 'edit' ? 'Certificate updated successfully.' : 'Certificate added successfully.';
+        this.notifications.showSuccess(this.certificateMessage);
+        if (addAnother) this.resetCertificateForAnother();
+        else this.closeCertificateEditor();
       },
       error: (error: unknown) => {
         if (!this.isCurrentCertificateOperation(profileId, operationGeneration)) return;
@@ -1956,6 +1979,91 @@ export class ProfileWorkspaceComponent {
       this.editForm.reset(this.formValues(profile));
       this.editForm.markAsPristine();
       this.editForm.markAsUntouched();
+    }
+  }
+
+  private resetEducationForAnother(): void {
+    this.educationMutationGeneration++;
+    const values = this.emptyEducationValues();
+    this.editingEducationId = null;
+    this.originalEducationValues = this.normalizeEducationValues(values);
+    this.educationConflict = false;
+    this.educationErrorMessage = '';
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.educationForm.reset(values);
+    this.educationForm.markAsPristine();
+    this.educationForm.markAsUntouched();
+    this.updateEducationDateValidation();
+    this.syncDirtyState();
+    this.focusEditorField('education-school-name');
+  }
+
+  private resetLanguageForAnother(): void {
+    this.languageMutationGeneration++;
+    const values = this.emptyLanguageValues();
+    this.editingProfileLanguageId = null;
+    this.originalLanguageValues = this.normalizeLanguageValues(values);
+    this.originalLanguageInputValue = '';
+    this.languageConflict = false;
+    this.languageErrorMessage = '';
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.languageForm.reset(values);
+    this.languageForm.markAsPristine();
+    this.languageForm.markAsUntouched();
+    this.clearLanguageBackendErrors();
+    this.resetLanguageMasterSelector();
+    this.loadLanguageMaster(0, '');
+    this.syncDirtyState();
+    this.focusEditorField('profile-language');
+  }
+
+  private resetCertificateForAnother(): void {
+    this.certificateMutationGeneration++;
+    const values = this.emptyCertificateValues();
+    this.editingCertificateId = null;
+    this.originalCertificateValues = this.normalizeCertificateValues(values);
+    this.certificateConflict = false;
+    this.certificateErrorMessage = '';
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.certificateForm.reset(values);
+    this.certificateForm.markAsPristine();
+    this.certificateForm.markAsUntouched();
+    this.clearCertificateBackendErrors();
+    this.syncDirtyState();
+    this.focusEditorField('certificate-name');
+  }
+
+  private resetSkillForAnother(): void {
+    this.skillMutationGeneration++;
+    const values = this.emptySkillValues();
+    this.editingProfileSkillId = null;
+    this.originalSkillValues = this.normalizeSkillValues(values);
+    this.originalSkillInputValue = '';
+    this.skillConflict = false;
+    this.skillErrorMessage = '';
+    this.cancelConfirmation = false;
+    this.reloadConfirmation = false;
+    this.skillForm.reset(values);
+    this.skillForm.markAsPristine();
+    this.skillForm.markAsUntouched();
+    this.clearSkillBackendErrors();
+    this.resetSkillMasterSelector();
+    this.loadSkillMaster(0, '');
+    this.syncDirtyState();
+    this.focusEditorField('profile-skill');
+  }
+
+  private focusEditorField(id: string): void {
+    const fields = document.querySelectorAll<HTMLElement>(`#${id}`);
+    const field = fields.item(fields.length - 1);
+    field?.focus();
+    if (field && document.activeElement !== field) {
+      setTimeout(() => {
+        if (document.activeElement === document.body) field.focus();
+      });
     }
   }
 

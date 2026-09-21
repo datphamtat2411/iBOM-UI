@@ -74,3 +74,6 @@
     <div class="page-content"><router-outlet /></div>
   </main>
 </div>
+@if (notifications.notification(); as notification) {
+  <div class="application-toast" data-notification-toast role="status" aria-live="polite" aria-atomic="true">{{ notification.message }}</div>
+}

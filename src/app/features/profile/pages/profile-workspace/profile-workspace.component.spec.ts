@@ -4,6 +4,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import { Certificate, Education, LanguageMasterPage, ProfileDetail, ProfileLanguage, ProfileSkill, ProfileSummary, Project, SkillMasterPage } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
@@ -30,6 +31,7 @@ describe('ProfileWorkspaceComponent', () => {
     applyMutationVersion: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
+  let notifications: { showSuccess: jasmine.Spy };
   let profiles: { update: jasmine.Spy; delete: jasmine.Spy; listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy; listProfileLanguages: jasmine.Spy; createProfileLanguage: jasmine.Spy; updateProfileLanguage: jasmine.Spy; deleteProfileLanguage: jasmine.Spy; listCertificates: jasmine.Spy; createCertificate: jasmine.Spy; updateCertificate: jasmine.Spy; deleteCertificate: jasmine.Spy; listProjects: jasmine.Spy; deleteProject: jasmine.Spy; listProfileSkills: jasmine.Spy; createProfileSkill: jasmine.Spy; updateProfileSkill: jasmine.Spy; deleteProfileSkill: jasmine.Spy; listLanguageMaster: jasmine.Spy; listSkillMaster: jasmine.Spy };
 
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
@@ -69,6 +71,7 @@ describe('ProfileWorkspaceComponent', () => {
       listSkillMaster: jasmine.createSpy('listSkillMaster').and.returnValue(of(skillMasterPage)),
     };
     router = { navigate: jasmine.createSpy('navigate') };
+    notifications = { showSuccess: jasmine.createSpy('showSuccess') };
     context = {
       summaries: signal([summary]),
       summariesLoading: signal(false),
@@ -93,6 +96,7 @@ describe('ProfileWorkspaceComponent', () => {
         { provide: ProfileContextService, useValue: context },
         { provide: ActivatedRoute, useValue: { paramMap: params } },
         { provide: Router, useValue: router },
+        { provide: NotificationService, useValue: notifications },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(ProfileWorkspaceComponent);
@@ -374,8 +378,8 @@ describe('ProfileWorkspaceComponent', () => {
 
     expect(context.replaceDetail).toHaveBeenCalledWith(updated);
     expect(fixture.componentInstance.isEditing).toBeFalse();
-    expect(fixture.componentInstance.saveMessage).toContain('Preview is no longer current');
-    expect(fixture.nativeElement.textContent).toContain('Preview is no longer current');
+    expect(fixture.componentInstance.saveMessage).toBe('About Me updated successfully.');
+    expect(fixture.nativeElement.textContent).toContain('About Me updated successfully.');
   });
 
   it('retains a conflict draft, blocks Save, and requires Reload Latest before editing again', () => {
@@ -755,8 +759,72 @@ describe('ProfileWorkspaceComponent', () => {
     expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
     expect(fixture.componentInstance.educations).toEqual([created]);
     expect(fixture.componentInstance.previewInvalidated).toBeTrue();
-    expect(fixture.componentInstance.educationMessage).toContain('Preview is no longer current');
+    expect(fixture.componentInstance.educationMessage).toBe('Education added successfully.');
     expect(context.reloadDetail).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.educationEditorMode).toBeNull();
+  });
+
+  it('supports Education Save & add another with a clean reset and shared submit lock', () => {
+    const created: Education = { ...education, id: 7, schoolName: 'First School' };
+    const pending = new Subject<{ education: Education; profileVersion: number }>();
+    profiles.createEducation.and.returnValue(pending);
+    openEducationCreate();
+    fillEducationDraft({ schoolName: 'First School', degree: 'First Degree', status: 'COMPLETED', endDate: '2024-06-30' });
+
+    fixture.componentInstance.submitEducation('add-another');
+    fixture.componentInstance.submitEducation();
+
+    expect(profiles.createEducation).toHaveBeenCalledTimes(1);
+    pending.next({ education: created, profileVersion: 4 });
+    pending.complete();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.educations).toEqual([created]);
+    expect(fixture.componentInstance.educationEditorMode).toBe('create');
+    expect(fixture.componentInstance.educationForm.getRawValue()).toEqual({ schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', status: 'ONGOING' });
+    expect(fixture.componentInstance.educationForm.pristine).toBeTrue();
+    expect(fixture.componentInstance.educationForm.untouched).toBeTrue();
+    expect(fixture.componentInstance.educationForm.controls.endDate.disabled).toBeTrue();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Education added successfully.');
+    expect(document.activeElement?.id).toBe('education-school-name');
+  });
+
+  it('marks the next Education draft dirty after a repeated-entry reset', () => {
+    const created: Education = { ...education, id: 7 };
+    profiles.createEducation.and.returnValue(of({ education: created, profileVersion: 4 }));
+    openEducationCreate();
+    fillEducationDraft();
+    fixture.componentInstance.submitEducation('add-another');
+
+    fixture.componentInstance.educationForm.controls.schoolName.setValue('Next School');
+    fixture.componentInstance.educationForm.markAsDirty();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.educationForm.dirty).toBeTrue();
+    expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
+  });
+
+  it('uses the returned Education Profile version for the next create', () => {
+    const first: Education = { ...education, id: 7, schoolName: 'First School' };
+    const second: Education = { ...education, id: 8, schoolName: 'Second School' };
+    context.applyMutationVersion.and.callFake((_profileId: string, version: number) => {
+      context.detail.set({ ...detail, version, hasPreviewed: false });
+      return true;
+    });
+    profiles.createEducation.and.returnValues(
+      of({ education: first, profileVersion: 4 }),
+      of({ education: second, profileVersion: 5 }),
+    );
+    openEducationCreate();
+    fillEducationDraft({ schoolName: 'First School' });
+    fixture.componentInstance.submitEducation('add-another');
+    fillEducationDraft({ schoolName: 'Second School' });
+    fixture.componentInstance.submitEducation();
+
+    expect(profiles.createEducation.calls.argsFor(0)[1]).toEqual(jasmine.objectContaining({ version: 3 }));
+    expect(profiles.createEducation.calls.argsFor(1)[1]).toEqual(jasmine.objectContaining({ version: 4 }));
+    expect(fixture.componentInstance.educations).toEqual([first, second]);
     expect(fixture.componentInstance.educationEditorMode).toBeNull();
   });
 
@@ -1000,6 +1068,28 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.languageMasterOptions).toEqual([{ id: 5, name: 'JavaScript' }]);
   }));
 
+  it('reloads all Language options when the search is cleared', fakeAsync(() => {
+    const filtered: LanguageMasterPage = { content: [{ id: 3, name: 'Japanese' }], page: 0, size: 10, totalElements: 1, totalPages: 1 };
+    profiles.listLanguageMaster.and.returnValues(of(languageMasterPage), of(filtered), of(languageMasterPage));
+    fixture.componentInstance.startLanguageCreate();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement;
+
+    input.value = 'ja';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    expect(fixture.componentInstance.languageMasterOptions).toEqual(filtered.content);
+
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(profiles.listLanguageMaster).toHaveBeenCalledWith(0, 10, '');
+    expect(fixture.componentInstance.languageMasterOptions).toEqual(languageMasterPage.content);
+    expect(fixture.componentInstance.languageMasterState).toBe('results');
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup')?.textContent).not.toContain('Type to search Language Master');
+  }));
+
   it('selects Language from the combobox, rejects free text, and invalidates changes', fakeAsync(() => {
     fixture.componentInstance.startLanguageCreate();
     fixture.detectChanges();
@@ -1166,6 +1256,59 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.languageEditorMode).toBeNull();
   });
 
+  it('supports Language Save & add another by clearing the controlled selection and proficiency', fakeAsync(() => {
+    const created: ProfileLanguage = { profileLanguageId: 7, languageId: 3, languageName: 'Japanese', level: 'NATIVE' };
+    profiles.createProfileLanguage.and.returnValue(of({ profileLanguage: created, profileVersion: 4 }));
+    fixture.componentInstance.startLanguageCreate();
+    fixture.detectChanges();
+    fixture.componentInstance.selectLanguageMasterOption(fixture.componentInstance.languageMasterOptions.find((option) => option.id === 3)!);
+    fixture.componentInstance.languageForm.controls.level.setValue('NATIVE');
+    fixture.componentInstance.languageForm.markAsDirty();
+    const languageInput = fixture.nativeElement.querySelector('#profile-language') as HTMLInputElement;
+    const focus = spyOn(languageInput, 'focus').and.callThrough();
+
+    fixture.componentInstance.submitLanguage('add-another');
+
+    expect(fixture.componentInstance.languages).toContain(created);
+    expect(fixture.componentInstance.languageEditorMode).toBe('create');
+    expect(fixture.componentInstance.languageForm.getRawValue()).toEqual({ languageId: null, level: null });
+    expect(fixture.componentInstance.languageInputValue).toBe('');
+    expect(fixture.componentInstance.selectedLanguageMasterOption).toBeNull();
+    expect(fixture.componentInstance.languageMasterState).toBe('results');
+    expect(fixture.componentInstance.languageMasterOptions).toEqual(languageMasterPage.content);
+    expect(fixture.componentInstance.languageForm.pristine).toBeTrue();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(fixture.componentInstance.languageMasterOptionDisabled({ id: 3, name: 'Japanese' })).toBeTrue();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Language added successfully.');
+    fixture.detectChanges();
+    tick();
+    expect(focus).toHaveBeenCalled();
+  }));
+
+  it('uses the returned Language Profile version for the next create', () => {
+    const first: ProfileLanguage = { profileLanguageId: 7, languageId: 3, languageName: 'Japanese', level: 'NATIVE' };
+    const second: ProfileLanguage = { profileLanguageId: 8, languageId: 4, languageName: 'French', level: 'ADVANCED' };
+    context.applyMutationVersion.and.callFake((_profileId: string, version: number) => {
+      context.detail.set({ ...detail, version, hasPreviewed: false });
+      return true;
+    });
+    profiles.createProfileLanguage.and.returnValues(
+      of({ profileLanguage: first, profileVersion: 4 }),
+      of({ profileLanguage: second, profileVersion: 5 }),
+    );
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.selectLanguageMasterOption(fixture.componentInstance.languageMasterOptions.find((option) => option.id === 3)!);
+    fixture.componentInstance.languageForm.controls.level.setValue('NATIVE');
+    fixture.componentInstance.submitLanguage('add-another');
+    fixture.componentInstance.selectLanguageMasterOption({ id: 4, name: 'French' });
+    fixture.componentInstance.languageForm.controls.level.setValue('ADVANCED');
+    fixture.componentInstance.submitLanguage();
+
+    expect(profiles.createProfileLanguage.calls.argsFor(0)[1]).toEqual(jasmine.objectContaining({ version: 3 }));
+    expect(profiles.createProfileLanguage.calls.argsFor(1)[1]).toEqual(jasmine.objectContaining({ version: 4 }));
+    expect(fixture.componentInstance.languageEditorMode).toBeNull();
+  });
+
   it('updates canonical Language data and re-sorts after a proficiency change', () => {
     const updated: ProfileLanguage = { ...language, languageName: 'English', level: 'NATIVE' };
     profiles.updateProfileLanguage.and.returnValue(of({ profileLanguage: updated, profileVersion: 5 }));
@@ -1321,8 +1464,34 @@ describe('ProfileWorkspaceComponent', () => {
     expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
     expect(fixture.componentInstance.certificates).toEqual([created, { ...certificate, id: 4, issueDate: '2025-01-01' }]);
     expect(fixture.componentInstance.previewInvalidated).toBeTrue();
-    expect(fixture.componentInstance.certificateMessage).toContain('Preview is no longer current');
+    expect(fixture.componentInstance.certificateMessage).toBe('Certificate added successfully.');
     expect(fixture.componentInstance.certificateEditorMode).toBeNull();
+  });
+
+  it('supports repeated Certificate entry while preserving canonical ordering and a pristine reset', () => {
+    const first: Certificate = { id: 7, certificateName: 'Newer', issueDate: '2026-02-01' };
+    const second: Certificate = { id: 8, certificateName: 'Older', issueDate: '2025-01-01' };
+    profiles.createCertificate.and.returnValues(
+      of({ certificate: first, profileVersion: 4 }),
+      of({ certificate: second, profileVersion: 5 }),
+    );
+    fixture.componentInstance.certificates = [{ ...certificate, id: 4, issueDate: '2024-01-01' }];
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: 'Newer', issueDate: '2026-02-01' });
+    fixture.componentInstance.submitCertificate('add-another');
+
+    expect(fixture.componentInstance.certificateEditorMode).toBe('create');
+    expect(fixture.componentInstance.certificateForm.getRawValue()).toEqual({ certificateName: '', issueDate: '' });
+    expect(fixture.componentInstance.certificateForm.pristine).toBeTrue();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(document.activeElement?.id).toBe('certificate-name');
+
+    fillCertificateDraft({ certificateName: 'Older', issueDate: '2025-01-01' });
+    fixture.componentInstance.submitCertificate();
+
+    expect(fixture.componentInstance.certificates).toEqual([first, second, { ...certificate, id: 4, issueDate: '2024-01-01' }]);
+    expect(fixture.componentInstance.certificateEditorMode).toBeNull();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Certificate added successfully.');
   });
 
   it('updates and re-sorts a Certificate after a date change', () => {
@@ -1559,6 +1728,27 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.skillMasterOptions).toEqual([{ id: 5, name: 'JavaScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }]);
   }));
 
+  it('reloads all Skill options when the search is cleared', fakeAsync(() => {
+    const filtered: SkillMasterPage = { content: [{ id: 3, name: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' }], page: 0, size: 10, totalElements: 1, totalPages: 1 };
+    profiles.listSkillMaster.and.returnValues(of(skillMasterPage), of(filtered), of(skillMasterPage));
+    openSkillCreate();
+    const input = fixture.nativeElement.querySelector('#profile-skill') as HTMLInputElement;
+
+    input.value = 'type';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    expect(fixture.componentInstance.skillMasterOptions).toEqual(filtered.content);
+
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(profiles.listSkillMaster).toHaveBeenCalledWith(0, 10, '');
+    expect(fixture.componentInstance.skillMasterOptions).toEqual(skillMasterPage.content);
+    expect(fixture.componentInstance.skillMasterState).toBe('results');
+    expect(fixture.nativeElement.querySelector('.master-combobox-popup')?.textContent).not.toContain('Type to search Skill Master');
+  }));
+
   it('selects Skill from the combobox, derives Category context, and clears it with the Skill', fakeAsync(() => {
     openSkillCreate();
     const input = fixture.nativeElement.querySelector('#profile-skill') as HTMLInputElement;
@@ -1704,6 +1894,51 @@ describe('ProfileWorkspaceComponent', () => {
 
     expect(profiles.updateProfileSkill).toHaveBeenCalledWith('1', 7, { skillId: 3, experienceYears: 3, lastUsed: null, version: 3 });
     expect(fixture.componentInstance.skills).toEqual([{ ...skill, experienceYears: 5 }, updated]);
+  });
+
+  it('supports repeated Skill entry by clearing selection and derived Category while keeping decimal values valid', () => {
+    const created: ProfileSkill = { ...skill, profileSkillId: 7, skillId: 3, skillName: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend', experienceYears: 7.5, lastUsed: null };
+    profiles.createProfileSkill.and.returnValue(of({ profileSkill: created, profileVersion: 4 }));
+    fixture.componentInstance.skills = [skill];
+    openSkillCreate();
+    fillSkillDraft({ skillId: 3, experienceYears: 7.5, lastUsed: '' });
+    fixture.componentInstance.submitSkill('add-another');
+
+    expect(fixture.componentInstance.skills).toContain(created);
+    expect(fixture.componentInstance.skillEditorMode).toBe('create');
+    expect(fixture.componentInstance.skillForm.getRawValue()).toEqual({ skillId: null, experienceYears: null, lastUsed: '' });
+    expect(fixture.componentInstance.selectedSkillCategory()).toBe('—');
+    expect(fixture.componentInstance.skillInputValue).toBe('');
+    expect(fixture.componentInstance.skillMasterState).toBe('results');
+    expect(fixture.componentInstance.skillMasterOptions).toEqual(skillMasterPage.content);
+    expect(fixture.componentInstance.skillForm.pristine).toBeTrue();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+    expect(fixture.componentInstance.skillMasterOptionDisabled({ id: 3, name: 'TypeScript', categoryId: 2, categoryCode: 'FRONTEND', categoryName: 'Frontend' })).toBeTrue();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Skill added successfully.');
+    expect(document.activeElement?.id).toBe('profile-skill');
+  });
+
+  it('uses the returned Skill Profile version for the next create', () => {
+    const first: ProfileSkill = { ...skill, profileSkillId: 7, skillId: 3, skillName: 'TypeScript', experienceYears: 7.5 };
+    const second: ProfileSkill = { ...skill, profileSkillId: 8, skillId: 4, skillName: 'Kotlin', experienceYears: 2.5 };
+    context.applyMutationVersion.and.callFake((_profileId: string, version: number) => {
+      context.detail.set({ ...detail, version, hasPreviewed: false });
+      return true;
+    });
+    profiles.createProfileSkill.and.returnValues(
+      of({ profileSkill: first, profileVersion: 4 }),
+      of({ profileSkill: second, profileVersion: 5 }),
+    );
+    openSkillCreate();
+    fillSkillDraft({ skillId: 3, experienceYears: 7.5, lastUsed: '' });
+    fixture.componentInstance.submitSkill('add-another');
+    fixture.componentInstance.selectSkillMasterOption({ id: 4, name: 'Kotlin', categoryId: 1, categoryCode: 'BACKEND', categoryName: 'Backend' });
+    fixture.componentInstance.skillForm.patchValue({ experienceYears: 2.5, lastUsed: '' });
+    fixture.componentInstance.submitSkill();
+
+    expect(profiles.createProfileSkill.calls.argsFor(0)[1]).toEqual(jasmine.objectContaining({ version: 3, experienceYears: 7.5 }));
+    expect(profiles.createProfileSkill.calls.argsFor(1)[1]).toEqual(jasmine.objectContaining({ version: 4, experienceYears: 2.5 }));
+    expect(fixture.componentInstance.skillEditorMode).toBeNull();
   });
 
   it('preserves a failed Skill mutation draft and allows retry', () => {

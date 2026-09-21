@@ -3,6 +3,7 @@ import { provideRouter, Router } from '@angular/router';
 import { signal } from '@angular/core';
 import { of, Subject } from 'rxjs';
 
+import { NotificationService } from '../../core/notifications/notification.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ProfileContextService } from '../profile/services/profile-context.service';
 import { ProfileEditSessionService } from '../profile/services/profile-edit-session.service';
@@ -242,5 +243,16 @@ describe('ApplicationShellComponent', () => {
 
     expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
     expect(profileContext.selectedId()).toBe('1');
+  });
+
+  it('renders application success feedback outside routed feature components', () => {
+    const notifications = TestBed.inject(NotificationService);
+    notifications.showSuccess('Project added successfully.');
+    fixture.detectChanges();
+
+    const toast = fixture.nativeElement.querySelector('[data-notification-toast]') as HTMLElement;
+    expect(toast.getAttribute('role')).toBe('status');
+    expect(toast.getAttribute('aria-live')).toBe('polite');
+    expect(toast.textContent).toContain('Project added successfully.');
   });
 });
