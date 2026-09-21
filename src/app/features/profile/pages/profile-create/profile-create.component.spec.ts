@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { provideRouter, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 
 import { ProfileContextService } from '../../services/profile-context.service';
@@ -11,12 +11,14 @@ import { ProfileCreateComponent } from './profile-create.component';
 describe('ProfileCreateComponent', () => {
   let fixture: ComponentFixture<ProfileCreateComponent>;
   let profiles: { create: jasmine.Spy };
+  let router: { navigate: jasmine.Spy };
   let context: { summaries: ReturnType<typeof signal>; summariesLoading: ReturnType<typeof signal>; selectedId: ReturnType<typeof signal>; loadSummaries: jasmine.Spy; refreshSummariesAndSelect: jasmine.Spy };
 
   beforeEach(async () => {
     profiles = { create: jasmine.createSpy('create') };
+    router = { navigate: jasmine.createSpy('navigate').and.resolveTo(true) };
     context = { summaries: signal([]), summariesLoading: signal(false), selectedId: signal('1'), loadSummaries: jasmine.createSpy('loadSummaries'), refreshSummariesAndSelect: jasmine.createSpy('refreshSummariesAndSelect').and.returnValue(of(undefined)) };
-    await TestBed.configureTestingModule({ imports: [ProfileCreateComponent], providers: [provideRouter([]), { provide: ProfileService, useValue: profiles }, { provide: ProfileContextService, useValue: context }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [ProfileCreateComponent], providers: [{ provide: Router, useValue: router }, { provide: ProfileService, useValue: profiles }, { provide: ProfileContextService, useValue: context }] }).compileComponents();
     fixture = TestBed.createComponent(ProfileCreateComponent);
     fixture.detectChanges();
   });
@@ -92,8 +94,6 @@ describe('ProfileCreateComponent', () => {
   it('prevents duplicate submissions and navigates after context synchronization', () => {
     const pending = new Subject<any>();
     profiles.create.and.returnValue(pending);
-    const router = TestBed.inject(Router);
-    spyOn(router, 'navigate').and.resolveTo(true);
     fillValidForm();
     fixture.componentInstance.submit();
     fixture.componentInstance.submit();
@@ -104,8 +104,6 @@ describe('ProfileCreateComponent', () => {
   });
 
   it('requires confirmation for direct navigation with five active Profiles and does not create when cancelled', () => {
-    const router = TestBed.inject(Router);
-    spyOn(router, 'navigate').and.resolveTo(true);
     context.summaries.set(Array.from({ length: 5 }, (_, id) => ({ id, profileName: `CV ${id}` })));
     fixture.detectChanges();
     expect(fixture.componentInstance.warningRequired).toBeTrue();
