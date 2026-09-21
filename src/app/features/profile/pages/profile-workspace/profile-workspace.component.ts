@@ -286,6 +286,9 @@ export class ProfileWorkspaceComponent {
       this.closeCertificateDeleteConfirmation();
       this.closeProjectDeleteConfirmation();
       this.closeSkillDeleteConfirmation();
+      this.activeSection = 'about';
+      this.errorMessage = '';
+      this.saveMessage = '';
       this.resetEducationState();
       this.resetLanguageState();
       this.resetCertificateState();
@@ -1687,7 +1690,7 @@ export class ProfileWorkspaceComponent {
     this.profileService.listEducations(profileId).pipe(takeUntil(this.educationListCancel)).subscribe({
       next: (educations) => {
         if (!this.isCurrentEducationProfile(profileId, generation)) return;
-        this.educations = educations;
+        this.educations = this.sortEducations(educations);
         this.educationLoading = false;
         onLoaded?.();
       },
@@ -1921,7 +1924,7 @@ export class ProfileWorkspaceComponent {
     const profileId = this.context.selectedId();
     if (!profileId) return;
 
-    this.aboutMutationGeneration++;
+    const reloadGeneration = ++this.aboutMutationGeneration;
     const current = this.context.detail();
     if (current) this.editForm.reset(this.formValues(current));
     this.editForm.markAsPristine();
@@ -1935,6 +1938,7 @@ export class ProfileWorkspaceComponent {
 
     this.context.reloadDetail(profileId).subscribe({
       next: (latest) => {
+        if (!this.isCurrentProfileContext(profileId) || this.aboutMutationGeneration !== reloadGeneration) return;
         this.editForm.reset(this.formValues(latest));
         this.editForm.markAsPristine();
         this.editForm.markAsUntouched();
@@ -1943,6 +1947,7 @@ export class ProfileWorkspaceComponent {
         this.saveMessage = 'Latest Profile data loaded. Review it before editing.';
       },
       error: (error: unknown) => {
+        if (!this.isCurrentProfileContext(profileId) || this.aboutMutationGeneration !== reloadGeneration) return;
         this.isReloading = false;
         this.conflict = true;
         this.errorMessage = this.apiError(error)?.message?.trim() || 'Unable to reload the latest Profile right now. Please try again.';
@@ -1960,13 +1965,14 @@ export class ProfileWorkspaceComponent {
     this.educationMessage = '';
     this.context.reloadDetail(profileId).subscribe({
       next: () => {
-        if (this.context.selectedId() !== profileId) return;
+        if (!this.isCurrentProfileContext(profileId)) return;
         this.isReloading = false;
         this.educationConflict = false;
         this.educationMessage = 'Latest Profile and Education data loaded. Review it before editing.';
         this.loadEducations(profileId);
       },
       error: (error: unknown) => {
+        if (!this.isCurrentProfileContext(profileId)) return;
         this.isReloading = false;
         this.educationErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to reload the latest Profile right now. Please try again.';
       },
@@ -3093,6 +3099,12 @@ export class ProfileWorkspaceComponent {
   private isCurrentEducationProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.educationListGeneration === generation;
+  }
+
+  private isCurrentProfileContext(profileId: string): boolean {
+    return this.activeProfileId === profileId
+      && this.context.selectedId() === profileId
+      && String(this.context.detail()?.id) === profileId;
   }
 
   private isCurrentAboutMeOperation(profileId: string, generation: number): boolean {

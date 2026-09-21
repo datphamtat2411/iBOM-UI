@@ -406,6 +406,46 @@ describe('ProfileWorkspaceComponent', () => {
     expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
+  it('ignores a stale About Me conflict reload after switching Profiles', () => {
+    const reload = new Subject<ProfileDetail>();
+    profiles.update.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    openEditor();
+    markDraft();
+    fixture.componentInstance.submit();
+
+    fixture.componentInstance.reloadLatest();
+    fixture.componentInstance.confirmReloadLatest();
+
+    const otherProfile = { ...detail, id: 2, profileName: 'Frontend CV', firstName: 'Current' };
+    context.selectedId.set('2');
+    context.detail.set(otherProfile);
+    params.next(convertToParamMap({ profileId: '2' }));
+    openEditor();
+    fixture.componentInstance.editForm.controls.firstName.setValue('Current draft');
+    fixture.componentInstance.editForm.markAsDirty();
+
+    reload.next({ ...detail, firstName: 'Stale response', version: 4 });
+
+    expect(fixture.componentInstance.isEditing).toBeTrue();
+    expect(fixture.componentInstance.editForm.controls.firstName.value).toBe('Current draft');
+    expect(fixture.componentInstance.context.detail()).toEqual(otherProfile);
+  });
+
+  it('clears Profile-scoped workspace feedback and navigation state on Profile switch', () => {
+    fixture.componentInstance.activeSection = 'skills';
+    fixture.componentInstance.saveMessage = 'About Me updated successfully.';
+    fixture.componentInstance.previewInvalidated = true;
+
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2, profileName: 'Frontend CV' });
+    params.next(convertToParamMap({ profileId: '2' }));
+
+    expect(fixture.componentInstance.activeSection).toBe('about');
+    expect(fixture.componentInstance.saveMessage).toBe('');
+    expect(fixture.componentInstance.previewInvalidated).toBeFalse();
+  });
+
   it('retains a conflict draft, blocks Save, and requires Reload Latest before editing again', () => {
     const reload = new Subject<ProfileDetail>();
     profiles.update.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT', message: 'Profile changed elsewhere.' } })));
@@ -735,6 +775,38 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.educations).toEqual([{ ...education, id: 2, degree: 'MSc' }]);
   });
 
+  it('preserves established Education ordering when a list is reloaded', () => {
+    const later = { ...education, id: 2, degree: 'MSc' };
+    const earlier = { ...education, id: 1, degree: 'BSc' };
+    profiles.listEducations.and.returnValue(of([later, earlier]));
+
+    params.next(convertToParamMap({ profileId: '2' }));
+
+    expect(fixture.componentInstance.educations.map((item) => item.id)).toEqual([1, 2]);
+  });
+
+  it('ignores a stale Education conflict reload after switching Profiles', () => {
+    const reload = new Subject<ProfileDetail>();
+    profiles.createEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    openEducationCreate();
+    fillEducationDraft({ schoolName: 'Conflict Draft' });
+    fixture.componentInstance.submitEducation();
+
+    fixture.componentInstance.reloadLatest();
+    fixture.componentInstance.confirmReloadLatest();
+
+    const otherProfile = { ...detail, id: 2, profileName: 'Frontend CV' };
+    profiles.listEducations.and.returnValue(of([education]));
+    context.selectedId.set('2');
+    context.detail.set(otherProfile);
+    params.next(convertToParamMap({ profileId: '2' }));
+    reload.next({ ...detail, version: 4 });
+
+    expect(fixture.componentInstance.educations).toEqual([education]);
+    expect(fixture.componentInstance.educationLoading).toBeFalse();
+  });
+
   it('renders Education editor fields and requires an end date for completed Education', () => {
     openEducationCreate();
     expect(fixture.nativeElement.querySelectorAll('.education-editor input, .education-editor select').length).toBe(6);
@@ -863,6 +935,28 @@ describe('ProfileWorkspaceComponent', () => {
     expect(profiles.createEducation.calls.argsFor(1)[1]).toEqual(jasmine.objectContaining({ version: 4 }));
     expect(fixture.componentInstance.educations).toEqual([first, second]);
     expect(fixture.componentInstance.educationEditorMode).toBeNull();
+  });
+
+  it('chains the canonical Profile version across sequential section mutations', () => {
+    const createdEducation: Education = { ...education, id: 7, schoolName: 'New School' };
+    const createdCertificate: Certificate = { id: 8, certificateName: 'New Certificate', issueDate: '2025-05-01' };
+    context.applyMutationVersion.and.callFake((_profileId: string, version: number) => {
+      context.detail.set({ ...detail, version, hasPreviewed: false });
+      return true;
+    });
+    profiles.createEducation.and.returnValue(of({ education: createdEducation, profileVersion: 4 }));
+    profiles.createCertificate.and.returnValue(of({ certificate: createdCertificate, profileVersion: 5 }));
+
+    openEducationCreate();
+    fillEducationDraft({ schoolName: 'New School' });
+    fixture.componentInstance.submitEducation();
+
+    openCertificateCreate();
+    fillCertificateDraft({ certificateName: 'New Certificate', issueDate: '2025-05-01' });
+    fixture.componentInstance.submitCertificate();
+
+    expect(profiles.createEducation.calls.argsFor(0)[1]).toEqual(jasmine.objectContaining({ version: 3 }));
+    expect(profiles.createCertificate.calls.argsFor(0)[1]).toEqual(jasmine.objectContaining({ version: 4 }));
   });
 
   it('updates Education with completed dates and applies the canonical returned row', () => {
