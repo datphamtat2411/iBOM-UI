@@ -22,71 +22,8 @@
           }
         </nav>
         <div class="workspace-sections">
-             <section class="content-section" id="workspace-section-about" aria-labelledby="about-title">
-               <div class="section-title"><div><h2 id="about-title">About Me</h2><p>Identity and narrative details for this Profile.</p></div>@if (!isEditing) { <button class="btn edit-about-button" type="button" (click)="startEditing()" [disabled]="!canStartWorkspaceMutation()">Edit</button> }</div>
-            @if (!isEditing) {
-                <div class="fact-grid">
-                  <div class="fact"><label>Profile Name</label><p>{{ profile.profileName }}</p></div>
-                  <div class="fact"><label>First Name</label><p>{{ profile.firstName }}</p></div>
-                  <div class="fact"><label>Last Name</label><p>{{ profile.lastName }}</p></div>
-                </div>
-                <div class="fact-group" aria-label="Professional context"><div class="fact"><label>Job Title</label><p>{{ profile.jobTitle }}</p></div><div class="fact"><label>Years of Experience</label><p>{{ profile.yearsOfExperience }}</p></div></div>
-                <div class="long-copy"><h3>Personality / Characteristic Description</h3><p>{{ profile.personality || 'Not provided.' }}</p><h3>Technical Summary</h3><p>{{ profile.technicalSummary || 'Not provided.' }}</p></div>
-              @if (saveMessage) { <div class="notice success" role="status">{{ saveMessage }}</div> }
-            } @else {
-              <form class="about-editor" [formGroup]="editForm" (ngSubmit)="submit()" novalidate>
-                @if (errorMessage) { <div class="notice error" role="alert">{{ errorMessage }}</div> }
-                @if (conflict) { <div class="notice warning" role="alert"><strong>Latest Profile required.</strong> Your draft is preserved, but saving is blocked until you reload the latest version. <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button></div> }
-                <section class="form-section"><h3>Profile identity</h3><div class="field"><label for="about-profile-name">Profile Name</label><div id="about-profile-name" class="readonly-value">{{ profile.profileName }}</div><span class="helper">Profile Name is managed separately and cannot be changed here.</span></div></section>
-                <section class="form-section"><h3>About Me</h3><div class="form-grid">
-                  <div class="field"><label for="about-first-name">First Name</label><input id="about-first-name" type="text" formControlName="firstName" maxlength="100" [attr.aria-invalid]="editForm.controls.firstName.invalid && editForm.controls.firstName.touched">@if (editForm.controls.firstName.invalid && editForm.controls.firstName.touched) { <span class="field-error">{{ fieldError('firstName') }}</span> }</div>
-                  <div class="field"><label for="about-last-name">Last Name</label><input id="about-last-name" type="text" formControlName="lastName" maxlength="100" [attr.aria-invalid]="editForm.controls.lastName.invalid && editForm.controls.lastName.touched">@if (editForm.controls.lastName.invalid && editForm.controls.lastName.touched) { <span class="field-error">{{ fieldError('lastName') }}</span> }</div>
-                  <div class="field"><label for="about-job-title">Job Title</label><input id="about-job-title" type="text" formControlName="jobTitle" maxlength="100" [attr.aria-invalid]="editForm.controls.jobTitle.invalid && editForm.controls.jobTitle.touched">@if (editForm.controls.jobTitle.invalid && editForm.controls.jobTitle.touched) { <span class="field-error">{{ fieldError('jobTitle') }}</span> }</div>
-                  <div class="field"><label for="about-years">Years of Experience</label><input id="about-years" type="number" min="0" formControlName="yearsOfExperience" [attr.aria-invalid]="editForm.controls.yearsOfExperience.invalid && editForm.controls.yearsOfExperience.touched">@if (editForm.controls.yearsOfExperience.invalid && editForm.controls.yearsOfExperience.touched) { <span class="field-error">{{ fieldError('yearsOfExperience') }}</span> }</div>
-                  <div class="field span-2"><label for="about-personality">Personality / Characteristic Description</label><textarea id="about-personality" rows="5" maxlength="4000" formControlName="personality" [attr.aria-invalid]="editForm.controls.personality.invalid && editForm.controls.personality.touched"></textarea>@if (editForm.controls.personality.invalid && editForm.controls.personality.touched) { <span class="field-error">{{ fieldError('personality') }}</span> }</div>
-                  <div class="field span-2"><label for="about-summary">Technical Summary</label><textarea id="about-summary" rows="7" maxlength="4000" formControlName="technicalSummary" [attr.aria-invalid]="editForm.controls.technicalSummary.invalid && editForm.controls.technicalSummary.touched"></textarea>@if (editForm.controls.technicalSummary.invalid && editForm.controls.technicalSummary.touched) { <span class="field-error">{{ fieldError('technicalSummary') }}</span> }</div>
-                </div></section>
-                 <div class="sticky-actions"><span class="unsaved" [class.is-saving]="isSubmitting" [class.is-dirty]="hasAboutMeChanges()" role="status" aria-live="polite">{{ isSubmitting ? 'Saving...' : conflict ? 'Reload required' : hasAboutMeChanges() ? 'Unsaved changes' : 'No changes' }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isSubmitting">Cancel</button><button class="btn primary" type="submit" [disabled]="editForm.invalid || !hasAboutMeChanges() || isSubmitting || conflict" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Saving...' : 'Save About Me' }}</button></div></div>
-              </form>
-            }
-          </section>
-           <section class="content-section" id="workspace-section-education" aria-labelledby="education-title">
-                <div class="section-title"><div><h2 id="education-title">Education</h2><p>Academic background records for this Profile.</p></div><button class="btn" type="button" (click)="startEducationCreate()" [disabled]="!canStartWorkspaceMutation()">Add education</button></div>
-             @if (educationMessage) { <div class="notice success" role="status">{{ educationMessage }}</div> }
-             @if (educationLoading) {
-               <div class="section-state" role="status" aria-live="polite"><p>Loading Education records.</p></div>
-             } @else if (educationError) {
-               <div class="notice error" role="alert"><p>We could not load Education records for this Profile.</p><button class="btn text" type="button" (click)="retryEducations()">Try again</button></div>
-             } @else {
-               @if (educationEditorMode) {
-                 <form class="education-editor" [formGroup]="educationForm" (ngSubmit)="submitEducation()" novalidate>
-                   @if (educationErrorMessage) { <div class="notice error" role="alert">{{ educationErrorMessage }}</div> }
-                   @if (educationConflict) { <div class="notice warning" role="alert"><strong>Latest Profile required.</strong> Your Education draft is preserved, but saving is blocked until you reload the latest version. <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button></div> }
-                   <section class="form-section"><h3>Education details</h3><div class="form-grid">
-                     <div class="field"><label for="education-school-name">School Name</label><input id="education-school-name" type="text" formControlName="schoolName" maxlength="255" [attr.aria-invalid]="educationFieldInvalid('schoolName')">@if (educationFieldInvalid('schoolName')) { <span class="field-error">{{ educationFieldError('schoolName') }}</span> }</div>
-                     <div class="field"><label for="education-degree">Degree</label><input id="education-degree" type="text" formControlName="degree" maxlength="255" [attr.aria-invalid]="educationFieldInvalid('degree')">@if (educationFieldInvalid('degree')) { <span class="field-error">{{ educationFieldError('degree') }}</span> }</div>
-                     <div class="field"><label for="education-field-of-study">Field of Study <span class="optional">(optional)</span></label><input id="education-field-of-study" type="text" formControlName="fieldOfStudy" maxlength="255" [attr.aria-invalid]="educationFieldInvalid('fieldOfStudy')">@if (educationFieldInvalid('fieldOfStudy')) { <span class="field-error">{{ educationFieldError('fieldOfStudy') }}</span> }</div>
-                     <div class="field"><label for="education-status">Status</label><select id="education-status" formControlName="status" [attr.aria-invalid]="educationFieldInvalid('status')"><option value="ONGOING">Ongoing</option><option value="COMPLETED">Completed</option></select>@if (educationFieldInvalid('status')) { <span class="field-error">{{ educationFieldError('status') }}</span> }</div>
-                     <div class="field"><label for="education-start-date">Start Date</label><input id="education-start-date" type="date" formControlName="startDate" [attr.aria-invalid]="educationFieldInvalid('startDate')">@if (educationFieldInvalid('startDate')) { <span class="field-error">{{ educationFieldError('startDate') }}</span> }</div>
-                      <div class="field"><label for="education-end-date">End Date <span class="optional">(required when completed)</span></label><input id="education-end-date" type="date" formControlName="endDate" [attr.aria-invalid]="educationFieldInvalid('endDate')">@if (educationFieldInvalid('endDate')) { <span class="field-error">{{ educationFieldError('endDate') }}</span> }</div>
-                   </div></section>
-                    <div class="sticky-actions"><span class="unsaved" [class.is-saving]="isEducationSubmitting" [class.is-dirty]="hasEducationChanges()" role="status" aria-live="polite">{{ isEducationSubmitting ? 'Saving...' : educationConflict ? 'Reload required' : hasEducationChanges() ? 'Unsaved changes' : 'No changes' }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isEducationSubmitting">Cancel</button>@if (educationEditorMode === 'create') { <button class="btn" type="button" (click)="submitEducation('add-another')" [disabled]="educationForm.invalid || !hasEducationChanges() || isEducationSubmitting || educationConflict" [attr.aria-busy]="isEducationSubmitting">Save &amp; add another</button> }<button class="btn primary" type="submit" [disabled]="educationForm.invalid || !hasEducationChanges() || isEducationSubmitting || educationConflict" [attr.aria-busy]="isEducationSubmitting">{{ isEducationSubmitting ? 'Saving...' : educationEditorMode === 'edit' ? 'Save Education' : 'Add Education' }}</button></div></div>
-                 </form>
-               }
-               @if (educations.length) {
-                 <div class="record-list">
-                   @for (education of educations; track education.id) {
-                     <div class="record">
-                       <div><h3>{{ education.degree }}</h3><p>{{ education.schoolName }}@if (education.fieldOfStudy) { · {{ education.fieldOfStudy }} }</p></div>
-                          <div class="record-meta"><div>{{ education.status }}</div><div>{{ educationDateLabel(education) }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startEducationEdit(education)" [disabled]="!canStartWorkspaceMutation()">Edit</button><button class="btn danger education-delete-button" type="button" (click)="openEducationDeleteConfirmation(education)" [disabled]="!canStartWorkspaceMutation()" [attr.aria-busy]="isEducationDeleting" [attr.aria-label]="'Delete ' + educationRecordLabel(education)"><span aria-hidden="true">&minus;</span></button></div></div>
-                     </div>
-                   }
-                 </div>
-               } @else if (!educationEditorMode) {
-                    <div class="empty-state"><p>No Education records exist in this Profile.</p><button class="btn" type="button" (click)="startEducationCreate()" [disabled]="!canStartWorkspaceMutation()">Add education</button></div>
-               }
-             }
-           </section>
+          <app-about-me-section [profile]="profile" [mutationBlocked]="!canStartAboutMeMutation()" (interactionActiveChange)="aboutMeInteractionChanged($event)" (mutationSucceeded)="sectionMutationSucceeded($event)"></app-about-me-section>
+          <app-education-section [profile]="profile" [mutationBlocked]="!canStartEducationMutation()" (interactionActiveChange)="educationInteractionChanged($event)" (mutationSucceeded)="sectionMutationSucceeded($event)"></app-education-section>
             <section class="content-section" id="workspace-section-languages" aria-labelledby="languages-title">
                  <div class="section-title"><div><h2 id="languages-title">Languages</h2><p>Profile-specific language records and controlled proficiency levels.</p></div><button class="btn" type="button" (click)="startLanguageCreate()" [disabled]="!canStartWorkspaceMutation()">Add language</button></div>
               @if (languageMessage) { <div class="notice success" role="status">{{ languageMessage }}</div> }
@@ -233,11 +170,6 @@
   @if (deleteConfirmation) {
     @if (deleteTarget; as target) {
       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-profile-title" aria-describedby="delete-profile-copy"><h2 id="delete-profile-title">Delete {{ target.name }}?</h2><p id="delete-profile-copy">This removes the selected Profile only. This action cannot be undone. @if (editSession.dirty()) { <span>Your unsaved editor changes will also be lost.</span> }</p>@if (deleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ deleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelDelete()" [disabled]="isDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmDelete()" [disabled]="isDeleting" [attr.aria-busy]="isDeleting">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></section></div>
-    }
-  }
-  @if (educationDeleteConfirmation) {
-    @if (educationDeleteTarget; as target) {
-       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-education-title" aria-describedby="delete-education-copy"><h2 id="delete-education-title">Delete {{ educationRecordLabel(target) }}?</h2><p id="delete-education-copy">This removes this Education record from the selected Profile only. This action cannot be undone.</p>@if (educationDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ educationDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelEducationDelete()" [disabled]="isEducationDeleting">Cancel</button>@if (hasDeleteConflict('education')) { <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button> }<button class="btn danger" type="button" (click)="confirmEducationDelete()" [disabled]="isEducationDeleting || isReloading || hasDeleteConflict('education')" [attr.aria-busy]="isEducationDeleting">{{ isEducationDeleting ? 'Deleting...' : 'Delete Education' }}</button></div></section></div>
     }
   }
   @if (languageDeleteConfirmation) {

@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject } from '@angular/core';
+import { Component, effect, inject, ViewChild } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -9,9 +9,6 @@ import { NotificationService } from '../../../../core/notifications/notification
 import {
   Certificate,
   CertificateRequest,
-  Education,
-  EducationRequest,
-  EducationStatus,
   LanguageLevel,
   LanguageMasterOption,
   ProfileLanguage,
@@ -19,26 +16,15 @@ import {
   Project,
   ProfileSkill,
   ProfileSkillRequest,
-  ProfileDetail,
   SkillMasterOption,
-  UpdateProfileRequest,
 } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
 import { ProfileService } from '../../services/profile.service';
+import { AboutMeSectionComponent } from './sections/about-me-section/about-me-section.component';
+import { EducationSectionComponent } from './sections/education-section/education-section.component';
+import { ProfileSectionMutationSuccess } from './sections/profile-section-events';
 
-type EditableAboutMeField = Exclude<keyof UpdateProfileRequest, 'profileName' | 'version'>;
-type EditableAboutMeValues = Pick<UpdateProfileRequest, EditableAboutMeField>;
-type EducationEditorMode = 'create' | 'edit' | null;
-type EditableEducationField = keyof EditableEducationValues;
-type EditableEducationValues = {
-  schoolName: string;
-  degree: string;
-  fieldOfStudy: string;
-  startDate: string;
-  endDate: string;
-  status: EducationStatus;
-};
 type LanguageEditorMode = 'create' | 'edit' | null;
 type EditableLanguageField = keyof EditableLanguageValues;
 type EditableLanguageValues = {
@@ -60,12 +46,12 @@ type EditableSkillValues = {
 };
 type MasterComboboxState = 'idle' | 'loading' | 'results' | 'empty' | 'error' | 'selected';
 type MutationPostSaveIntent = 'close' | 'add-another';
-type DeleteConflictSection = 'education' | 'language' | 'certificate' | 'project' | 'skill';
+type DeleteConflictSection = 'language' | 'certificate' | 'project' | 'skill';
 
 @Component({
   selector: 'app-profile-workspace',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AboutMeSectionComponent, EducationSectionComponent],
   templateUrl: './profile-workspace.component.html',
   styleUrl: './profile-workspace.component.scss',
 })
@@ -78,6 +64,9 @@ export class ProfileWorkspaceComponent {
   readonly context = inject(ProfileContextService);
   readonly editSession = inject(ProfileEditSessionService);
 
+  @ViewChild(AboutMeSectionComponent) private aboutMeSection?: AboutMeSectionComponent;
+  @ViewChild(EducationSectionComponent) private educationSection?: EducationSectionComponent;
+
   readonly sections = [
     ['about', 'About Me'],
     ['education', 'Education'],
@@ -86,22 +75,6 @@ export class ProfileWorkspaceComponent {
     ['projects', 'Projects'],
     ['skills', 'Skills'],
   ] as const;
-  readonly editForm = this.formBuilder.nonNullable.group({
-    firstName: ['', [Validators.required, Validators.maxLength(100)]],
-    lastName: ['', [Validators.required, Validators.maxLength(100)]],
-    jobTitle: ['', [Validators.required, Validators.maxLength(100)]],
-    yearsOfExperience: [0, [Validators.required, Validators.min(0)]],
-    personality: ['', [Validators.maxLength(4000)]],
-    technicalSummary: ['', [Validators.maxLength(4000)]],
-  });
-  readonly educationForm = this.formBuilder.nonNullable.group({
-    schoolName: ['', [Validators.required, Validators.maxLength(255)]],
-    degree: ['', [Validators.required, Validators.maxLength(255)]],
-    fieldOfStudy: ['', [Validators.maxLength(255)]],
-    startDate: ['', [Validators.required]],
-    endDate: [''],
-    status: this.formBuilder.nonNullable.control<EducationStatus>('ONGOING', [Validators.required]),
-  }, { validators: this.educationDateRangeValidator() });
   readonly languageLevels: ReadonlyArray<{ value: LanguageLevel; label: string }> = [
     { value: 'BEGINNER', label: 'Beginner' },
     { value: 'INTERMEDIATE', label: 'Intermediate' },
@@ -126,11 +99,8 @@ export class ProfileWorkspaceComponent {
   readonly skillDateMax = this.currentDate();
 
   activeSection = 'about';
-  isEditing = false;
-  isSubmitting = false;
   isReloading = false;
   isDeleting = false;
-  conflict = false;
   deleteConflictSection: DeleteConflictSection | null = null;
   cancelConfirmation = false;
   reloadConfirmation = false;
@@ -138,23 +108,10 @@ export class ProfileWorkspaceComponent {
   deleteTarget: { id: string; name: string } | null = null;
   private notFoundRecoveryInProgress = false;
   private lastNotFoundProfileId: string | null = null;
-  private originalAboutMeValues: EditableAboutMeValues | null = null;
-  errorMessage = '';
-  saveMessage = '';
   deleteErrorMessage = '';
   previewInvalidated = false;
-  educations: Education[] = [];
-  educationLoading = false;
-  educationError: unknown | null = null;
-  educationEditorMode: EducationEditorMode = null;
-  educationConflict = false;
-  isEducationSubmitting = false;
-  educationErrorMessage = '';
-  educationMessage = '';
-  isEducationDeleting = false;
-  educationDeleteConfirmation = false;
-  educationDeleteTarget: Education | null = null;
-  educationDeleteErrorMessage = '';
+  private aboutMeInteractionActive = false;
+  private educationInteractionActive = false;
   languages: ProfileLanguage[] = [];
   languageLoading = false;
   languageError: unknown | null = null;
@@ -230,16 +187,12 @@ export class ProfileWorkspaceComponent {
   skillMasterHighlightedIndex = -1;
   skillInputValue = '';
   selectedSkillMasterOption: SkillMasterOption | null = null;
-  private readonly educationListCancel = new Subject<void>();
   private readonly languageListCancel = new Subject<void>();
   private readonly certificateListCancel = new Subject<void>();
   private readonly projectListCancel = new Subject<void>();
   private readonly languageMasterCancel = new Subject<void>();
   private readonly skillListCancel = new Subject<void>();
   private readonly skillMasterCancel = new Subject<void>();
-  private aboutMutationGeneration = 0;
-  private educationListGeneration = 0;
-  private educationMutationGeneration = 0;
   private languageListGeneration = 0;
   private languageMutationGeneration = 0;
   private certificateListGeneration = 0;
@@ -255,8 +208,6 @@ export class ProfileWorkspaceComponent {
   private languageSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private skillSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private activeProfileId: string | null = null;
-  private editingEducationId: number | string | null = null;
-  private originalEducationValues: EditableEducationValues | null = null;
   private editingProfileLanguageId: number | string | null = null;
   private originalLanguageValues: EditableLanguageValues | null = null;
   private originalLanguageInputValue = '';
@@ -268,28 +219,22 @@ export class ProfileWorkspaceComponent {
 
   constructor() {
     this.context.loadSummaries();
-    this.editForm.valueChanges.subscribe(() => this.syncDirtyState());
-    this.educationForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.languageForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.certificateForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.skillForm.valueChanges.subscribe(() => this.syncDirtyState());
-    this.educationForm.controls.status.valueChanges.subscribe(() => this.updateEducationDateValidation());
     this.route.paramMap.subscribe((params) => {
       this.deleteRecoveryGeneration++;
       this.profileDeleteGeneration++;
       this.isReloading = false;
       this.isDeleting = false;
+      this.discardExtractedEditors();
       this.closeEditor();
       this.closeDeleteConfirmation();
-      this.closeEducationDeleteConfirmation();
       this.closeLanguageDeleteConfirmation();
       this.closeCertificateDeleteConfirmation();
       this.closeProjectDeleteConfirmation();
       this.closeSkillDeleteConfirmation();
       this.activeSection = 'about';
-      this.errorMessage = '';
-      this.saveMessage = '';
-      this.resetEducationState();
       this.resetLanguageState();
       this.resetCertificateState();
       this.resetProjectState();
@@ -298,7 +243,6 @@ export class ProfileWorkspaceComponent {
       this.activeProfileId = profileId;
       if (profileId) {
         this.context.loadDetail(profileId);
-        this.loadEducations(profileId);
         this.loadProfileLanguages(profileId);
         this.loadCertificates(profileId);
         this.loadProjects(profileId);
@@ -400,7 +344,9 @@ export class ProfileWorkspaceComponent {
   }
 
   workspaceMutationLocked(): boolean {
-    return this.editorOwnsMutationContext()
+    return this.aboutMeInteractionActive
+      || this.educationInteractionActive
+      || this.editorOwnsMutationContext()
       || this.isInlineMutationSubmitting()
       || this.isDeleteWorkflowActive()
       || this.hasActiveConflict()
@@ -411,13 +357,45 @@ export class ProfileWorkspaceComponent {
     return !this.workspaceMutationLocked();
   }
 
-  hasDeleteConflict(section: DeleteConflictSection): boolean {
-    return this.deleteConflictSection === section;
+  canStartAboutMeMutation(): boolean {
+    return !this.educationInteractionActive && !this.unextractedMutationContextActive();
   }
 
-  retryEducations(): void {
-    const profileId = this.activeProfileId ?? this.context.selectedId();
-    if (profileId) this.loadEducations(profileId);
+  canStartEducationMutation(): boolean {
+    return !this.aboutMeInteractionActive && !this.unextractedMutationContextActive();
+  }
+
+  private unextractedMutationContextActive(): boolean {
+    return this.hasActiveInlineEditor()
+      || this.isInlineMutationSubmitting()
+      || this.isDeleteWorkflowActive()
+      || this.hasActiveConflict()
+      || this.isReloading
+      || (this.editSession.dirty() && !this.aboutMeInteractionActive && !this.educationInteractionActive);
+  }
+
+  aboutMeInteractionChanged(active: boolean): void {
+    this.aboutMeInteractionActive = active;
+  }
+
+  educationInteractionChanged(active: boolean): void {
+    this.educationInteractionActive = active;
+  }
+
+  private discardExtractedEditors(): void {
+    this.aboutMeSection?.discardEditing();
+    this.educationSection?.discardEditing();
+    this.aboutMeInteractionActive = false;
+    this.educationInteractionActive = false;
+  }
+
+  sectionMutationSucceeded(event: ProfileSectionMutationSuccess): void {
+    if (this.activeProfileId !== event.profileId || this.context.selectedId() !== event.profileId) return;
+    this.previewInvalidated = event.previewInvalidated;
+  }
+
+  hasDeleteConflict(section: DeleteConflictSection): boolean {
+    return this.deleteConflictSection === section;
   }
 
   retryLanguages(): void {
@@ -853,83 +831,6 @@ export class ProfileWorkspaceComponent {
     });
   }
 
-  openEducationDeleteConfirmation(education: Education): void {
-    if (!this.canStartWorkspaceMutation()) return;
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
-    if (!profileId || !profile || String(profile.id) !== profileId) return;
-
-    this.educationDeleteTarget = education;
-    this.educationDeleteErrorMessage = '';
-    this.educationDeleteConfirmation = true;
-  }
-
-  cancelEducationDelete(): void {
-    if (this.isEducationDeleting) return;
-    this.closeEducationDeleteConfirmation();
-  }
-
-  confirmEducationDelete(): void {
-    const target = this.educationDeleteTarget;
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
-    if (!this.educationDeleteConfirmation || !target || this.isEducationDeleting || this.hasDeleteConflict('education') || this.editorOwnsMutationContext() || !profileId || !profile) return;
-    if (String(profile.id) !== profileId || !this.educations.some((education) => String(education.id) === String(target.id))) {
-      this.closeEducationDeleteConfirmation();
-      return;
-    }
-
-    const operationGeneration = ++this.educationMutationGeneration;
-    this.isEducationDeleting = true;
-    this.educationDeleteErrorMessage = '';
-    this.profileService.deleteEducation(profileId, target.id, profile.version).subscribe({
-      next: (result) => {
-        if (!this.isCurrentEducationOperation(profileId, operationGeneration, false)) return;
-        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) return;
-
-        this.educations = this.educations.filter((education) => String(education.id) !== String(target.id));
-        this.isEducationDeleting = false;
-        this.previewInvalidated = true;
-        this.educationMessage = 'Education deleted successfully.';
-        this.notifications.showSuccess(this.educationMessage);
-        this.closeEducationDeleteConfirmation();
-      },
-      error: (error: unknown) => {
-        if (!this.isCurrentEducationOperation(profileId, operationGeneration, false)) return;
-        this.isEducationDeleting = false;
-        if (this.isProfileVersionConflict(error)) {
-          this.deleteConflictSection = 'education';
-          this.educationDeleteErrorMessage = this.deleteConflictMessage('Education');
-          return;
-        }
-        this.educationDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Education right now. The record is still here and you can retry.';
-      },
-    });
-  }
-
-  startEditing(): void {
-    const profile = this.context.detail();
-    if (!profile || this.conflict || !this.canStartWorkspaceMutation()) return;
-    const values = this.formValues(profile);
-    this.originalAboutMeValues = this.normalizeAboutMeValues(values);
-    this.editForm.reset(values);
-    this.editForm.markAsPristine();
-    this.editForm.markAsUntouched();
-    this.isEditing = true;
-    this.cancelConfirmation = false;
-    this.errorMessage = '';
-    this.saveMessage = '';
-    this.syncDirtyState();
-  }
-
-  startEducationCreate(): void {
-    this.openEducationEditor();
-  }
-
-  startEducationEdit(education: Education): void {
-    this.openEducationEditor(education);
-  }
-
   startLanguageCreate(): void {
     this.openLanguageEditor();
   }
@@ -982,20 +883,6 @@ export class ProfileWorkspaceComponent {
       this.closeLanguageEditor();
       return;
     }
-    if (this.educationEditorMode) {
-      if (this.isEducationSubmitting) return;
-      if (this.educationForm.dirty) {
-        this.cancelConfirmation = true;
-        return;
-      }
-      this.closeEducationEditor();
-      return;
-    }
-    if (!this.isEditing || this.isSubmitting) return;
-    if (this.editForm.dirty) {
-      this.cancelConfirmation = true;
-      return;
-    }
     this.closeEditor();
   }
 
@@ -1018,125 +905,7 @@ export class ProfileWorkspaceComponent {
       this.closeSkillEditor();
       return;
     }
-    if (this.educationEditorMode) {
-      this.closeEducationEditor();
-      return;
-    }
     this.closeEditor();
-  }
-
-  submit(): void {
-    this.errorMessage = '';
-    this.saveMessage = '';
-    if (this.isSubmitting || this.conflict) return;
-
-    this.clearBackendErrors();
-    this.trimFormValues();
-    if (!this.hasAboutMeChanges()) return;
-    if (this.editForm.invalid) {
-      this.editForm.markAllAsTouched();
-      this.syncDirtyState();
-      return;
-    }
-
-    const profile = this.context.detail();
-    const profileId = this.context.selectedId();
-    if (!profile || !profileId) return;
-
-    const value = this.editForm.getRawValue();
-    const update: UpdateProfileRequest = {
-      profileName: profile.profileName,
-      firstName: value.firstName,
-      lastName: value.lastName,
-      jobTitle: value.jobTitle,
-      yearsOfExperience: value.yearsOfExperience,
-      personality: value.personality,
-      technicalSummary: value.technicalSummary,
-      version: profile.version,
-    };
-
-    const operationGeneration = ++this.aboutMutationGeneration;
-    this.isSubmitting = true;
-    this.profileService.update(profileId, update).subscribe({
-      next: (updated) => {
-        if (!this.isCurrentAboutMeOperation(profileId, operationGeneration)) return;
-        this.context.replaceDetail(updated);
-        this.isSubmitting = false;
-        this.conflict = false;
-        this.previewInvalidated = !updated.hasPreviewed;
-        this.saveMessage = 'About Me updated successfully.';
-        this.notifications.showSuccess(this.saveMessage);
-        this.closeEditor();
-      },
-      error: (error: unknown) => {
-        if (!this.isCurrentAboutMeOperation(profileId, operationGeneration)) return;
-        this.handleSaveError(error);
-      },
-    });
-  }
-
-  submitEducation(intent: MutationPostSaveIntent = 'close'): void {
-    const mode = this.educationEditorMode;
-    if (!mode || this.isEducationSubmitting || this.educationConflict) return;
-    const addAnother = intent === 'add-another' && mode === 'create';
-
-    this.educationErrorMessage = '';
-    this.educationMessage = '';
-    this.clearEducationBackendErrors();
-    this.trimEducationFormValues();
-    this.updateEducationDateValidation();
-    if (!this.hasEducationChanges()) return;
-    if (this.educationForm.invalid) {
-      this.educationForm.markAllAsTouched();
-      this.syncDirtyState();
-      return;
-    }
-
-    const profile = this.context.detail();
-    const profileId = this.context.selectedId();
-    if (!profile || !profileId || String(profile.id) !== profileId) return;
-
-    const value = this.educationForm.getRawValue();
-    const request: EducationRequest = {
-      schoolName: value.schoolName,
-      degree: value.degree,
-      fieldOfStudy: value.fieldOfStudy || null,
-      startDate: value.startDate,
-      endDate: value.status === 'ONGOING' ? null : value.endDate || null,
-      status: value.status,
-      version: profile.version,
-    };
-    const educationId = this.editingEducationId;
-    const operationGeneration = this.educationMutationGeneration;
-    this.isEducationSubmitting = true;
-    const request$ = mode === 'edit' && educationId !== null
-      ? this.profileService.updateEducation(profileId, educationId, request)
-      : this.profileService.createEducation(profileId, request);
-
-    request$.subscribe({
-      next: (result) => {
-        if (!this.isCurrentEducationOperation(profileId, operationGeneration)) return;
-        if (!this.context.applyMutationVersion(profileId, result.profileVersion)) {
-          this.isEducationSubmitting = false;
-          return;
-        }
-
-        this.educations = mode === 'edit' && educationId !== null
-          ? this.educations.map((education) => String(education.id) === String(educationId) ? result.education : education)
-          : this.sortEducations([...this.educations, result.education]);
-        this.isEducationSubmitting = false;
-        this.educationConflict = false;
-        this.previewInvalidated = true;
-        this.educationMessage = mode === 'edit' ? 'Education updated successfully.' : 'Education added successfully.';
-        this.notifications.showSuccess(this.educationMessage);
-        if (addAnother) this.resetEducationForAnother();
-        else this.closeEducationEditor();
-      },
-      error: (error: unknown) => {
-        if (!this.isCurrentEducationOperation(profileId, operationGeneration)) return;
-        this.handleEducationSaveError(error);
-      },
-    });
   }
 
   submitLanguage(intent: MutationPostSaveIntent = 'close'): void {
@@ -1399,21 +1168,7 @@ export class ProfileWorkspaceComponent {
       this.fetchLatestLanguage();
       return;
     }
-    if (this.educationEditorMode) {
-      if (this.isReloading || !this.educationConflict) return;
-      if (this.educationForm.dirty) {
-        this.reloadConfirmation = true;
-        return;
-      }
-      this.fetchLatestEducation();
-      return;
-    }
-    if (this.isReloading || !this.conflict) return;
-    if (this.editForm.dirty) {
-      this.reloadConfirmation = true;
-      return;
-    }
-    this.fetchLatest();
+    return;
   }
 
   confirmReloadLatest(): void {
@@ -1427,35 +1182,7 @@ export class ProfileWorkspaceComponent {
       this.fetchLatestSkill();
     } else if (this.languageEditorMode) {
       this.fetchLatestLanguage();
-    } else if (this.educationEditorMode) {
-      this.fetchLatestEducation();
-    } else {
-      this.fetchLatest();
     }
-  }
-
-  fieldError(field: EditableAboutMeField): string {
-    const errors = this.editForm.controls[field].errors;
-    if (!errors) return '';
-    if (errors['backend']) return errors['backend'];
-    if (errors['required']) return 'This field is required.';
-    if (errors['maxlength']) return `Use ${errors['maxlength'].requiredLength} characters or fewer.`;
-    if (errors['min']) return 'Enter a non-negative number.';
-    return 'This value is not valid.';
-  }
-
-  educationFieldError(field: EditableEducationField): string {
-    const errors = this.educationForm.controls[field].errors;
-    if (errors?.['backend']) return errors['backend'];
-    if (errors?.['required']) return 'This field is required.';
-    if (errors?.['maxlength']) return `Use ${errors['maxlength'].requiredLength} characters or fewer.`;
-    if (field === 'endDate' && this.educationForm.errors?.['dateRange']) return 'End date must be on or after the start date.';
-    return errors ? 'This value is not valid.' : '';
-  }
-
-  educationFieldInvalid(field: EditableEducationField): boolean {
-    const control = this.educationForm.controls[field];
-    return control.invalid && control.touched || field === 'endDate' && !!this.educationForm.errors?.['dateRange'] && control.touched;
   }
 
   languageFieldError(field: EditableLanguageField): string {
@@ -1631,14 +1358,6 @@ export class ProfileWorkspaceComponent {
     return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
   }
 
-  educationDateLabel(education: Education): string {
-    return `${education.startDate} - ${education.endDate ?? 'Present'}`;
-  }
-
-  educationRecordLabel(education: Education): string {
-    return `${education.degree} at ${education.schoolName}`;
-  }
-
   certificateRecordLabel(certificate: Certificate): string {
     return `${certificate.certificateName} (${certificate.issueDate})`;
   }
@@ -1673,34 +1392,13 @@ export class ProfileWorkspaceComponent {
   }
 
   discardPendingNavigation(): void {
+    this.discardExtractedEditors();
     this.closeEditor();
     this.editSession.resolveNavigation(true);
   }
 
   keepPendingNavigation(): void {
     this.editSession.resolveNavigation(false);
-  }
-
-  private loadEducations(profileId: string, onLoaded?: () => void, onError?: () => void): void {
-    this.educationListCancel.next();
-    const generation = ++this.educationListGeneration;
-    this.educations = [];
-    this.educationLoading = true;
-    this.educationError = null;
-    this.profileService.listEducations(profileId).pipe(takeUntil(this.educationListCancel)).subscribe({
-      next: (educations) => {
-        if (!this.isCurrentEducationProfile(profileId, generation)) return;
-        this.educations = this.sortEducations(educations);
-        this.educationLoading = false;
-        onLoaded?.();
-      },
-      error: (error: unknown) => {
-        if (!this.isCurrentEducationProfile(profileId, generation)) return;
-        this.educationError = error;
-        this.educationLoading = false;
-        onError?.();
-      },
-    });
   }
 
   private loadProfileLanguages(profileId: string, onLoaded?: () => void, onError?: () => void): void {
@@ -1920,65 +1618,6 @@ export class ProfileWorkspaceComponent {
     return [...options.values()];
   }
 
-  private fetchLatest(): void {
-    const profileId = this.context.selectedId();
-    if (!profileId) return;
-
-    const reloadGeneration = ++this.aboutMutationGeneration;
-    const current = this.context.detail();
-    if (current) this.editForm.reset(this.formValues(current));
-    this.editForm.markAsPristine();
-    this.editForm.markAsUntouched();
-    this.isEditing = false;
-    this.isReloading = true;
-    this.isSubmitting = false;
-    this.errorMessage = '';
-    this.saveMessage = '';
-    this.editSession.setDirty(false);
-
-    this.context.reloadDetail(profileId).subscribe({
-      next: (latest) => {
-        if (!this.isCurrentProfileContext(profileId) || this.aboutMutationGeneration !== reloadGeneration) return;
-        this.editForm.reset(this.formValues(latest));
-        this.editForm.markAsPristine();
-        this.editForm.markAsUntouched();
-        this.isReloading = false;
-        this.conflict = false;
-        this.saveMessage = 'Latest Profile data loaded. Review it before editing.';
-      },
-      error: (error: unknown) => {
-        if (!this.isCurrentProfileContext(profileId) || this.aboutMutationGeneration !== reloadGeneration) return;
-        this.isReloading = false;
-        this.conflict = true;
-        this.errorMessage = this.apiError(error)?.message?.trim() || 'Unable to reload the latest Profile right now. Please try again.';
-      },
-    });
-  }
-
-  private fetchLatestEducation(): void {
-    const profileId = this.context.selectedId();
-    if (!profileId) return;
-
-    this.closeEducationEditor();
-    this.isReloading = true;
-    this.educationErrorMessage = '';
-    this.educationMessage = '';
-    this.context.reloadDetail(profileId).subscribe({
-      next: () => {
-        if (!this.isCurrentProfileContext(profileId)) return;
-        this.isReloading = false;
-        this.educationConflict = false;
-        this.educationMessage = 'Latest Profile and Education data loaded. Review it before editing.';
-        this.loadEducations(profileId);
-      },
-      error: (error: unknown) => {
-        if (!this.isCurrentProfileContext(profileId)) return;
-        this.isReloading = false;
-        this.educationErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to reload the latest Profile right now. Please try again.';
-      },
-    });
-  }
-
   private fetchLatestLanguage(): void {
     const profileId = this.context.selectedId();
     if (!profileId) return;
@@ -2064,7 +1703,6 @@ export class ProfileWorkspaceComponent {
         const onLoaded = () => this.completeDeleteRecovery(profileId, recoveryGeneration, section);
         const onError = () => this.failDeleteRecovery(profileId, recoveryGeneration, section);
         switch (section) {
-          case 'education': this.loadEducations(profileId, onLoaded, onError); break;
           case 'language': this.loadProfileLanguages(profileId, onLoaded, onError); break;
           case 'certificate': this.loadCertificates(profileId, onLoaded, onError); break;
           case 'project': this.loadProjects(profileId, onLoaded, onError); break;
@@ -2101,13 +1739,6 @@ export class ProfileWorkspaceComponent {
 
   private refreshDeleteTarget(section: DeleteConflictSection): boolean {
     switch (section) {
-      case 'education': {
-        const target = this.educationDeleteTarget;
-        const current = target && this.educations.find((item) => String(item.id) === String(target.id));
-        if (!current) return false;
-        this.educationDeleteTarget = current;
-        return true;
-      }
       case 'language': {
         const target = this.languageDeleteTarget;
         const current = target && this.languages.find((item) => String(item.profileLanguageId) === String(target.profileLanguageId));
@@ -2142,7 +1773,6 @@ export class ProfileWorkspaceComponent {
 
   private closeDeleteConfirmationFor(section: DeleteConflictSection): void {
     switch (section) {
-      case 'education': this.closeEducationDeleteConfirmation(); break;
       case 'language': this.closeLanguageDeleteConfirmation(); break;
       case 'certificate': this.closeCertificateDeleteConfirmation(); break;
       case 'project': this.closeProjectDeleteConfirmation(); break;
@@ -2152,7 +1782,6 @@ export class ProfileWorkspaceComponent {
 
   private setDeleteSectionError(section: DeleteConflictSection, message: string): void {
     switch (section) {
-      case 'education': this.educationDeleteErrorMessage = message; break;
       case 'language': this.languageDeleteErrorMessage = message; break;
       case 'certificate': this.certificateDeleteErrorMessage = message; break;
       case 'project': this.projectDeleteErrorMessage = message; break;
@@ -2166,7 +1795,6 @@ export class ProfileWorkspaceComponent {
 
   private setDeleteSectionMessage(section: DeleteConflictSection, message: string): void {
     switch (section) {
-      case 'education': this.educationMessage = message; break;
       case 'language': this.languageMessage = message; break;
       case 'certificate': this.certificateMessage = message; break;
       case 'project': this.projectMessage = message; break;
@@ -2187,41 +1815,12 @@ export class ProfileWorkspaceComponent {
   }
 
   private closeEditor(): void {
-    this.aboutMutationGeneration++;
-    this.originalAboutMeValues = null;
-    this.isEditing = false;
-    this.isSubmitting = false;
     this.cancelConfirmation = false;
     this.reloadConfirmation = false;
-    this.conflict = false;
     this.editSession.setDirty(false);
-    this.closeEducationEditor();
     this.closeLanguageEditor();
     this.closeCertificateEditor();
     this.closeSkillEditor();
-    const profile = this.context.detail();
-    if (profile) {
-      this.editForm.reset(this.formValues(profile));
-      this.editForm.markAsPristine();
-      this.editForm.markAsUntouched();
-    }
-  }
-
-  private resetEducationForAnother(): void {
-    this.educationMutationGeneration++;
-    const values = this.emptyEducationValues();
-    this.editingEducationId = null;
-    this.originalEducationValues = this.normalizeEducationValues(values);
-    this.educationConflict = false;
-    this.educationErrorMessage = '';
-    this.cancelConfirmation = false;
-    this.reloadConfirmation = false;
-    this.educationForm.reset(values);
-    this.educationForm.markAsPristine();
-    this.educationForm.markAsUntouched();
-    this.updateEducationDateValidation();
-    this.syncDirtyState();
-    this.focusEditorField('education-school-name');
   }
 
   private resetLanguageForAnother(): void {
@@ -2290,22 +1889,6 @@ export class ProfileWorkspaceComponent {
         if (document.activeElement === document.body) field.focus();
       });
     }
-  }
-
-  private closeEducationEditor(): void {
-    this.educationMutationGeneration++;
-    this.educationEditorMode = null;
-    this.editingEducationId = null;
-    this.originalEducationValues = null;
-    this.isEducationSubmitting = false;
-    this.educationConflict = false;
-    this.cancelConfirmation = false;
-    this.reloadConfirmation = false;
-    this.educationForm.reset(this.emptyEducationValues());
-    this.educationForm.markAsPristine();
-    this.educationForm.markAsUntouched();
-    this.updateEducationDateValidation();
-    this.syncDirtyState();
   }
 
   private closeLanguageEditor(): void {
@@ -2406,14 +1989,6 @@ export class ProfileWorkspaceComponent {
     this.deleteErrorMessage = '';
   }
 
-  private closeEducationDeleteConfirmation(): void {
-    if (this.deleteConflictSection === 'education') this.deleteConflictSection = null;
-    this.educationDeleteConfirmation = false;
-    this.educationDeleteTarget = null;
-    this.educationDeleteErrorMessage = '';
-    this.isEducationDeleting = false;
-  }
-
   private closeLanguageDeleteConfirmation(): void {
     if (this.deleteConflictSection === 'language') this.deleteConflictSection = null;
     this.languageDeleteConfirmation = false;
@@ -2444,18 +2019,6 @@ export class ProfileWorkspaceComponent {
     this.skillDeleteTarget = null;
     this.skillDeleteErrorMessage = '';
     this.isSkillDeleting = false;
-  }
-
-  private resetEducationState(): void {
-    this.educationListCancel.next();
-    this.educationListGeneration++;
-    this.educationMutationGeneration++;
-    this.educations = [];
-    this.educationLoading = false;
-    this.educationError = null;
-    this.educationMessage = '';
-    this.educationErrorMessage = '';
-    this.previewInvalidated = false;
   }
 
   private resetLanguageState(): void {
@@ -2527,73 +2090,6 @@ export class ProfileWorkspaceComponent {
         void this.router.navigate(['/profiles']);
       },
     });
-  }
-
-  private handleSaveError(error: unknown): void {
-    this.isSubmitting = false;
-    const response = this.apiError(error);
-    if (response?.errorCode === 'PROFILE_VERSION_CONFLICT') {
-      this.conflict = true;
-      this.errorMessage = response.message?.trim() || 'This Profile changed elsewhere. Reload the latest version before saving again.';
-      this.syncDirtyState();
-      return;
-    }
-    if (response?.errorCode === 'VALIDATION_ERROR') {
-      this.applyFieldErrors(response.data);
-      this.errorMessage = 'Please correct the highlighted fields.';
-      this.syncDirtyState();
-      return;
-    }
-    this.errorMessage = response?.message?.trim() || 'Unable to save this Profile right now. Your changes are still here.';
-    this.syncDirtyState();
-  }
-
-  private openEducationEditor(education?: Education): void {
-    const profile = this.context.detail();
-    if (!profile || !this.canStartWorkspaceMutation()) return;
-
-    const values = education ? this.educationFormValues(education) : this.emptyEducationValues();
-    this.educationEditorMode = education ? 'edit' : 'create';
-    this.editingEducationId = education ? education.id : null;
-    this.originalEducationValues = this.normalizeEducationValues(values);
-    this.educationForm.reset(values);
-    this.educationForm.markAsPristine();
-    this.educationForm.markAsUntouched();
-    this.educationMutationGeneration++;
-    this.educationConflict = false;
-    this.cancelConfirmation = false;
-    this.reloadConfirmation = false;
-    this.educationErrorMessage = '';
-    this.educationMessage = '';
-    this.updateEducationDateValidation();
-    this.syncDirtyState();
-  }
-
-  private handleEducationSaveError(error: unknown): void {
-    this.isEducationSubmitting = false;
-    const response = this.apiError(error);
-    if (response?.errorCode === 'PROFILE_VERSION_CONFLICT') {
-      this.educationConflict = true;
-      this.educationErrorMessage = response.message?.trim() || 'This Profile changed elsewhere. Reload the latest version before saving again.';
-      this.syncDirtyState();
-      return;
-    }
-    if (response?.errorCode === 'VALIDATION_ERROR') {
-      this.applyEducationFieldErrors(response.data);
-      this.educationErrorMessage = 'Please correct the highlighted fields.';
-      this.syncDirtyState();
-      return;
-    }
-
-    const businessField: Record<string, EditableEducationField> = {
-      EDUCATION_INVALID_STATUS: 'status',
-      EDUCATION_END_DATE_REQUIRED: 'endDate',
-      EDUCATION_DATE_RANGE_INVALID: 'endDate',
-    };
-    const field = response?.errorCode ? businessField[response.errorCode] : undefined;
-    if (field) this.setEducationFieldError(field, response?.message || 'This value is not valid.');
-    this.educationErrorMessage = response?.message?.trim() || 'Unable to save this Education right now. Your changes are still here.';
-    this.syncDirtyState();
   }
 
   private openLanguageEditor(language?: ProfileLanguage): void {
@@ -2747,30 +2243,6 @@ export class ProfileWorkspaceComponent {
     this.syncDirtyState();
   }
 
-  private trimFormValues(): void {
-    const value = this.editForm.getRawValue();
-    this.editForm.patchValue({
-      firstName: value.firstName.trim(),
-      lastName: value.lastName.trim(),
-      jobTitle: value.jobTitle.trim(),
-      personality: value.personality.trim(),
-      technicalSummary: value.technicalSummary.trim(),
-    }, { emitEvent: false });
-    this.editForm.updateValueAndValidity({ emitEvent: false });
-  }
-
-  private trimEducationFormValues(): void {
-    const value = this.educationForm.getRawValue();
-    this.educationForm.patchValue({
-      schoolName: value.schoolName.trim(),
-      degree: value.degree.trim(),
-      fieldOfStudy: value.fieldOfStudy.trim(),
-      startDate: value.startDate.trim(),
-      endDate: value.endDate.trim(),
-    }, { emitEvent: false });
-    this.educationForm.updateValueAndValidity({ emitEvent: false });
-  }
-
   private trimCertificateFormValues(): void {
     const value = this.certificateForm.getRawValue();
     this.certificateForm.patchValue({
@@ -2801,46 +2273,6 @@ export class ProfileWorkspaceComponent {
     }
   }
 
-  private applyFieldErrors(data: unknown): void {
-    const errors = (data as { errors?: unknown } | undefined)?.errors;
-    if (!Array.isArray(errors)) return;
-    for (const error of errors) {
-      if (!error || typeof error !== 'object') continue;
-      const { field, message } = error as { field?: unknown; message?: unknown };
-      if (typeof field === 'string' && typeof message === 'string' && field in this.editForm.controls) {
-        this.setBackendFieldError(field as EditableAboutMeField, message);
-      }
-    }
-  }
-
-  private clearBackendErrors(): void {
-    for (const control of Object.values(this.editForm.controls)) {
-      if (!control.errors?.['backend']) continue;
-      const errors = { ...control.errors };
-      delete errors['backend'];
-      control.setErrors(Object.keys(errors).length ? errors : null);
-    }
-  }
-
-  private setBackendFieldError(field: EditableAboutMeField, message: string): void {
-    const control = this.editForm.controls[field];
-    control.setErrors({ ...control.errors, backend: message.trim() || 'This value is not valid.' });
-    control.markAsTouched();
-  }
-
-  private applyEducationFieldErrors(data: unknown): void {
-    const errors = (data as { errors?: unknown } | undefined)?.errors;
-    if (!Array.isArray(errors)) return;
-    for (const error of errors) {
-      if (!error || typeof error !== 'object') continue;
-      const { field, message } = error as { field?: unknown; message?: unknown };
-      const normalizedField = typeof field === 'string' ? field.split('.').pop() : undefined;
-      if (normalizedField && typeof message === 'string' && normalizedField in this.educationForm.controls) {
-        this.setEducationFieldError(normalizedField as EditableEducationField, message);
-      }
-    }
-  }
-
   private applyCertificateFieldErrors(data: unknown): void {
     const errors = (data as { errors?: unknown } | undefined)?.errors;
     if (!Array.isArray(errors)) return;
@@ -2864,15 +2296,6 @@ export class ProfileWorkspaceComponent {
       if (normalizedField && typeof message === 'string' && normalizedField in this.skillForm.controls) {
         this.setSkillFieldError(normalizedField as EditableSkillField, message);
       }
-    }
-  }
-
-  private clearEducationBackendErrors(): void {
-    for (const control of Object.values(this.educationForm.controls)) {
-      if (!control.errors?.['backend']) continue;
-      const errors = { ...control.errors };
-      delete errors['backend'];
-      control.setErrors(Object.keys(errors).length ? errors : null);
     }
   }
 
@@ -2906,12 +2329,6 @@ export class ProfileWorkspaceComponent {
     }
   }
 
-  private setEducationFieldError(field: EditableEducationField, message: string): void {
-    const control = this.educationForm.controls[field];
-    control.setErrors({ ...control.errors, backend: message.trim() || 'This value is not valid.' });
-    control.markAsTouched();
-  }
-
   private setLanguageFieldError(field: EditableLanguageField, message: string, key = 'backend'): void {
     const control = this.languageForm.controls[field];
     control.setErrors({ ...control.errors, [key]: message.trim() || 'This value is not valid.' });
@@ -2930,21 +2347,6 @@ export class ProfileWorkspaceComponent {
     control.markAsTouched();
   }
 
-  private formValues(profile: ProfileDetail) {
-    return {
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      jobTitle: profile.jobTitle,
-      yearsOfExperience: profile.yearsOfExperience,
-      personality: profile.personality ?? '',
-      technicalSummary: profile.technicalSummary ?? '',
-    };
-  }
-
-  private emptyEducationValues(): EditableEducationValues {
-    return { schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', status: 'ONGOING' };
-  }
-
   private emptyLanguageValues(): EditableLanguageValues {
     return { languageId: null, level: null };
   }
@@ -2955,17 +2357,6 @@ export class ProfileWorkspaceComponent {
 
   private emptySkillValues(): EditableSkillValues {
     return { skillId: null, experienceYears: null, lastUsed: '' };
-  }
-
-  private educationFormValues(education: Education): EditableEducationValues {
-    return {
-      schoolName: education.schoolName,
-      degree: education.degree,
-      fieldOfStudy: education.fieldOfStudy ?? '',
-      startDate: education.startDate,
-      endDate: education.endDate ?? '',
-      status: education.status,
-    };
   }
 
   private languageFormValues(language: ProfileLanguage): EditableLanguageValues {
@@ -2981,16 +2372,6 @@ export class ProfileWorkspaceComponent {
       skillId: skill.skillId,
       experienceYears: skill.experienceYears,
       lastUsed: skill.lastUsed?.slice(0, 10) ?? '',
-    };
-  }
-
-  private educationDateRangeValidator(): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null => {
-      const value = control.value as Partial<EditableEducationValues> | null;
-      if (value?.status === 'COMPLETED' && value.startDate && value.endDate && value.startDate > value.endDate) {
-        return { dateRange: true };
-      }
-      return null;
     };
   }
 
@@ -3015,31 +2396,6 @@ export class ProfileWorkspaceComponent {
     return `${date.getFullYear()}-${month}-${day}`;
   }
 
-  private updateEducationDateValidation(): void {
-    const endDate = this.educationForm.controls.endDate;
-    const ongoing = this.educationForm.controls.status.value === 'ONGOING';
-    if (ongoing) {
-      endDate.setValue('', { emitEvent: false });
-      endDate.disable({ emitEvent: false });
-    } else {
-      endDate.enable({ emitEvent: false });
-    }
-    endDate.setValidators(ongoing ? [] : [Validators.required]);
-    endDate.updateValueAndValidity({ emitEvent: false });
-    this.educationForm.updateValueAndValidity({ emitEvent: false });
-  }
-
-  private normalizeEducationValues(value: EditableEducationValues): EditableEducationValues {
-    return {
-      schoolName: value.schoolName.trim(),
-      degree: value.degree.trim(),
-      fieldOfStudy: value.fieldOfStudy.trim(),
-      startDate: value.startDate.trim(),
-      endDate: value.endDate.trim(),
-      status: value.status,
-    };
-  }
-
   private normalizeLanguageValues(value: EditableLanguageValues): EditableLanguageValues {
     return { languageId: value.languageId, level: value.level };
   }
@@ -3056,18 +2412,6 @@ export class ProfileWorkspaceComponent {
       experienceYears: Number.isNaN(experienceYears) ? null : experienceYears,
       lastUsed: value.lastUsed.trim(),
     };
-  }
-
-  hasEducationChanges(): boolean {
-    const original = this.originalEducationValues;
-    if (!original) return false;
-    const current = this.normalizeEducationValues(this.educationForm.getRawValue());
-    return current.schoolName !== original.schoolName
-      || current.degree !== original.degree
-      || current.fieldOfStudy !== original.fieldOfStudy
-      || current.startDate !== original.startDate
-      || current.endDate !== original.endDate
-      || current.status !== original.status;
   }
 
   hasLanguageChanges(): boolean {
@@ -3096,23 +2440,10 @@ export class ProfileWorkspaceComponent {
       || this.skillInputValue.trim() !== this.originalSkillInputValue;
   }
 
-  private isCurrentEducationProfile(profileId: string, generation: number): boolean {
-    return this.activeProfileId === profileId
-      && this.educationListGeneration === generation;
-  }
-
   private isCurrentProfileContext(profileId: string): boolean {
     return this.activeProfileId === profileId
       && this.context.selectedId() === profileId
       && String(this.context.detail()?.id) === profileId;
-  }
-
-  private isCurrentAboutMeOperation(profileId: string, generation: number): boolean {
-    return this.activeProfileId === profileId
-      && this.context.selectedId() === profileId
-      && String(this.context.detail()?.id) === profileId
-      && this.aboutMutationGeneration === generation
-      && this.isEditing;
   }
 
   private isCurrentLanguageProfile(profileId: string, generation: number): boolean {
@@ -3145,14 +2476,6 @@ export class ProfileWorkspaceComponent {
     return this.activeProfileId === profileId && this.profileDeleteGeneration === generation;
   }
 
-  private isCurrentEducationOperation(profileId: string, generation: number, requiresEditor = true): boolean {
-    return this.activeProfileId === profileId
-      && this.context.selectedId() === profileId
-      && String(this.context.detail()?.id) === profileId
-      && this.educationMutationGeneration === generation
-      && (!requiresEditor || this.educationEditorMode !== null);
-  }
-
   private isCurrentLanguageOperation(profileId: string, generation: number, requiresEditor = true): boolean {
     return this.activeProfileId === profileId
       && this.context.selectedId() === profileId
@@ -3182,15 +2505,6 @@ export class ProfileWorkspaceComponent {
       && String(this.context.detail()?.id) === profileId
       && this.skillMutationGeneration === generation
       && (!requiresEditor || this.skillEditorMode !== null);
-  }
-
-  private sortEducations(educations: Education[]): Education[] {
-    return educations.sort((left, right) => {
-      const leftId = Number(left.id);
-      const rightId = Number(right.id);
-      if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
-      return String(left.id).localeCompare(String(right.id));
-    });
   }
 
   private sortProfileLanguages(languages: ProfileLanguage[]): ProfileLanguage[] {
@@ -3243,59 +2557,29 @@ export class ProfileWorkspaceComponent {
       : { invalidLevel: true };
   }
 
-  hasAboutMeChanges(): boolean {
-    const original = this.originalAboutMeValues;
-    if (!original) return false;
-
-    const current = this.normalizeAboutMeValues(this.editForm.getRawValue());
-    return current.firstName !== original.firstName
-      || current.lastName !== original.lastName
-      || current.jobTitle !== original.jobTitle
-      || current.yearsOfExperience !== original.yearsOfExperience
-      || current.personality !== original.personality
-      || current.technicalSummary !== original.technicalSummary;
-  }
-
-  private normalizeAboutMeValues(value: EditableAboutMeValues): EditableAboutMeValues {
-    return {
-      firstName: value.firstName.trim(),
-      lastName: value.lastName.trim(),
-      jobTitle: value.jobTitle.trim(),
-      yearsOfExperience: value.yearsOfExperience,
-      personality: value.personality.trim(),
-      technicalSummary: value.technicalSummary.trim(),
-    };
-  }
-
   private hasActiveInlineEditor(): boolean {
-    return this.isEditing
-      || this.educationEditorMode !== null
-      || this.languageEditorMode !== null
+    return this.languageEditorMode !== null
       || this.certificateEditorMode !== null
       || this.skillEditorMode !== null;
   }
 
   private editorOwnsMutationContext(): boolean {
-    return this.hasActiveInlineEditor() || this.editSession.dirty();
+    return this.aboutMeInteractionActive || this.educationInteractionActive || this.hasActiveInlineEditor() || this.editSession.dirty();
   }
 
   private isInlineMutationSubmitting(): boolean {
-    return this.isSubmitting
-      || this.isEducationSubmitting
-      || this.isLanguageSubmitting
+    return this.isLanguageSubmitting
       || this.isCertificateSubmitting
       || this.isSkillSubmitting;
   }
 
   private isDeleteWorkflowActive(): boolean {
     return this.isDeleting
-      || this.isEducationDeleting
       || this.isLanguageDeleting
       || this.isCertificateDeleting
       || this.isProjectDeleting
       || this.isSkillDeleting
       || this.deleteConfirmation
-      || this.educationDeleteConfirmation
       || this.languageDeleteConfirmation
       || this.certificateDeleteConfirmation
       || this.projectDeleteConfirmation
@@ -3303,9 +2587,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private hasActiveConflict(): boolean {
-    return this.conflict
-      || this.educationConflict
-      || this.languageConflict
+    return this.languageConflict
       || this.certificateConflict
       || this.skillConflict
       || this.deleteConflictSection !== null;
@@ -3324,9 +2606,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private syncDirtyState(): void {
-    this.editSession.setDirty((this.isEditing && (this.editForm.dirty || this.hasAboutMeChanges()))
-      || (this.educationEditorMode !== null && (this.educationForm.dirty || this.hasEducationChanges()))
-      || (this.languageEditorMode !== null && (this.languageForm.dirty || this.hasLanguageChanges()))
+    this.editSession.setDirty((this.languageEditorMode !== null && (this.languageForm.dirty || this.hasLanguageChanges()))
       || (this.certificateEditorMode !== null && (this.certificateForm.dirty || this.hasCertificateChanges()))
       || (this.skillEditorMode !== null && (this.skillForm.dirty || this.hasSkillChanges())));
   }
