@@ -14,7 +14,7 @@
     <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading {{ profileName() }}.</p></div>
   } @else {
     @if (context.detail(); as profile) {
-      <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · About Me and Profile-specific content</p></div><div class="heading-actions"><button class="btn danger delete-profile-button" type="button" title="Available while more than one active Profile exists" [disabled]="context.summaries().length <= 1 || isDeleting" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></div>
+       <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · About Me and Profile-specific content</p></div><div class="heading-actions"><button class="btn danger delete-profile-button" type="button" title="Available while more than one active Profile exists" [disabled]="context.summaries().length <= 1 || !canStartWorkspaceMutation()" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></div>
       <div class="workspace-grid">
         <nav class="section-nav" aria-label="Profile sections">
           @for (section of sections; track section[0]) {
@@ -23,7 +23,7 @@
         </nav>
         <div class="workspace-sections">
              <section class="content-section" id="workspace-section-about" aria-labelledby="about-title">
-              <div class="section-title"><div><h2 id="about-title">About Me</h2><p>Identity and narrative details for this Profile.</p></div>@if (!isEditing && !educationEditorMode && !languageEditorMode && !certificateEditorMode && !skillEditorMode) { <button class="btn edit-about-button" type="button" (click)="startEditing()">Edit</button> }</div>
+               <div class="section-title"><div><h2 id="about-title">About Me</h2><p>Identity and narrative details for this Profile.</p></div>@if (!isEditing) { <button class="btn edit-about-button" type="button" (click)="startEditing()" [disabled]="!canStartWorkspaceMutation()">Edit</button> }</div>
             @if (!isEditing) {
                 <div class="fact-grid">
                   <div class="fact"><label>Profile Name</label><p>{{ profile.profileName }}</p></div>
@@ -51,7 +51,7 @@
             }
           </section>
            <section class="content-section" id="workspace-section-education" aria-labelledby="education-title">
-               <div class="section-title"><div><h2 id="education-title">Education</h2><p>Academic background records for this Profile.</p></div>@if (!educationEditorMode && !isEditing && !languageEditorMode && !certificateEditorMode && !skillEditorMode) { <button class="btn" type="button" (click)="startEducationCreate()">Add education</button> }</div>
+                <div class="section-title"><div><h2 id="education-title">Education</h2><p>Academic background records for this Profile.</p></div><button class="btn" type="button" (click)="startEducationCreate()" [disabled]="!canStartWorkspaceMutation()">Add education</button></div>
              @if (educationMessage) { <div class="notice success" role="status">{{ educationMessage }}</div> }
              @if (educationLoading) {
                <div class="section-state" role="status" aria-live="polite"><p>Loading Education records.</p></div>
@@ -78,17 +78,17 @@
                    @for (education of educations; track education.id) {
                      <div class="record">
                        <div><h3>{{ education.degree }}</h3><p>{{ education.schoolName }}@if (education.fieldOfStudy) { · {{ education.fieldOfStudy }} }</p></div>
-                         <div class="record-meta"><div>{{ education.status }}</div><div>{{ educationDateLabel(education) }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startEducationEdit(education)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isEducationDeleting">Edit</button><button class="btn danger education-delete-button" type="button" (click)="openEducationDeleteConfirmation(education)" [disabled]="isEditing || !!educationEditorMode || !!skillEditorMode || isEducationDeleting" [attr.aria-busy]="isEducationDeleting" [attr.aria-label]="'Delete ' + educationRecordLabel(education)"><span aria-hidden="true">&minus;</span></button></div></div>
+                          <div class="record-meta"><div>{{ education.status }}</div><div>{{ educationDateLabel(education) }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startEducationEdit(education)" [disabled]="!canStartWorkspaceMutation()">Edit</button><button class="btn danger education-delete-button" type="button" (click)="openEducationDeleteConfirmation(education)" [disabled]="!canStartWorkspaceMutation()" [attr.aria-busy]="isEducationDeleting" [attr.aria-label]="'Delete ' + educationRecordLabel(education)"><span aria-hidden="true">&minus;</span></button></div></div>
                      </div>
                    }
                  </div>
                } @else if (!educationEditorMode) {
-                   <div class="empty-state"><p>No Education records exist in this Profile.</p><button class="btn" type="button" (click)="startEducationCreate()" [disabled]="isEditing || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode">Add education</button></div>
+                    <div class="empty-state"><p>No Education records exist in this Profile.</p><button class="btn" type="button" (click)="startEducationCreate()" [disabled]="!canStartWorkspaceMutation()">Add education</button></div>
                }
              }
            </section>
             <section class="content-section" id="workspace-section-languages" aria-labelledby="languages-title">
-                <div class="section-title"><div><h2 id="languages-title">Languages</h2><p>Profile-specific language records and controlled proficiency levels.</p></div>@if (!languageEditorMode && !isEditing && !educationEditorMode && !certificateEditorMode && !skillEditorMode) { <button class="btn" type="button" (click)="startLanguageCreate()">Add language</button> }</div>
+                 <div class="section-title"><div><h2 id="languages-title">Languages</h2><p>Profile-specific language records and controlled proficiency levels.</p></div><button class="btn" type="button" (click)="startLanguageCreate()" [disabled]="!canStartWorkspaceMutation()">Add language</button></div>
               @if (languageMessage) { <div class="notice success" role="status">{{ languageMessage }}</div> }
               @if (languageLoading) {
                 <div class="section-state" role="status" aria-live="polite"><p>Loading Language records.</p></div>
@@ -111,17 +111,17 @@
                     @for (language of languages; track language.profileLanguageId) {
                       <div class="record">
                         <div><h3>{{ language.languageName }}</h3><p>{{ languageLevelLabel(language.level) }}</p></div>
-                          <div class="record-meta"><div>LANGUAGE</div><div class="record-actions"><button class="btn text" type="button" (click)="startLanguageEdit(language)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isLanguageDeleting">Edit</button><button class="btn danger language-delete-button" type="button" (click)="openLanguageDeleteConfirmation(language)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!skillEditorMode || isLanguageDeleting" [attr.aria-busy]="isLanguageDeleting" [attr.aria-label]="'Delete ' + languageRecordLabel(language)"><span aria-hidden="true">&minus;</span></button></div></div>
+                           <div class="record-meta"><div>LANGUAGE</div><div class="record-actions"><button class="btn text" type="button" (click)="startLanguageEdit(language)" [disabled]="!canStartWorkspaceMutation()">Edit</button><button class="btn danger language-delete-button" type="button" (click)="openLanguageDeleteConfirmation(language)" [disabled]="!canStartWorkspaceMutation()" [attr.aria-busy]="isLanguageDeleting" [attr.aria-label]="'Delete ' + languageRecordLabel(language)"><span aria-hidden="true">&minus;</span></button></div></div>
                       </div>
                     }
                   </div>
                 } @else if (!languageEditorMode) {
-                   <div class="empty-state"><p>No Language records exist in this Profile.</p><button class="btn" type="button" (click)="startLanguageCreate()" [disabled]="isEditing || !!educationEditorMode || !!certificateEditorMode || !!skillEditorMode">Add language</button></div>
+                    <div class="empty-state"><p>No Language records exist in this Profile.</p><button class="btn" type="button" (click)="startLanguageCreate()" [disabled]="!canStartWorkspaceMutation()">Add language</button></div>
                 }
               }
             </section>
              <section class="content-section" id="workspace-section-certificates" aria-labelledby="certificates-title">
-               <div class="section-title"><div><h2 id="certificates-title">Certificates</h2><p>Profile-specific certificate records for this CV version.</p></div>@if (!certificateEditorMode && !isEditing && !educationEditorMode && !languageEditorMode && !skillEditorMode) { <button class="btn" type="button" (click)="startCertificateCreate()">Add certificate</button> }</div>
+               <div class="section-title"><div><h2 id="certificates-title">Certificates</h2><p>Profile-specific certificate records for this CV version.</p></div><button class="btn" type="button" (click)="startCertificateCreate()" [disabled]="!canStartWorkspaceMutation()">Add certificate</button></div>
                @if (certificateMessage) { <div class="notice success" role="status">{{ certificateMessage }}</div> }
                @if (certificateLoading) {
                  <div class="section-state" role="status" aria-live="polite"><p>Loading Certificate records.</p></div>
@@ -144,17 +144,17 @@
                      @for (certificate of certificates; track certificate.id) {
                        <div class="record">
                          <div><h3>{{ certificate.certificateName }}</h3><p>Profile-specific certificate record</p></div>
-                          <div class="record-meta"><div>{{ certificate.issueDate }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startCertificateEdit(certificate)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isCertificateDeleting">Edit</button><button class="btn danger certificate-delete-button" type="button" (click)="openCertificateDeleteConfirmation(certificate)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isCertificateDeleting" [attr.aria-busy]="isCertificateDeleting" [attr.aria-label]="'Delete ' + certificateRecordLabel(certificate)"><span aria-hidden="true">&minus;</span></button></div></div>
+                           <div class="record-meta"><div>{{ certificate.issueDate }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startCertificateEdit(certificate)" [disabled]="!canStartWorkspaceMutation()">Edit</button><button class="btn danger certificate-delete-button" type="button" (click)="openCertificateDeleteConfirmation(certificate)" [disabled]="!canStartWorkspaceMutation()" [attr.aria-busy]="isCertificateDeleting" [attr.aria-label]="'Delete ' + certificateRecordLabel(certificate)"><span aria-hidden="true">&minus;</span></button></div></div>
                        </div>
                      }
                    </div>
                  } @else if (!certificateEditorMode) {
-                    <div class="empty-state"><p>No Certificates exist in this Profile. Add one when it is relevant to this CV version.</p><button class="btn" type="button" (click)="startCertificateCreate()" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!skillEditorMode">Add certificate</button></div>
+                     <div class="empty-state"><p>No Certificates exist in this Profile. Add one when it is relevant to this CV version.</p><button class="btn" type="button" (click)="startCertificateCreate()" [disabled]="!canStartWorkspaceMutation()">Add certificate</button></div>
                  }
                }
              </section>
                <section class="content-section" id="workspace-section-projects" aria-labelledby="projects-title">
-                 <div class="section-title"><div><h2 id="projects-title">Projects</h2><p>Long-form project records prove role, scope, responsibility, and technology depth.</p></div><button class="btn" type="button" (click)="startProjectCreate()" [disabled]="isProjectDeleting">Add project</button></div>
+                  <div class="section-title"><div><h2 id="projects-title">Projects</h2><p>Long-form project records prove role, scope, responsibility, and technology depth.</p></div><button class="btn" type="button" (click)="startProjectCreate()" [disabled]="!canStartWorkspaceMutation()">Add project</button></div>
                  @if (projectMessage) { <div class="notice success" role="status">{{ projectMessage }}</div> }
                  @if (projectLoading) {
                    <div class="section-state" role="status" aria-live="polite"><p>Loading Project records.</p></div>
@@ -176,16 +176,16 @@
                               </div>
                             }
                           </div>
-                          <div class="record-meta project-record-meta"><div class="record-actions"><button class="btn text project-details-toggle" type="button" (click)="toggleProjectDetails(project)" [attr.aria-expanded]="isProjectExpanded(project)">{{ isProjectExpanded(project) ? 'Hide details' : 'Show details' }}</button><button class="btn text" type="button" (click)="startProjectEdit(project)" [disabled]="isProjectDeleting">Edit</button><button class="btn danger project-delete-button" type="button" (click)="openProjectDeleteConfirmation(project)" [disabled]="isProjectDeleting" [attr.aria-busy]="isProjectDeleting" [attr.aria-label]="'Delete ' + projectRecordLabel(project)"><span aria-hidden="true">&minus;</span></button></div></div>
+                           <div class="record-meta project-record-meta"><div class="record-actions"><button class="btn text project-details-toggle" type="button" (click)="toggleProjectDetails(project)" [attr.aria-expanded]="isProjectExpanded(project)">{{ isProjectExpanded(project) ? 'Hide details' : 'Show details' }}</button><button class="btn text" type="button" (click)="startProjectEdit(project)" [disabled]="!canStartWorkspaceMutation()">Edit</button><button class="btn danger project-delete-button" type="button" (click)="openProjectDeleteConfirmation(project)" [disabled]="!canStartWorkspaceMutation()" [attr.aria-busy]="isProjectDeleting" [attr.aria-label]="'Delete ' + projectRecordLabel(project)"><span aria-hidden="true">&minus;</span></button></div></div>
                        </article>
                      }
                    </div>
                  } @else {
-                   <div class="empty-state"><p>No Project records exist in this Profile.</p><button class="btn" type="button" (click)="startProjectCreate()" [disabled]="isProjectDeleting">Add project</button></div>
+                    <div class="empty-state"><p>No Project records exist in this Profile.</p><button class="btn" type="button" (click)="startProjectCreate()" [disabled]="!canStartWorkspaceMutation()">Add project</button></div>
                  }
                </section>
               <section class="content-section" id="workspace-section-skills" aria-labelledby="skills-title">
-                <div class="section-title"><div><h2 id="skills-title">Skills</h2><p>Profile-specific skills with controlled Master Data classification.</p></div>@if (!skillEditorMode && !isEditing && !educationEditorMode && !languageEditorMode && !certificateEditorMode) { <button class="btn" type="button" (click)="startSkillCreate()">Add skill</button> }</div>
+                 <div class="section-title"><div><h2 id="skills-title">Skills</h2><p>Profile-specific skills with controlled Master Data classification.</p></div><button class="btn" type="button" (click)="startSkillCreate()" [disabled]="!canStartWorkspaceMutation()">Add skill</button></div>
                 @if (skillMessage) { <div class="notice success" role="status">{{ skillMessage }}</div> }
                 @if (skillLoading) {
                   <div class="section-state" role="status" aria-live="polite"><p>Loading Skill records.</p></div>
@@ -208,11 +208,11 @@
                   @if (skills.length) {
                     <div class="skills-table-wrap"><table class="skills-table"><thead><tr><th scope="col">Skill</th><th scope="col">Category</th><th scope="col">Experience</th><th scope="col">Last Used</th><th scope="col">Actions</th></tr></thead><tbody>
                       @for (skill of skills; track skill.profileSkillId) {
-                        <tr><td>{{ skill.skillName }}</td><td>{{ skillCategoryLabel(skill) }}</td><td class="mono">{{ skill.experienceYears }}</td><td class="mono">{{ skillLastUsedLabel(skill) }}</td><td><div class="record-actions"><button class="btn text" type="button" (click)="startSkillEdit(skill)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isSkillDeleting">Edit</button><button class="btn danger skill-delete-button" type="button" (click)="openSkillDeleteConfirmation(skill)" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode || !!skillEditorMode || isSkillDeleting" [attr.aria-busy]="isSkillDeleting" [attr.aria-label]="'Delete ' + skillRecordLabel(skill)"><span aria-hidden="true">&minus;</span></button></div></td></tr>
+                         <tr><td>{{ skill.skillName }}</td><td>{{ skillCategoryLabel(skill) }}</td><td class="mono">{{ skill.experienceYears }}</td><td class="mono">{{ skillLastUsedLabel(skill) }}</td><td><div class="record-actions"><button class="btn text" type="button" (click)="startSkillEdit(skill)" [disabled]="!canStartWorkspaceMutation()">Edit</button><button class="btn danger skill-delete-button" type="button" (click)="openSkillDeleteConfirmation(skill)" [disabled]="!canStartWorkspaceMutation()" [attr.aria-busy]="isSkillDeleting" [attr.aria-label]="'Delete ' + skillRecordLabel(skill)"><span aria-hidden="true">&minus;</span></button></div></td></tr>
                       }
                     </tbody></table></div>
-                  } @else if (!skillEditorMode) {
-                    <div class="empty-state"><p>No Skills exist in this Profile. Skills from another Profile are not inherited automatically.</p><button class="btn" type="button" (click)="startSkillCreate()" [disabled]="isEditing || !!educationEditorMode || !!languageEditorMode || !!certificateEditorMode">Add skill</button></div>
+                   } @else if (!skillEditorMode) {
+                     <div class="empty-state"><p>No Skills exist in this Profile. Skills from another Profile are not inherited automatically.</p><button class="btn" type="button" (click)="startSkillCreate()" [disabled]="!canStartWorkspaceMutation()">Add skill</button></div>
                   }
                 }
               </section>
@@ -237,27 +237,27 @@
   }
   @if (educationDeleteConfirmation) {
     @if (educationDeleteTarget; as target) {
-      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-education-title" aria-describedby="delete-education-copy"><h2 id="delete-education-title">Delete {{ educationRecordLabel(target) }}?</h2><p id="delete-education-copy">This removes this Education record from the selected Profile only. This action cannot be undone.</p>@if (educationDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ educationDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelEducationDelete()" [disabled]="isEducationDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmEducationDelete()" [disabled]="isEducationDeleting" [attr.aria-busy]="isEducationDeleting">{{ isEducationDeleting ? 'Deleting...' : 'Delete Education' }}</button></div></section></div>
+       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-education-title" aria-describedby="delete-education-copy"><h2 id="delete-education-title">Delete {{ educationRecordLabel(target) }}?</h2><p id="delete-education-copy">This removes this Education record from the selected Profile only. This action cannot be undone.</p>@if (educationDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ educationDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelEducationDelete()" [disabled]="isEducationDeleting">Cancel</button>@if (hasDeleteConflict('education')) { <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button> }<button class="btn danger" type="button" (click)="confirmEducationDelete()" [disabled]="isEducationDeleting || isReloading || hasDeleteConflict('education')" [attr.aria-busy]="isEducationDeleting">{{ isEducationDeleting ? 'Deleting...' : 'Delete Education' }}</button></div></section></div>
     }
   }
   @if (languageDeleteConfirmation) {
     @if (languageDeleteTarget; as target) {
-      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-language-title" aria-describedby="delete-language-copy"><h2 id="delete-language-title">Delete {{ languageRecordLabel(target) }}?</h2><p id="delete-language-copy">This removes this Language record from the selected Profile only. This action cannot be undone.</p>@if (languageDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ languageDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelLanguageDelete()" [disabled]="isLanguageDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmLanguageDelete()" [disabled]="isLanguageDeleting" [attr.aria-busy]="isLanguageDeleting">{{ isLanguageDeleting ? 'Deleting...' : 'Delete Language' }}</button></div></section></div>
+       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-language-title" aria-describedby="delete-language-copy"><h2 id="delete-language-title">Delete {{ languageRecordLabel(target) }}?</h2><p id="delete-language-copy">This removes this Language record from the selected Profile only. This action cannot be undone.</p>@if (languageDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ languageDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelLanguageDelete()" [disabled]="isLanguageDeleting">Cancel</button>@if (hasDeleteConflict('language')) { <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button> }<button class="btn danger" type="button" (click)="confirmLanguageDelete()" [disabled]="isLanguageDeleting || isReloading || hasDeleteConflict('language')" [attr.aria-busy]="isLanguageDeleting">{{ isLanguageDeleting ? 'Deleting...' : 'Delete Language' }}</button></div></section></div>
     }
   }
   @if (certificateDeleteConfirmation) {
     @if (certificateDeleteTarget; as target) {
-      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-certificate-title" aria-describedby="delete-certificate-copy"><h2 id="delete-certificate-title">Delete {{ certificateRecordLabel(target) }}?</h2><p id="delete-certificate-copy">This removes this Certificate record from the selected Profile only. This action cannot be undone.</p>@if (certificateDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ certificateDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelCertificateDelete()" [disabled]="isCertificateDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmCertificateDelete()" [disabled]="isCertificateDeleting" [attr.aria-busy]="isCertificateDeleting">{{ isCertificateDeleting ? 'Deleting...' : 'Delete Certificate' }}</button></div></section></div>
+       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-certificate-title" aria-describedby="delete-certificate-copy"><h2 id="delete-certificate-title">Delete {{ certificateRecordLabel(target) }}?</h2><p id="delete-certificate-copy">This removes this Certificate record from the selected Profile only. This action cannot be undone.</p>@if (certificateDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ certificateDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelCertificateDelete()" [disabled]="isCertificateDeleting">Cancel</button>@if (hasDeleteConflict('certificate')) { <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button> }<button class="btn danger" type="button" (click)="confirmCertificateDelete()" [disabled]="isCertificateDeleting || isReloading || hasDeleteConflict('certificate')" [attr.aria-busy]="isCertificateDeleting">{{ isCertificateDeleting ? 'Deleting...' : 'Delete Certificate' }}</button></div></section></div>
     }
   }
   @if (skillDeleteConfirmation) {
     @if (skillDeleteTarget; as target) {
-      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-skill-title" aria-describedby="delete-skill-copy"><h2 id="delete-skill-title">Delete {{ skillRecordLabel(target) }}?</h2><p id="delete-skill-copy">This removes this Skill record from the selected Profile only. This action cannot be undone.</p>@if (skillDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ skillDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelSkillDelete()" [disabled]="isSkillDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmSkillDelete()" [disabled]="isSkillDeleting" [attr.aria-busy]="isSkillDeleting">{{ isSkillDeleting ? 'Deleting...' : 'Delete Skill' }}</button></div></section></div>
+       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-skill-title" aria-describedby="delete-skill-copy"><h2 id="delete-skill-title">Delete {{ skillRecordLabel(target) }}?</h2><p id="delete-skill-copy">This removes this Skill record from the selected Profile only. This action cannot be undone.</p>@if (skillDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ skillDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelSkillDelete()" [disabled]="isSkillDeleting">Cancel</button>@if (hasDeleteConflict('skill')) { <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button> }<button class="btn danger" type="button" (click)="confirmSkillDelete()" [disabled]="isSkillDeleting || isReloading || hasDeleteConflict('skill')" [attr.aria-busy]="isSkillDeleting">{{ isSkillDeleting ? 'Deleting...' : 'Delete Skill' }}</button></div></section></div>
     }
   }
   @if (projectDeleteConfirmation) {
     @if (projectDeleteTarget; as target) {
-      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-project-title" aria-describedby="delete-project-copy"><h2 id="delete-project-title">Delete {{ target.name }}?</h2><p id="delete-project-copy">This removes this Project from the selected Profile only. This action cannot be undone.</p>@if (projectDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ projectDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelProjectDelete()" [disabled]="isProjectDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmProjectDelete()" [disabled]="isProjectDeleting" [attr.aria-busy]="isProjectDeleting">{{ isProjectDeleting ? 'Deleting...' : 'Delete Project' }}</button></div></section></div>
+       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-project-title" aria-describedby="delete-project-copy"><h2 id="delete-project-title">Delete {{ target.name }}?</h2><p id="delete-project-copy">This removes this Project from the selected Profile only. This action cannot be undone.</p>@if (projectDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ projectDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelProjectDelete()" [disabled]="isProjectDeleting">Cancel</button>@if (hasDeleteConflict('project')) { <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button> }<button class="btn danger" type="button" (click)="confirmProjectDelete()" [disabled]="isProjectDeleting || isReloading || hasDeleteConflict('project')" [attr.aria-busy]="isProjectDeleting">{{ isProjectDeleting ? 'Deleting...' : 'Delete Project' }}</button></div></section></div>
     }
   }
 </section>

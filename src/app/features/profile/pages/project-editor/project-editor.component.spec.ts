@@ -248,6 +248,20 @@ describe('ProjectEditorComponent', () => {
     expect(notifications.showSuccess).toHaveBeenCalledWith('Project added successfully.');
   });
 
+  it('updates a Project and reports concise success feedback before returning to the Workspace', () => {
+    const updated: Project = { ...project, name: 'Updated Platform' };
+    profiles.updateProject.and.returnValue(of({ project: updated, profileVersion: 4 }));
+    openEdit();
+    fillProjectDraft({ name: 'Updated Platform' });
+
+    fixture.componentInstance.submit();
+
+    expect(profiles.updateProject).toHaveBeenCalledWith('1', '1', jasmine.objectContaining({ name: 'Updated Platform', version: 3 }));
+    expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Project updated successfully.');
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1']);
+  });
+
   it('keeps Project create mode for Save & add another with a pristine reset and no navigation', () => {
     const created: Project = { ...project, id: 8, name: 'First Project', startDate: null, teamSize: null };
     profiles.createProject.and.returnValue(of({ project: created, profileVersion: 4 }));

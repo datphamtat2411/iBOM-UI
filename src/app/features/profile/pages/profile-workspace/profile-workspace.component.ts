@@ -60,6 +60,7 @@ type EditableSkillValues = {
 };
 type MasterComboboxState = 'idle' | 'loading' | 'results' | 'empty' | 'error' | 'selected';
 type MutationPostSaveIntent = 'close' | 'add-another';
+type DeleteConflictSection = 'education' | 'language' | 'certificate' | 'project' | 'skill';
 
 @Component({
   selector: 'app-profile-workspace',
@@ -130,6 +131,7 @@ export class ProfileWorkspaceComponent {
   isReloading = false;
   isDeleting = false;
   conflict = false;
+  deleteConflictSection: DeleteConflictSection | null = null;
   cancelConfirmation = false;
   reloadConfirmation = false;
   deleteConfirmation = false;
@@ -235,6 +237,7 @@ export class ProfileWorkspaceComponent {
   private readonly languageMasterCancel = new Subject<void>();
   private readonly skillListCancel = new Subject<void>();
   private readonly skillMasterCancel = new Subject<void>();
+  private aboutMutationGeneration = 0;
   private educationListGeneration = 0;
   private educationMutationGeneration = 0;
   private languageListGeneration = 0;
@@ -247,6 +250,8 @@ export class ProfileWorkspaceComponent {
   private skillListGeneration = 0;
   private skillMutationGeneration = 0;
   private skillMasterGeneration = 0;
+  private deleteRecoveryGeneration = 0;
+  private profileDeleteGeneration = 0;
   private languageSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private skillSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private activeProfileId: string | null = null;
@@ -270,6 +275,10 @@ export class ProfileWorkspaceComponent {
     this.skillForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.educationForm.controls.status.valueChanges.subscribe(() => this.updateEducationDateValidation());
     this.route.paramMap.subscribe((params) => {
+      this.deleteRecoveryGeneration++;
+      this.profileDeleteGeneration++;
+      this.isReloading = false;
+      this.isDeleting = false;
       this.closeEditor();
       this.closeDeleteConfirmation();
       this.closeEducationDeleteConfirmation();
@@ -330,7 +339,7 @@ export class ProfileWorkspaceComponent {
   }
 
   openDeleteConfirmation(): void {
-    if (this.isDeleting || this.context.summaries().length <= 1) return;
+    if (!this.canStartWorkspaceMutation() || this.context.summaries().length <= 1) return;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
@@ -348,19 +357,24 @@ export class ProfileWorkspaceComponent {
 
   confirmDelete(): void {
     const target = this.deleteTarget;
-    if (!this.deleteConfirmation || !target || this.isDeleting) return;
+    if (!this.deleteConfirmation || !target || this.isDeleting || this.deleteConflictSection !== null || this.editorOwnsMutationContext()) return;
     if (this.context.selectedId() !== target.id || String(this.context.detail()?.id) !== target.id) {
       this.closeDeleteConfirmation();
       return;
     }
 
+    const operationGeneration = ++this.profileDeleteGeneration;
     this.isDeleting = true;
     this.deleteErrorMessage = '';
     this.profileService.delete(target.id).subscribe({
-      next: () => this.finishDelete(),
+      next: () => {
+        if (!this.isCurrentProfileDeleteResponse(target.id, operationGeneration)) return;
+        this.finishDelete(target.id, operationGeneration);
+      },
       error: (error: unknown) => {
+        if (!this.isCurrentProfileDeleteResponse(target.id, operationGeneration)) return;
         if (this.context.isNotFound(error)) {
-          this.finishDelete();
+          this.finishDelete(target.id, operationGeneration);
           return;
         }
         this.isDeleting = false;
@@ -380,6 +394,22 @@ export class ProfileWorkspaceComponent {
 
   selectedSummary() {
     return this.context.summaries().find((summary) => String(summary.id) === this.context.selectedId()) ?? null;
+  }
+
+  workspaceMutationLocked(): boolean {
+    return this.editorOwnsMutationContext()
+      || this.isInlineMutationSubmitting()
+      || this.isDeleteWorkflowActive()
+      || this.hasActiveConflict()
+      || this.isReloading;
+  }
+
+  canStartWorkspaceMutation(): boolean {
+    return !this.workspaceMutationLocked();
+  }
+
+  hasDeleteConflict(section: DeleteConflictSection): boolean {
+    return this.deleteConflictSection === section;
   }
 
   retryEducations(): void {
@@ -410,20 +440,20 @@ export class ProfileWorkspaceComponent {
   startProjectCreate(): void {
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
-    if (!profileId || !profile || String(profile.id) !== profileId || this.isProjectDeleting) return;
+    if (!profileId || !profile || String(profile.id) !== profileId || !this.canStartWorkspaceMutation()) return;
     void this.router.navigate(['/profiles', profileId, 'projects', 'new']);
   }
 
   startProjectEdit(project: Project): void {
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
-    if (!profileId || !profile || String(profile.id) !== profileId || this.isProjectDeleting) return;
+    if (!profileId || !profile || String(profile.id) !== profileId || !this.canStartWorkspaceMutation()) return;
     if (!this.projects.some((item) => String(item.id) === String(project.id))) return;
     void this.router.navigate(['/profiles', profileId, 'projects', project.id]);
   }
 
   openProjectDeleteConfirmation(project: Project): void {
-    if (this.isProjectDeleting) return;
+    if (!this.canStartWorkspaceMutation()) return;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
@@ -443,7 +473,7 @@ export class ProfileWorkspaceComponent {
     const target = this.projectDeleteTarget;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
-    if (!this.projectDeleteConfirmation || !target || this.isProjectDeleting || !profileId || !profile) return;
+    if (!this.projectDeleteConfirmation || !target || this.isProjectDeleting || this.hasDeleteConflict('project') || this.editorOwnsMutationContext() || !profileId || !profile) return;
     if (String(profile.id) !== profileId || !this.projects.some((project) => String(project.id) === String(target.id))) {
       this.closeProjectDeleteConfirmation();
       return;
@@ -468,6 +498,11 @@ export class ProfileWorkspaceComponent {
       error: (error: unknown) => {
         if (!this.isCurrentProjectOperation(profileId, operationGeneration, false)) return;
         this.isProjectDeleting = false;
+        if (this.isProfileVersionConflict(error)) {
+          this.deleteConflictSection = 'project';
+          this.projectDeleteErrorMessage = this.deleteConflictMessage('Project');
+          return;
+        }
         this.projectDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Project right now. The record is still here and you can retry.';
       },
     });
@@ -654,7 +689,7 @@ export class ProfileWorkspaceComponent {
   }
 
   openLanguageDeleteConfirmation(language: ProfileLanguage): void {
-    if (this.isLanguageDeleting || this.languageEditorMode) return;
+    if (!this.canStartWorkspaceMutation()) return;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
@@ -673,8 +708,8 @@ export class ProfileWorkspaceComponent {
     const target = this.languageDeleteTarget;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
-    if (!this.languageDeleteConfirmation || !target || this.isLanguageDeleting || !profileId || !profile) return;
-    if (String(profile.id) !== profileId) {
+    if (!this.languageDeleteConfirmation || !target || this.isLanguageDeleting || this.hasDeleteConflict('language') || this.editorOwnsMutationContext() || !profileId || !profile) return;
+    if (String(profile.id) !== profileId || !this.languages.some((language) => String(language.profileLanguageId) === String(target.profileLanguageId))) {
       this.closeLanguageDeleteConfirmation();
       return;
     }
@@ -697,13 +732,18 @@ export class ProfileWorkspaceComponent {
       error: (error: unknown) => {
         if (!this.isCurrentLanguageOperation(profileId, operationGeneration, false)) return;
         this.isLanguageDeleting = false;
+        if (this.isProfileVersionConflict(error)) {
+          this.deleteConflictSection = 'language';
+          this.languageDeleteErrorMessage = this.deleteConflictMessage('Language');
+          return;
+        }
         this.languageDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Language right now. The record is still here and you can retry.';
       },
     });
   }
 
   openSkillDeleteConfirmation(skill: ProfileSkill): void {
-    if (this.isSkillDeleting || this.skillEditorMode) return;
+    if (!this.canStartWorkspaceMutation()) return;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
@@ -722,7 +762,7 @@ export class ProfileWorkspaceComponent {
     const target = this.skillDeleteTarget;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
-    if (!this.skillDeleteConfirmation || !target || this.isSkillDeleting || !profileId || !profile) return;
+    if (!this.skillDeleteConfirmation || !target || this.isSkillDeleting || this.hasDeleteConflict('skill') || this.editorOwnsMutationContext() || !profileId || !profile) return;
     if (String(profile.id) !== profileId || !this.skills.some((skill) => String(skill.profileSkillId) === String(target.profileSkillId))) {
       this.closeSkillDeleteConfirmation();
       return;
@@ -746,13 +786,18 @@ export class ProfileWorkspaceComponent {
       error: (error: unknown) => {
         if (!this.isCurrentSkillOperation(profileId, operationGeneration, false)) return;
         this.isSkillDeleting = false;
+        if (this.isProfileVersionConflict(error)) {
+          this.deleteConflictSection = 'skill';
+          this.skillDeleteErrorMessage = this.deleteConflictMessage('Skill');
+          return;
+        }
         this.skillDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Skill right now. The record is still here and you can retry.';
       },
     });
   }
 
   openCertificateDeleteConfirmation(certificate: Certificate): void {
-    if (this.isCertificateDeleting || this.certificateEditorMode) return;
+    if (!this.canStartWorkspaceMutation()) return;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
@@ -771,13 +816,13 @@ export class ProfileWorkspaceComponent {
     const target = this.certificateDeleteTarget;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
-    if (!this.certificateDeleteConfirmation || !target || this.isCertificateDeleting || !profileId || !profile) return;
+    if (!this.certificateDeleteConfirmation || !target || this.isCertificateDeleting || this.hasDeleteConflict('certificate') || this.editorOwnsMutationContext() || !profileId || !profile) return;
     if (String(profile.id) !== profileId || !this.certificates.some((certificate) => String(certificate.id) === String(target.id))) {
       this.closeCertificateDeleteConfirmation();
       return;
     }
 
-    const operationGeneration = this.certificateMutationGeneration;
+    const operationGeneration = ++this.certificateMutationGeneration;
     this.isCertificateDeleting = true;
     this.certificateDeleteErrorMessage = '';
     this.profileService.deleteCertificate(profileId, target.id, profile.version).subscribe({
@@ -795,13 +840,18 @@ export class ProfileWorkspaceComponent {
       error: (error: unknown) => {
         if (!this.isCurrentCertificateOperation(profileId, operationGeneration, false)) return;
         this.isCertificateDeleting = false;
+        if (this.isProfileVersionConflict(error)) {
+          this.deleteConflictSection = 'certificate';
+          this.certificateDeleteErrorMessage = this.deleteConflictMessage('Certificate');
+          return;
+        }
         this.certificateDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Certificate right now. The record is still here and you can retry.';
       },
     });
   }
 
   openEducationDeleteConfirmation(education: Education): void {
-    if (this.isEducationDeleting || this.educationEditorMode) return;
+    if (!this.canStartWorkspaceMutation()) return;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
@@ -820,8 +870,8 @@ export class ProfileWorkspaceComponent {
     const target = this.educationDeleteTarget;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
-    if (!this.educationDeleteConfirmation || !target || this.isEducationDeleting || !profileId || !profile) return;
-    if (String(profile.id) !== profileId) {
+    if (!this.educationDeleteConfirmation || !target || this.isEducationDeleting || this.hasDeleteConflict('education') || this.editorOwnsMutationContext() || !profileId || !profile) return;
+    if (String(profile.id) !== profileId || !this.educations.some((education) => String(education.id) === String(target.id))) {
       this.closeEducationDeleteConfirmation();
       return;
     }
@@ -844,6 +894,11 @@ export class ProfileWorkspaceComponent {
       error: (error: unknown) => {
         if (!this.isCurrentEducationOperation(profileId, operationGeneration, false)) return;
         this.isEducationDeleting = false;
+        if (this.isProfileVersionConflict(error)) {
+          this.deleteConflictSection = 'education';
+          this.educationDeleteErrorMessage = this.deleteConflictMessage('Education');
+          return;
+        }
         this.educationDeleteErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to delete this Education right now. The record is still here and you can retry.';
       },
     });
@@ -851,7 +906,7 @@ export class ProfileWorkspaceComponent {
 
   startEditing(): void {
     const profile = this.context.detail();
-    if (!profile || this.conflict || this.educationEditorMode) return;
+    if (!profile || this.conflict || !this.canStartWorkspaceMutation()) return;
     const values = this.formValues(profile);
     this.originalAboutMeValues = this.normalizeAboutMeValues(values);
     this.editForm.reset(values);
@@ -997,9 +1052,11 @@ export class ProfileWorkspaceComponent {
       version: profile.version,
     };
 
+    const operationGeneration = ++this.aboutMutationGeneration;
     this.isSubmitting = true;
     this.profileService.update(profileId, update).subscribe({
       next: (updated) => {
+        if (!this.isCurrentAboutMeOperation(profileId, operationGeneration)) return;
         this.context.replaceDetail(updated);
         this.isSubmitting = false;
         this.conflict = false;
@@ -1008,7 +1065,10 @@ export class ProfileWorkspaceComponent {
         this.notifications.showSuccess(this.saveMessage);
         this.closeEditor();
       },
-      error: (error: unknown) => this.handleSaveError(error),
+      error: (error: unknown) => {
+        if (!this.isCurrentAboutMeOperation(profileId, operationGeneration)) return;
+        this.handleSaveError(error);
+      },
     });
   }
 
@@ -1300,6 +1360,15 @@ export class ProfileWorkspaceComponent {
   }
 
   reloadLatest(): void {
+    if (this.deleteConflictSection) {
+      if (this.editorOwnsMutationContext()) {
+        this.setDeleteConflictError('Finish or discard the active draft before reloading the latest Profile.');
+        return;
+      }
+      if (this.isReloading) return;
+      this.fetchLatestDeleteConflict(this.deleteConflictSection);
+      return;
+    }
     if (this.certificateEditorMode) {
       if (this.isReloading || !this.certificateConflict) return;
       if (this.certificateForm.dirty) {
@@ -1346,7 +1415,10 @@ export class ProfileWorkspaceComponent {
 
   confirmReloadLatest(): void {
     this.reloadConfirmation = false;
-    if (this.certificateEditorMode) {
+    if (this.deleteConflictSection) {
+      if (this.editorOwnsMutationContext()) return;
+      this.fetchLatestDeleteConflict(this.deleteConflictSection);
+    } else if (this.certificateEditorMode) {
       this.fetchLatestCertificate();
     } else if (this.skillEditorMode) {
       this.fetchLatestSkill();
@@ -1606,7 +1678,7 @@ export class ProfileWorkspaceComponent {
     this.editSession.resolveNavigation(false);
   }
 
-  private loadEducations(profileId: string): void {
+  private loadEducations(profileId: string, onLoaded?: () => void, onError?: () => void): void {
     this.educationListCancel.next();
     const generation = ++this.educationListGeneration;
     this.educations = [];
@@ -1617,16 +1689,18 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentEducationProfile(profileId, generation)) return;
         this.educations = educations;
         this.educationLoading = false;
+        onLoaded?.();
       },
       error: (error: unknown) => {
         if (!this.isCurrentEducationProfile(profileId, generation)) return;
         this.educationError = error;
         this.educationLoading = false;
+        onError?.();
       },
     });
   }
 
-  private loadProfileLanguages(profileId: string): void {
+  private loadProfileLanguages(profileId: string, onLoaded?: () => void, onError?: () => void): void {
     this.languageListCancel.next();
     const generation = ++this.languageListGeneration;
     this.languages = [];
@@ -1638,16 +1712,18 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentLanguageProfile(profileId, generation)) return;
         this.languages = this.sortProfileLanguages(languages);
         this.languageLoading = false;
+        onLoaded?.();
       },
       error: (error: unknown) => {
         if (!this.isCurrentLanguageProfile(profileId, generation)) return;
         this.languageError = error;
         this.languageLoading = false;
+        onError?.();
       },
     });
   }
 
-  private loadCertificates(profileId: string): void {
+  private loadCertificates(profileId: string, onLoaded?: () => void, onError?: () => void): void {
     this.certificateListCancel.next();
     const generation = ++this.certificateListGeneration;
     this.certificates = [];
@@ -1658,16 +1734,18 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentCertificateProfile(profileId, generation)) return;
         this.certificates = this.sortCertificates(certificates);
         this.certificateLoading = false;
+        onLoaded?.();
       },
       error: (error: unknown) => {
         if (!this.isCurrentCertificateProfile(profileId, generation)) return;
         this.certificateError = error;
         this.certificateLoading = false;
+        onError?.();
       },
     });
   }
 
-  private loadProjects(profileId: string): void {
+  private loadProjects(profileId: string, onLoaded?: () => void, onError?: () => void): void {
     this.projectListCancel.next();
     const generation = ++this.projectListGeneration;
     this.projects = [];
@@ -1681,16 +1759,18 @@ export class ProfileWorkspaceComponent {
           if (!projects.some((project) => String(project.id) === projectId)) this.expandedProjectIds.delete(projectId);
         }
         this.projectLoading = false;
+        onLoaded?.();
       },
       error: (error: unknown) => {
         if (!this.isCurrentProjectProfile(profileId, generation)) return;
         this.projectError = error;
         this.projectLoading = false;
+        onError?.();
       },
     });
   }
 
-  private loadProfileSkills(profileId: string): void {
+  private loadProfileSkills(profileId: string, onLoaded?: () => void, onError?: () => void): void {
     this.skillListCancel.next();
     const generation = ++this.skillListGeneration;
     this.skills = [];
@@ -1701,11 +1781,13 @@ export class ProfileWorkspaceComponent {
         if (!this.isCurrentSkillProfile(profileId, generation)) return;
         this.skills = this.sortProfileSkills(skills);
         this.skillLoading = false;
+        onLoaded?.();
       },
       error: (error: unknown) => {
         if (!this.isCurrentSkillProfile(profileId, generation)) return;
         this.skillError = error;
         this.skillLoading = false;
+        onError?.();
       },
     });
   }
@@ -1839,6 +1921,7 @@ export class ProfileWorkspaceComponent {
     const profileId = this.context.selectedId();
     if (!profileId) return;
 
+    this.aboutMutationGeneration++;
     const current = this.context.detail();
     if (current) this.editForm.reset(this.formValues(current));
     this.editForm.markAsPristine();
@@ -1962,7 +2045,143 @@ export class ProfileWorkspaceComponent {
     });
   }
 
+  private fetchLatestDeleteConflict(section: DeleteConflictSection): void {
+    const profileId = this.context.selectedId();
+    if (!profileId || this.deleteConflictSection !== section) return;
+
+    const recoveryGeneration = ++this.deleteRecoveryGeneration;
+    this.isReloading = true;
+    this.setDeleteConflictError('');
+    this.context.reloadDetail(profileId).subscribe({
+      next: () => {
+        if (!this.isCurrentDeleteRecovery(profileId, recoveryGeneration, section)) return;
+        const onLoaded = () => this.completeDeleteRecovery(profileId, recoveryGeneration, section);
+        const onError = () => this.failDeleteRecovery(profileId, recoveryGeneration, section);
+        switch (section) {
+          case 'education': this.loadEducations(profileId, onLoaded, onError); break;
+          case 'language': this.loadProfileLanguages(profileId, onLoaded, onError); break;
+          case 'certificate': this.loadCertificates(profileId, onLoaded, onError); break;
+          case 'project': this.loadProjects(profileId, onLoaded, onError); break;
+          case 'skill': this.loadProfileSkills(profileId, onLoaded, onError); break;
+        }
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentDeleteRecovery(profileId, recoveryGeneration, section)) return;
+        this.isReloading = false;
+        this.setDeleteConflictError(`Latest Profile data could not be loaded. ${this.apiError(error)?.message?.trim() || 'Please try Reload Latest again.'}`);
+      },
+    });
+  }
+
+  private completeDeleteRecovery(profileId: string, recoveryGeneration: number, section: DeleteConflictSection): void {
+    if (!this.isCurrentDeleteRecovery(profileId, recoveryGeneration, section)) return;
+    this.isReloading = false;
+    if (this.refreshDeleteTarget(section)) {
+      this.deleteConflictSection = null;
+      this.setDeleteSectionError(section, '');
+      this.setDeleteSectionMessage(section, `Latest Profile and ${this.deleteSectionLabel(section)} data loaded. Confirm the deletion again if it is still wanted.`);
+      return;
+    }
+
+    this.closeDeleteConfirmationFor(section);
+    this.setDeleteSectionMessage(section, `Latest Profile and ${this.deleteSectionLabel(section)} data loaded. The record is no longer available.`);
+  }
+
+  private failDeleteRecovery(profileId: string, recoveryGeneration: number, section: DeleteConflictSection): void {
+    if (!this.isCurrentDeleteRecovery(profileId, recoveryGeneration, section)) return;
+    this.isReloading = false;
+    this.setDeleteConflictError(`Latest ${this.deleteSectionLabel(section)} data could not be loaded. Please try Reload Latest again.`);
+  }
+
+  private refreshDeleteTarget(section: DeleteConflictSection): boolean {
+    switch (section) {
+      case 'education': {
+        const target = this.educationDeleteTarget;
+        const current = target && this.educations.find((item) => String(item.id) === String(target.id));
+        if (!current) return false;
+        this.educationDeleteTarget = current;
+        return true;
+      }
+      case 'language': {
+        const target = this.languageDeleteTarget;
+        const current = target && this.languages.find((item) => String(item.profileLanguageId) === String(target.profileLanguageId));
+        if (!current) return false;
+        this.languageDeleteTarget = current;
+        return true;
+      }
+      case 'certificate': {
+        const target = this.certificateDeleteTarget;
+        const current = target && this.certificates.find((item) => String(item.id) === String(target.id));
+        if (!current) return false;
+        this.certificateDeleteTarget = current;
+        return true;
+      }
+      case 'project': {
+        const target = this.projectDeleteTarget;
+        const current = target && this.projects.find((item) => String(item.id) === String(target.id));
+        if (!current) return false;
+        this.projectDeleteTarget = current;
+        return true;
+      }
+      case 'skill': {
+        const target = this.skillDeleteTarget;
+        const current = target && this.skills.find((item) => String(item.profileSkillId) === String(target.profileSkillId));
+        if (!current) return false;
+        this.skillDeleteTarget = current;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private closeDeleteConfirmationFor(section: DeleteConflictSection): void {
+    switch (section) {
+      case 'education': this.closeEducationDeleteConfirmation(); break;
+      case 'language': this.closeLanguageDeleteConfirmation(); break;
+      case 'certificate': this.closeCertificateDeleteConfirmation(); break;
+      case 'project': this.closeProjectDeleteConfirmation(); break;
+      case 'skill': this.closeSkillDeleteConfirmation(); break;
+    }
+  }
+
+  private setDeleteSectionError(section: DeleteConflictSection, message: string): void {
+    switch (section) {
+      case 'education': this.educationDeleteErrorMessage = message; break;
+      case 'language': this.languageDeleteErrorMessage = message; break;
+      case 'certificate': this.certificateDeleteErrorMessage = message; break;
+      case 'project': this.projectDeleteErrorMessage = message; break;
+      case 'skill': this.skillDeleteErrorMessage = message; break;
+    }
+  }
+
+  private setDeleteConflictError(message: string): void {
+    if (this.deleteConflictSection) this.setDeleteSectionError(this.deleteConflictSection, message);
+  }
+
+  private setDeleteSectionMessage(section: DeleteConflictSection, message: string): void {
+    switch (section) {
+      case 'education': this.educationMessage = message; break;
+      case 'language': this.languageMessage = message; break;
+      case 'certificate': this.certificateMessage = message; break;
+      case 'project': this.projectMessage = message; break;
+      case 'skill': this.skillMessage = message; break;
+    }
+  }
+
+  private deleteSectionLabel(section: DeleteConflictSection): string {
+    return section === 'language' ? 'Language' : section[0].toUpperCase() + section.slice(1);
+  }
+
+  private isCurrentDeleteRecovery(profileId: string, recoveryGeneration: number, section: DeleteConflictSection): boolean {
+    return this.deleteConflictSection === section
+      && this.deleteRecoveryGeneration === recoveryGeneration
+      && this.activeProfileId === profileId
+      && this.context.selectedId() === profileId
+      && String(this.context.detail()?.id) === profileId;
+  }
+
   private closeEditor(): void {
+    this.aboutMutationGeneration++;
     this.originalAboutMeValues = null;
     this.isEditing = false;
     this.isSubmitting = false;
@@ -2182,6 +2401,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private closeEducationDeleteConfirmation(): void {
+    if (this.deleteConflictSection === 'education') this.deleteConflictSection = null;
     this.educationDeleteConfirmation = false;
     this.educationDeleteTarget = null;
     this.educationDeleteErrorMessage = '';
@@ -2189,6 +2409,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private closeLanguageDeleteConfirmation(): void {
+    if (this.deleteConflictSection === 'language') this.deleteConflictSection = null;
     this.languageDeleteConfirmation = false;
     this.languageDeleteTarget = null;
     this.languageDeleteErrorMessage = '';
@@ -2196,6 +2417,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private closeCertificateDeleteConfirmation(): void {
+    if (this.deleteConflictSection === 'certificate') this.deleteConflictSection = null;
     this.certificateDeleteConfirmation = false;
     this.certificateDeleteTarget = null;
     this.certificateDeleteErrorMessage = '';
@@ -2203,6 +2425,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private closeProjectDeleteConfirmation(): void {
+    if (this.deleteConflictSection === 'project') this.deleteConflictSection = null;
     this.projectDeleteConfirmation = false;
     this.projectDeleteTarget = null;
     this.projectDeleteErrorMessage = '';
@@ -2210,6 +2433,7 @@ export class ProfileWorkspaceComponent {
   }
 
   private closeSkillDeleteConfirmation(): void {
+    if (this.deleteConflictSection === 'skill') this.deleteConflictSection = null;
     this.skillDeleteConfirmation = false;
     this.skillDeleteTarget = null;
     this.skillDeleteErrorMessage = '';
@@ -2282,14 +2506,20 @@ export class ProfileWorkspaceComponent {
     this.previewInvalidated = false;
   }
 
-  private finishDelete(): void {
+  private finishDelete(profileId: string, operationGeneration: number): void {
     this.closeEditor();
     this.closeDeleteConfirmation();
     this.isDeleting = false;
 
     this.context.refreshSummariesAndSelectFirst().subscribe({
-      next: (first) => void this.router.navigate(first ? ['/profiles', first.id] : ['/profiles']),
-      error: () => void this.router.navigate(['/profiles']),
+      next: (first) => {
+        if (!this.isCurrentProfileDeleteFlow(profileId, operationGeneration)) return;
+        void this.router.navigate(first ? ['/profiles', first.id] : ['/profiles']);
+      },
+      error: () => {
+        if (!this.isCurrentProfileDeleteFlow(profileId, operationGeneration)) return;
+        void this.router.navigate(['/profiles']);
+      },
     });
   }
 
@@ -2314,7 +2544,7 @@ export class ProfileWorkspaceComponent {
 
   private openEducationEditor(education?: Education): void {
     const profile = this.context.detail();
-    if (!profile || this.isEditing || this.educationEditorMode) return;
+    if (!profile || !this.canStartWorkspaceMutation()) return;
 
     const values = education ? this.educationFormValues(education) : this.emptyEducationValues();
     this.educationEditorMode = education ? 'edit' : 'create';
@@ -2362,7 +2592,7 @@ export class ProfileWorkspaceComponent {
 
   private openLanguageEditor(language?: ProfileLanguage): void {
     const profile = this.context.detail();
-    if (!profile || this.isEditing || this.educationEditorMode || this.languageEditorMode) return;
+    if (!profile || !this.canStartWorkspaceMutation()) return;
 
     const values = language ? this.languageFormValues(language) : this.emptyLanguageValues();
     this.languageEditorMode = language ? 'edit' : 'create';
@@ -2414,7 +2644,7 @@ export class ProfileWorkspaceComponent {
 
   private openSkillEditor(skill?: ProfileSkill): void {
     const profile = this.context.detail();
-    if (!profile || this.isEditing || this.educationEditorMode || this.languageEditorMode || this.certificateEditorMode || this.skillEditorMode) return;
+    if (!profile || !this.canStartWorkspaceMutation()) return;
 
     const values = skill ? this.skillFormValues(skill) : this.emptySkillValues();
     this.skillEditorMode = skill ? 'edit' : 'create';
@@ -2468,7 +2698,7 @@ export class ProfileWorkspaceComponent {
 
   private openCertificateEditor(certificate?: Certificate): void {
     const profile = this.context.detail();
-    if (!profile || this.isEditing || this.educationEditorMode || this.languageEditorMode || this.certificateEditorMode) return;
+    if (!profile || !this.canStartWorkspaceMutation()) return;
 
     const values = certificate ? this.certificateFormValues(certificate) : this.emptyCertificateValues();
     this.certificateEditorMode = certificate ? 'edit' : 'create';
@@ -2642,9 +2872,10 @@ export class ProfileWorkspaceComponent {
 
   private clearLanguageBackendErrors(): void {
     for (const control of Object.values(this.languageForm.controls)) {
-      if (!control.errors?.['backend']) continue;
+      if (!control.errors?.['backend'] && !control.errors?.['duplicate']) continue;
       const errors = { ...control.errors };
       delete errors['backend'];
+      delete errors['duplicate'];
       control.setErrors(Object.keys(errors).length ? errors : null);
     }
   }
@@ -2864,6 +3095,14 @@ export class ProfileWorkspaceComponent {
       && this.educationListGeneration === generation;
   }
 
+  private isCurrentAboutMeOperation(profileId: string, generation: number): boolean {
+    return this.activeProfileId === profileId
+      && this.context.selectedId() === profileId
+      && String(this.context.detail()?.id) === profileId
+      && this.aboutMutationGeneration === generation
+      && this.isEditing;
+  }
+
   private isCurrentLanguageProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.languageListGeneration === generation;
@@ -2882,6 +3121,16 @@ export class ProfileWorkspaceComponent {
   private isCurrentSkillProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.skillListGeneration === generation;
+  }
+
+  private isCurrentProfileDeleteResponse(profileId: string, generation: number): boolean {
+    return this.isCurrentProfileDeleteFlow(profileId, generation)
+      && this.context.selectedId() === profileId
+      && String(this.context.detail()?.id) === profileId;
+  }
+
+  private isCurrentProfileDeleteFlow(profileId: string, generation: number): boolean {
+    return this.activeProfileId === profileId && this.profileDeleteGeneration === generation;
   }
 
   private isCurrentEducationOperation(profileId: string, generation: number, requiresEditor = true): boolean {
@@ -3004,6 +3253,58 @@ export class ProfileWorkspaceComponent {
       personality: value.personality.trim(),
       technicalSummary: value.technicalSummary.trim(),
     };
+  }
+
+  private hasActiveInlineEditor(): boolean {
+    return this.isEditing
+      || this.educationEditorMode !== null
+      || this.languageEditorMode !== null
+      || this.certificateEditorMode !== null
+      || this.skillEditorMode !== null;
+  }
+
+  private editorOwnsMutationContext(): boolean {
+    return this.hasActiveInlineEditor() || this.editSession.dirty();
+  }
+
+  private isInlineMutationSubmitting(): boolean {
+    return this.isSubmitting
+      || this.isEducationSubmitting
+      || this.isLanguageSubmitting
+      || this.isCertificateSubmitting
+      || this.isSkillSubmitting;
+  }
+
+  private isDeleteWorkflowActive(): boolean {
+    return this.isDeleting
+      || this.isEducationDeleting
+      || this.isLanguageDeleting
+      || this.isCertificateDeleting
+      || this.isProjectDeleting
+      || this.isSkillDeleting
+      || this.deleteConfirmation
+      || this.educationDeleteConfirmation
+      || this.languageDeleteConfirmation
+      || this.certificateDeleteConfirmation
+      || this.projectDeleteConfirmation
+      || this.skillDeleteConfirmation;
+  }
+
+  private hasActiveConflict(): boolean {
+    return this.conflict
+      || this.educationConflict
+      || this.languageConflict
+      || this.certificateConflict
+      || this.skillConflict
+      || this.deleteConflictSection !== null;
+  }
+
+  private isProfileVersionConflict(error: unknown): boolean {
+    return this.apiError(error)?.errorCode === 'PROFILE_VERSION_CONFLICT';
+  }
+
+  private deleteConflictMessage(section: string): string {
+    return `The Profile changed before this ${section} could be deleted. Reload Latest to refresh the current ${section} data before deciding again.`;
   }
 
   private apiError(error: unknown): ApiErrorResponse | undefined {

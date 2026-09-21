@@ -364,6 +364,7 @@ describe('ProfileWorkspaceComponent', () => {
     profiles.update.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { errorCode: 'VALIDATION_ERROR', data: { errors: [{ field: 'jobTitle', message: 'Invalid title' }] } } })));
     fixture.componentInstance.submit();
     expect(fixture.componentInstance.editForm.controls.jobTitle.errors?.['backend']).toBe('Invalid title');
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
   it('replaces current state and closes with preview-invalidated feedback after success', () => {
@@ -380,6 +381,29 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.isEditing).toBeFalse();
     expect(fixture.componentInstance.saveMessage).toBe('About Me updated successfully.');
     expect(fixture.nativeElement.textContent).toContain('About Me updated successfully.');
+    expect(notifications.showSuccess).toHaveBeenCalledWith('About Me updated successfully.');
+  });
+
+  it('ignores a stale About Me mutation without resetting a current Profile editor', () => {
+    const pending = new Subject<ProfileDetail>();
+    profiles.update.and.returnValue(pending);
+    openEditor();
+    markDraft();
+    fixture.componentInstance.submit();
+
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2, profileName: 'Frontend CV', firstName: 'Current' });
+    params.next(convertToParamMap({ profileId: '2' }));
+    openEditor();
+    fixture.componentInstance.editForm.controls.firstName.setValue('Current draft');
+    fixture.componentInstance.editForm.markAsDirty();
+
+    pending.next({ ...detail, firstName: 'Stale response', version: 4 });
+    pending.complete();
+
+    expect(fixture.componentInstance.isEditing).toBeTrue();
+    expect(fixture.componentInstance.editForm.controls.firstName.value).toBe('Current draft');
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
   it('retains a conflict draft, blocks Save, and requires Reload Latest before editing again', () => {
@@ -447,7 +471,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.nativeElement.querySelector('#delete-profile-copy')?.textContent).toContain('selected Profile only');
   });
 
-  it('cancels deletion without discarding a dirty About Me draft', () => {
+  it('does not open Profile deletion behind a dirty About Me draft', () => {
     context.summaries.set([summary, { ...summary, id: 2, profileName: 'Frontend CV' }]);
     fixture.detectChanges();
     openEditor();
@@ -455,7 +479,6 @@ describe('ProfileWorkspaceComponent', () => {
 
     fixture.componentInstance.openDeleteConfirmation();
     fixture.detectChanges();
-    fixture.componentInstance.cancelDelete();
 
     expect(fixture.componentInstance.deleteConfirmation).toBeFalse();
     expect(fixture.componentInstance.isEditing).toBeTrue();
@@ -489,6 +512,25 @@ describe('ProfileWorkspaceComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
   });
 
+  it('ignores a stale Profile deletion response after switching to another Profile', () => {
+    const pendingDelete = new Subject<void>();
+    const other = { ...summary, id: 2, profileName: 'Frontend CV' };
+    profiles.delete.and.returnValue(pendingDelete);
+    context.summaries.set([summary, other]);
+    fixture.detectChanges();
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.componentInstance.confirmDelete();
+
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2, profileName: 'Frontend CV' });
+    params.next(convertToParamMap({ profileId: '2' }));
+    pendingDelete.next();
+
+    expect(fixture.componentInstance.isDeleting).toBeFalse();
+    expect(context.refreshSummariesAndSelectFirst).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
   it('refreshes and navigates to the first remaining Profile after deletion', () => {
     const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
     profiles.delete.and.returnValue(of(undefined));
@@ -512,7 +554,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
   });
 
-  it('preserves the current Profile and draft after an ordinary delete failure and allows retry', () => {
+  it('blocks Profile deletion while preserving the current About Me draft', () => {
     const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };
     profiles.delete.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_LAST_ACTIVE_CANNOT_DELETE', message: 'At least one active Profile is required.' } })));
     context.summaries.set([summary, remaining]);
@@ -520,21 +562,16 @@ describe('ProfileWorkspaceComponent', () => {
     openEditor();
     markDraft();
     fixture.componentInstance.openDeleteConfirmation();
-    fixture.componentInstance.confirmDelete();
 
-    expect(fixture.componentInstance.deleteConfirmation).toBeTrue();
+    expect(fixture.componentInstance.deleteConfirmation).toBeFalse();
     expect(fixture.componentInstance.isEditing).toBeTrue();
     expect(fixture.componentInstance.editForm.controls.firstName.value).toBe('Changed');
     expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
     expect(context.detail()).toEqual(detail);
-    expect(fixture.componentInstance.deleteErrorMessage).toBe('At least one active Profile is required.');
+    expect(fixture.componentInstance.deleteErrorMessage).toBe('');
+    expect(profiles.delete).not.toHaveBeenCalled();
     expect(context.refreshSummariesAndSelectFirst).not.toHaveBeenCalled();
     expect(router.navigate).not.toHaveBeenCalled();
-
-    profiles.delete.and.returnValue(of(undefined));
-    context.refreshSummariesAndSelectFirst.and.returnValue(of(remaining));
-    fixture.componentInstance.confirmDelete();
-    expect(profiles.delete).toHaveBeenCalledTimes(2);
   });
 
   it('recovers an invalid Profile route to the first accessible Profile and clears stale detail', () => {
@@ -840,6 +877,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(profiles.updateEducation).toHaveBeenCalledWith('1', 1, { schoolName: 'North University', degree: 'MSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: '2024-06-30', status: 'COMPLETED', version: 3 });
     expect(fixture.componentInstance.educations).toEqual([updated]);
     expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 5);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Education updated successfully.');
   });
 
   it('preserves Education form values, dirty state, and rows after a failed mutation', () => {
@@ -919,6 +957,84 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.educationDeleteConfirmation).toBeFalse();
     expect(fixture.componentInstance.educationMessage).toContain('Education deleted');
     expect(context.reloadDetail).not.toHaveBeenCalled();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Education deleted successfully.');
+  });
+
+  it('blocks cross-section mutations behind an active About Me draft and restores them after discard', () => {
+    fixture.componentInstance.projects = [project];
+    openEditor();
+    markDraft();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.workspaceMutationLocked()).toBeTrue();
+    expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeTrue();
+    expect((fixture.nativeElement.querySelector('.project-details-toggle + .btn') as HTMLButtonElement).disabled).toBeTrue();
+    expect((fixture.nativeElement.querySelector('.project-delete-button') as HTMLButtonElement).disabled).toBeTrue();
+
+    fixture.componentInstance.cancelEditing();
+    fixture.componentInstance.discardEditing();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.workspaceMutationLocked()).toBeFalse();
+    expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeFalse();
+  });
+
+  it('prevents Project create, edit, and delete while an Education editor is active', () => {
+    fixture.componentInstance.projects = [project];
+    openEducationCreate();
+    fixture.detectChanges();
+
+    fixture.componentInstance.startProjectCreate();
+    fixture.componentInstance.startProjectEdit(project);
+    fixture.componentInstance.openProjectDeleteConfirmation(project);
+
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.projectDeleteConfirmation).toBeFalse();
+    expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeTrue();
+  });
+
+  it('keeps one inline editor owner while allowing read-only Project expansion', () => {
+    fixture.componentInstance.projects = [project];
+    openEducationCreate();
+
+    fixture.componentInstance.startLanguageCreate();
+    fixture.componentInstance.startCertificateCreate();
+    fixture.componentInstance.startSkillCreate();
+    fixture.componentInstance.startEditing();
+    fixture.componentInstance.toggleProjectDetails(project);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.educationEditorMode).toBe('create');
+    expect(fixture.componentInstance.languageEditorMode).toBeNull();
+    expect(fixture.componentInstance.certificateEditorMode).toBeNull();
+    expect(fixture.componentInstance.skillEditorMode).toBeNull();
+    expect(fixture.componentInstance.isEditing).toBeFalse();
+    expect(fixture.componentInstance.isProjectExpanded(project)).toBeTrue();
+  });
+
+  it('prevents collection mutations while a Language editor owns the Profile context', () => {
+    fixture.componentInstance.projects = [project];
+    fixture.componentInstance.startLanguageCreate();
+    fixture.detectChanges();
+
+    fixture.componentInstance.startCertificateCreate();
+    fixture.componentInstance.startSkillEdit(skill);
+    fixture.componentInstance.openProjectDeleteConfirmation(project);
+
+    expect(fixture.componentInstance.languageEditorMode).toBe('create');
+    expect(fixture.componentInstance.certificateEditorMode).toBeNull();
+    expect(fixture.componentInstance.skillEditorMode).toBeNull();
+    expect(fixture.componentInstance.projectDeleteConfirmation).toBeFalse();
+    expect((fixture.nativeElement.querySelector('#workspace-section-education .section-title button') as HTMLButtonElement).disabled).toBeTrue();
+  });
+
+  it('does not bypass the dirty editor when entering the routed Project Editor', () => {
+    openEditor();
+    markDraft();
+
+    fixture.componentInstance.startProjectCreate();
+
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 
   it('retains an Education row and confirmation after delete failure', () => {
@@ -930,6 +1046,113 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.educations).toEqual([education]);
     expect(fixture.componentInstance.educationDeleteConfirmation).toBeTrue();
     expect(fixture.componentInstance.educationDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('recovers an Education delete version conflict without blind retry or success feedback', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshed = new Subject<Education[]>();
+    profiles.deleteEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listEducations.and.returnValue(refreshed);
+    fixture.componentInstance.educations = [education];
+    fixture.componentInstance.openEducationDeleteConfirmation(education);
+    fixture.componentInstance.confirmEducationDelete();
+
+    expect(fixture.componentInstance.educations).toEqual([education]);
+    expect(fixture.componentInstance.educationDeleteConfirmation).toBeTrue();
+    expect(fixture.componentInstance.hasDeleteConflict('education')).toBeTrue();
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
+    fixture.componentInstance.confirmEducationDelete();
+    expect(profiles.deleteEducation).toHaveBeenCalledTimes(1);
+
+    fixture.componentInstance.reloadLatest();
+    reload.next({ ...detail, version: 4 });
+    refreshed.next([education]);
+    context.detail.set({ ...detail, version: 4 });
+
+    expect(fixture.componentInstance.hasDeleteConflict('education')).toBeFalse();
+    expect(fixture.componentInstance.educationDeleteConfirmation).toBeTrue();
+    profiles.deleteEducation.and.returnValue(of({ profileVersion: 5 }));
+    fixture.componentInstance.confirmEducationDelete();
+
+    expect(profiles.deleteEducation).toHaveBeenCalledWith('1', 1, 4);
+  });
+
+  it('closes an Education delete conflict when reload shows the target is gone', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshed = new Subject<Education[]>();
+    profiles.deleteEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listEducations.and.returnValue(refreshed);
+    fixture.componentInstance.educations = [education];
+    fixture.componentInstance.openEducationDeleteConfirmation(education);
+    fixture.componentInstance.confirmEducationDelete();
+    fixture.componentInstance.reloadLatest();
+    reload.next({ ...detail, version: 4 });
+    refreshed.next([]);
+
+    expect(fixture.componentInstance.educations).toEqual([]);
+    expect(fixture.componentInstance.educationDeleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.hasDeleteConflict('education')).toBeFalse();
+    expect(profiles.deleteEducation).toHaveBeenCalledTimes(1);
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
+  });
+
+  it('keeps an Education delete conflict recoverable when latest reload fails', () => {
+    profiles.deleteEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Profile reload failed' } })));
+    fixture.componentInstance.educations = [education];
+    fixture.componentInstance.openEducationDeleteConfirmation(education);
+    fixture.componentInstance.confirmEducationDelete();
+    fixture.componentInstance.reloadLatest();
+
+    expect(fixture.componentInstance.isReloading).toBeFalse();
+    expect(fixture.componentInstance.hasDeleteConflict('education')).toBeTrue();
+    expect(fixture.componentInstance.educations).toEqual([education]);
+    expect(profiles.deleteEducation).toHaveBeenCalledTimes(1);
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
+  });
+
+  it('resets Education delete state on Profile switch and ignores the stale delete response', () => {
+    const pending = new Subject<{ profileVersion: number }>();
+    profiles.deleteEducation.and.returnValue(pending);
+    fixture.componentInstance.educations = [education];
+    fixture.componentInstance.openEducationDeleteConfirmation(education);
+    fixture.componentInstance.confirmEducationDelete();
+
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2, profileName: 'Frontend CV' });
+    params.next(convertToParamMap({ profileId: '2' }));
+    pending.next({ profileVersion: 4 });
+
+    expect(fixture.componentInstance.educations).toEqual([]);
+    expect(fixture.componentInstance.isEducationDeleting).toBeFalse();
+    expect(fixture.componentInstance.educationDeleteConfirmation).toBeFalse();
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
+    expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 4);
+  });
+
+  it('does not let a stale Education conflict reload populate the next Profile', () => {
+    const reload = new Subject<ProfileDetail>();
+    const staleList = new Subject<Education[]>();
+    const currentList = new Subject<Education[]>();
+    profiles.deleteEducation.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listEducations.and.returnValues(staleList, currentList);
+    fixture.componentInstance.educations = [education];
+    fixture.componentInstance.openEducationDeleteConfirmation(education);
+    fixture.componentInstance.confirmEducationDelete();
+    fixture.componentInstance.reloadLatest();
+    reload.next({ ...detail, version: 4 });
+
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2, profileName: 'Frontend CV' });
+    params.next(convertToParamMap({ profileId: '2' }));
+    staleList.next([education]);
+
+    expect(fixture.componentInstance.educations).toEqual([]);
+    expect(fixture.componentInstance.educationDeleteConfirmation).toBeFalse();
+    expect(fixture.componentInstance.isReloading).toBeFalse();
   });
 
   it('renders independent Language loading, empty, error, and populated states', () => {
@@ -1119,6 +1342,18 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.languageForm.controls.languageId.value).toBeNull();
     tick(300);
   }));
+
+  it('clears a Language duplicate error when a different controlled Master value is selected', () => {
+    fixture.componentInstance.startLanguageCreate();
+    const languageId = fixture.componentInstance.languageForm.controls.languageId;
+    languageId.setErrors({ duplicate: 'This Language is already assigned to this Profile.' });
+
+    fixture.componentInstance.selectLanguageMasterOption({ id: 3, name: 'Japanese' });
+
+    expect(languageId.value).toBe(3);
+    expect(languageId.errors?.['duplicate']).toBeUndefined();
+    expect(fixture.componentInstance.languageForm.controls.languageId.errors?.['required']).toBeUndefined();
+  });
 
   it('represents Language loading, empty, and error states in the selector popup', fakeAsync(() => {
     const pending = new Subject<LanguageMasterPage>();
@@ -1320,6 +1555,7 @@ describe('ProfileWorkspaceComponent', () => {
 
     expect(profiles.updateProfileLanguage).toHaveBeenCalledWith('1', 1, { languageId: 2, level: 'NATIVE', version: 3 });
     expect(fixture.componentInstance.languages).toEqual([updated, { profileLanguageId: 2, languageId: 3, languageName: 'Japanese', level: 'BEGINNER' }]);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Language updated successfully.');
   });
 
   it('preserves a failed Language mutation draft and allows retry', () => {
@@ -1372,6 +1608,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.languages).toEqual([]);
     expect(fixture.componentInstance.languageDeleteConfirmation).toBeFalse();
     expect(fixture.componentInstance.languageMessage).toContain('Language deleted');
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Language deleted successfully.');
   });
 
   it('retains the Language row and confirmation after delete failure', () => {
@@ -1383,6 +1620,33 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.languages).toEqual([language]);
     expect(fixture.componentInstance.languageDeleteConfirmation).toBeTrue();
     expect(fixture.componentInstance.languageDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('blocks a stale Language delete until the latest Profile and Language list are loaded', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshed = new Subject<ProfileLanguage[]>();
+    profiles.deleteProfileLanguage.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listProfileLanguages.and.returnValue(refreshed);
+    fixture.componentInstance.languages = [language];
+    fixture.componentInstance.openLanguageDeleteConfirmation(language);
+    fixture.componentInstance.confirmLanguageDelete();
+
+    expect(fixture.componentInstance.hasDeleteConflict('language')).toBeTrue();
+    expect(fixture.componentInstance.languages).toEqual([language]);
+    fixture.componentInstance.confirmLanguageDelete();
+    expect(profiles.deleteProfileLanguage).toHaveBeenCalledTimes(1);
+
+    fixture.componentInstance.reloadLatest();
+    reload.next({ ...detail, version: 4 });
+    refreshed.next([language]);
+    context.detail.set({ ...detail, version: 4 });
+
+    expect(fixture.componentInstance.hasDeleteConflict('language')).toBeFalse();
+    expect(fixture.componentInstance.languageDeleteConfirmation).toBeTrue();
+    profiles.deleteProfileLanguage.and.returnValue(of({ profileVersion: 5 }));
+    fixture.componentInstance.confirmLanguageDelete();
+    expect(profiles.deleteProfileLanguage).toHaveBeenCalledWith('1', 1, 4);
   });
 
   it('renders independent Certificate loading, empty, error, and populated states', () => {
@@ -1506,6 +1770,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(profiles.updateCertificate).toHaveBeenCalledWith('1', 1, { certificateName: 'AWS Developer', issueDate: '2026-03-01', version: 3 });
     expect(fixture.componentInstance.certificates).toEqual([updated, { id: 2, certificateName: 'Google Cloud', issueDate: '2026-01-01' }]);
     expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 5);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Certificate updated successfully.');
   });
 
   it('rejects only an exact Name and Issue Date duplicate and allows the same Name on another date', () => {
@@ -1609,6 +1874,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.certificateDeleteConfirmation).toBeFalse();
     expect(fixture.componentInstance.certificateMessage).toContain('Certificate deleted');
     expect(context.reloadDetail).not.toHaveBeenCalled();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Certificate deleted successfully.');
   });
 
   it('retains a Certificate row and confirmation after delete failure', () => {
@@ -1620,6 +1886,30 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.certificates).toEqual([certificate]);
     expect(fixture.componentInstance.certificateDeleteConfirmation).toBeTrue();
     expect(fixture.componentInstance.certificateDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('requires explicit Certificate delete confirmation again after a version-conflict reload', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshed = new Subject<Certificate[]>();
+    profiles.deleteCertificate.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listCertificates.and.returnValue(refreshed);
+    fixture.componentInstance.certificates = [certificate];
+    fixture.componentInstance.openCertificateDeleteConfirmation(certificate);
+    fixture.componentInstance.confirmCertificateDelete();
+
+    expect(fixture.componentInstance.hasDeleteConflict('certificate')).toBeTrue();
+    expect(fixture.componentInstance.certificates).toEqual([certificate]);
+    fixture.componentInstance.confirmCertificateDelete();
+    expect(profiles.deleteCertificate).toHaveBeenCalledTimes(1);
+
+    fixture.componentInstance.reloadLatest();
+    reload.next({ ...detail, version: 4 });
+    refreshed.next([certificate]);
+    context.detail.set({ ...detail, version: 4 });
+
+    expect(fixture.componentInstance.hasDeleteConflict('certificate')).toBeFalse();
+    expect(fixture.componentInstance.certificateDeleteConfirmation).toBeTrue();
   });
 
   it('ignores a stale Certificate mutation after Profile switching', () => {
@@ -1894,6 +2184,7 @@ describe('ProfileWorkspaceComponent', () => {
 
     expect(profiles.updateProfileSkill).toHaveBeenCalledWith('1', 7, { skillId: 3, experienceYears: 3, lastUsed: null, version: 3 });
     expect(fixture.componentInstance.skills).toEqual([{ ...skill, experienceYears: 5 }, updated]);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Skill updated successfully.');
   });
 
   it('supports repeated Skill entry by clearing selection and derived Category while keeping decimal values valid', () => {
@@ -2006,6 +2297,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.skillMessage).toContain('Skill deleted');
     expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
     expect(fixture.componentInstance.previewInvalidated).toBeTrue();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Skill deleted successfully.');
   });
 
   it('retains a Skill row and confirmation after delete failure', () => {
@@ -2017,6 +2309,31 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.skills).toEqual([skill]);
     expect(fixture.componentInstance.skillDeleteConfirmation).toBeTrue();
     expect(fixture.componentInstance.skillDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('recovers a stale Skill delete with refreshed ordering and no successful-delete feedback', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshed = new Subject<ProfileSkill[]>();
+    profiles.deleteProfileSkill.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listProfileSkills.and.returnValue(refreshed);
+    fixture.componentInstance.skills = [skill];
+    fixture.componentInstance.openSkillDeleteConfirmation(skill);
+    fixture.componentInstance.confirmSkillDelete();
+
+    expect(fixture.componentInstance.hasDeleteConflict('skill')).toBeTrue();
+    expect(fixture.componentInstance.skills).toEqual([skill]);
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
+    fixture.componentInstance.confirmSkillDelete();
+    expect(profiles.deleteProfileSkill).toHaveBeenCalledTimes(1);
+
+    fixture.componentInstance.reloadLatest();
+    reload.next({ ...detail, version: 4 });
+    refreshed.next([skill]);
+    context.detail.set({ ...detail, version: 4 });
+
+    expect(fixture.componentInstance.hasDeleteConflict('skill')).toBeFalse();
+    expect(fixture.componentInstance.skillDeleteConfirmation).toBeTrue();
   });
 
   it('ignores a stale Skill mutation after Profile switching', () => {
@@ -2174,6 +2491,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.projects).toEqual([]);
     expect(fixture.componentInstance.projectDeleteConfirmation).toBeFalse();
     expect(fixture.componentInstance.projectMessage).toContain('Project deleted');
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Project deleted successfully.');
   });
 
   it('retains a Project row and confirmation after delete failure', () => {
@@ -2185,6 +2503,33 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.componentInstance.projects).toEqual([project]);
     expect(fixture.componentInstance.projectDeleteConfirmation).toBeTrue();
     expect(fixture.componentInstance.projectDeleteErrorMessage).toBe('Delete rejected');
+  });
+
+  it('recovers a stale Project delete from the backend-ordered list before allowing a fresh retry', () => {
+    const reload = new Subject<ProfileDetail>();
+    const refreshed = new Subject<Project[]>();
+    profiles.deleteProject.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } })));
+    context.reloadDetail.and.returnValue(reload);
+    profiles.listProjects.and.returnValue(refreshed);
+    fixture.componentInstance.projects = [project];
+    fixture.componentInstance.openProjectDeleteConfirmation(project);
+    fixture.componentInstance.confirmProjectDelete();
+
+    expect(fixture.componentInstance.hasDeleteConflict('project')).toBeTrue();
+    expect(fixture.componentInstance.projects).toEqual([project]);
+    fixture.componentInstance.confirmProjectDelete();
+    expect(profiles.deleteProject).toHaveBeenCalledTimes(1);
+
+    fixture.componentInstance.reloadLatest();
+    reload.next({ ...detail, version: 4 });
+    refreshed.next([project]);
+    context.detail.set({ ...detail, version: 4 });
+
+    expect(fixture.componentInstance.hasDeleteConflict('project')).toBeFalse();
+    expect(fixture.componentInstance.projectDeleteConfirmation).toBeTrue();
+    profiles.deleteProject.and.returnValue(of({ profileVersion: 5 }));
+    fixture.componentInstance.confirmProjectDelete();
+    expect(profiles.deleteProject).toHaveBeenCalledWith('1', 1, 4);
   });
 
   it('ignores stale Project list and delete responses after Profile switching', () => {
