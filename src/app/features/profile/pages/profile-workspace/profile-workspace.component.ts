@@ -1,9 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, ViewChild } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
-import { ProfileDetail } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
 import { ProfileService } from '../../services/profile.service';
@@ -11,7 +10,7 @@ import { AboutMeSectionComponent } from './sections/about-me-section/about-me-se
 import { CertificateSectionComponent } from './sections/certificate-section/certificate-section.component';
 import { EducationSectionComponent } from './sections/education-section/education-section.component';
 import { LanguageSectionComponent } from './sections/language-section/language-section.component';
-import { ProfileSectionMutationSuccess, ProjectNavigationRequest } from './sections/profile-section-events';
+import { ProfileWorkspaceSection, ProjectNavigationRequest } from './sections/profile-section-events';
 import { ProjectsSectionComponent } from './sections/projects-section/projects-section.component';
 import { SkillSectionComponent } from './sections/skill-section/skill-section.component';
 
@@ -29,13 +28,7 @@ export class ProfileWorkspaceComponent {
   readonly context = inject(ProfileContextService);
   readonly editSession = inject(ProfileEditSessionService);
 
-  @ViewChild(AboutMeSectionComponent) private aboutMeSection?: AboutMeSectionComponent;
-  @ViewChild(CertificateSectionComponent) private certificateSection?: CertificateSectionComponent;
-  @ViewChild(EducationSectionComponent) private educationSection?: EducationSectionComponent;
-  @ViewChild(LanguageSectionComponent) private languageSection?: LanguageSectionComponent;
-  @ViewChild(SkillSectionComponent) private skillSection?: SkillSectionComponent;
-
-  readonly sections = [
+  readonly sections: ReadonlyArray<readonly [ProfileWorkspaceSection, string]> = [
     ['about', 'About Me'],
     ['education', 'Education'],
     ['languages', 'Languages'],
@@ -44,21 +37,15 @@ export class ProfileWorkspaceComponent {
     ['skills', 'Skills'],
   ] as const;
 
-  activeSection = 'about';
+  activeSection: ProfileWorkspaceSection = 'about';
+  mutationOwner: ProfileWorkspaceSection | null = null;
   isDeleting = false;
   deleteConfirmation = false;
   deleteTarget: { id: string; name: string } | null = null;
   deleteErrorMessage = '';
-  previewInvalidated = false;
 
   private notFoundRecoveryInProgress = false;
   private lastNotFoundProfileId: string | null = null;
-  private aboutMeInteractionActive = false;
-  private certificateInteractionActive = false;
-  private educationInteractionActive = false;
-  private languageInteractionActive = false;
-  private projectsInteractionActive = false;
-  private skillInteractionActive = false;
   private activeProfileId: string | null = null;
   private profileDeleteGeneration = 0;
 
@@ -67,10 +54,9 @@ export class ProfileWorkspaceComponent {
     this.route.paramMap.subscribe((params) => {
       this.profileDeleteGeneration++;
       this.isDeleting = false;
-      this.discardExtractedEditors();
+      this.mutationOwner = null;
       this.closeDeleteConfirmation();
       this.activeSection = 'about';
-      this.previewInvalidated = false;
       const profileId = params.get('profileId');
       this.activeProfileId = profileId;
       if (profileId) this.context.loadDetail(profileId);
@@ -128,7 +114,7 @@ export class ProfileWorkspaceComponent {
 
   confirmDelete(): void {
     const target = this.deleteTarget;
-    if (!this.deleteConfirmation || !target || this.isDeleting || this.editorOwnsMutationContext()) return;
+    if (!this.deleteConfirmation || !target || this.isDeleting || this.mutationOwner !== null || this.editSession.dirty()) return;
     if (this.context.selectedId() !== target.id || String(this.context.detail()?.id) !== target.id) {
       this.closeDeleteConfirmation();
       return;
@@ -154,7 +140,7 @@ export class ProfileWorkspaceComponent {
     });
   }
 
-  scrollToSection(sectionId: string): void {
+  scrollToSection(sectionId: ProfileWorkspaceSection): void {
     this.activeSection = sectionId;
     document.getElementById(`workspace-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -168,77 +154,25 @@ export class ProfileWorkspaceComponent {
   }
 
   workspaceMutationLocked(): boolean {
-    return this.aboutMeInteractionActive
-      || this.certificateInteractionActive
-      || this.educationInteractionActive
-      || this.languageInteractionActive
-      || this.projectsInteractionActive
-      || this.skillInteractionActive
-      || this.editorOwnsMutationContext()
-      || this.isDeleteWorkflowActive();
+    return this.mutationOwner !== null || this.editSession.dirty() || this.isDeleteWorkflowActive();
   }
 
   canStartWorkspaceMutation(): boolean {
     return !this.workspaceMutationLocked();
   }
 
-  canStartAboutMeMutation(): boolean {
-    return !this.educationInteractionActive && !this.unextractedMutationContextActive();
+  mutationBlockedFor(section: ProfileWorkspaceSection): boolean {
+    return this.isDeleteWorkflowActive()
+      || (this.mutationOwner !== null && this.mutationOwner !== section)
+      || (this.editSession.dirty() && this.mutationOwner !== section);
   }
 
-  canStartEducationMutation(): boolean {
-    return !this.aboutMeInteractionActive && !this.unextractedMutationContextActive();
-  }
-
-  aboutMeInteractionChanged(active: boolean): void {
-    this.aboutMeInteractionActive = active;
-  }
-
-  certificateInteractionChanged(active: boolean): void {
-    this.certificateInteractionActive = active;
-  }
-
-  educationInteractionChanged(active: boolean): void {
-    this.educationInteractionActive = active;
-  }
-
-  languageInteractionChanged(active: boolean): void {
-    this.languageInteractionActive = active;
-  }
-
-  projectsInteractionChanged(active: boolean): void {
-    this.projectsInteractionActive = active;
-  }
-
-  skillInteractionChanged(active: boolean): void {
-    this.skillInteractionActive = active;
-  }
-
-  private unextractedMutationContextActive(): boolean {
-    return this.certificateInteractionActive
-      || this.projectsInteractionActive
-      || this.languageInteractionActive
-      || this.skillInteractionActive
-      || this.isDeleteWorkflowActive()
-      || (this.editSession.dirty() && !this.aboutMeInteractionActive && !this.educationInteractionActive);
-  }
-
-  private discardExtractedEditors(): void {
-    this.aboutMeSection?.discardEditing();
-    this.certificateSection?.discardEditing();
-    this.educationSection?.discardEditing();
-    this.languageSection?.discardEditing();
-    this.skillSection?.discardEditing();
-    this.aboutMeInteractionActive = false;
-    this.certificateInteractionActive = false;
-    this.educationInteractionActive = false;
-    this.languageInteractionActive = false;
-    this.skillInteractionActive = false;
-  }
-
-  sectionMutationSucceeded(event: ProfileSectionMutationSuccess): void {
-    if (this.activeProfileId !== event.profileId || this.context.selectedId() !== event.profileId) return;
-    this.previewInvalidated = event.previewInvalidated;
+  mutationInteractionChanged(section: ProfileWorkspaceSection, active: boolean): void {
+    if (active && (this.mutationOwner === null || this.mutationOwner === section)) {
+      this.mutationOwner = section;
+    } else if (this.mutationOwner === section) {
+      this.mutationOwner = null;
+    }
   }
 
   projectNavigationRequested(event: ProjectNavigationRequest): void {
@@ -251,7 +185,6 @@ export class ProfileWorkspaceComponent {
   }
 
   discardPendingNavigation(): void {
-    this.discardExtractedEditors();
     this.editSession.resolveNavigation(true);
   }
 
@@ -266,7 +199,6 @@ export class ProfileWorkspaceComponent {
   }
 
   private finishDelete(profileId: string, operationGeneration: number): void {
-    this.discardExtractedEditors();
     this.closeDeleteConfirmation();
     this.isDeleting = false;
 
@@ -290,16 +222,6 @@ export class ProfileWorkspaceComponent {
 
   private isCurrentProfileDeleteFlow(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId && this.profileDeleteGeneration === generation;
-  }
-
-  private editorOwnsMutationContext(): boolean {
-    return this.aboutMeInteractionActive
-      || this.certificateInteractionActive
-      || this.educationInteractionActive
-      || this.languageInteractionActive
-      || this.projectsInteractionActive
-      || this.skillInteractionActive
-      || this.editSession.dirty();
   }
 
   private isDeleteWorkflowActive(): boolean {

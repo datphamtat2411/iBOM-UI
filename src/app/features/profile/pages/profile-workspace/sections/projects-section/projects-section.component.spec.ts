@@ -133,8 +133,6 @@ describe('ProjectsSectionComponent', () => {
   });
 
   it('confirms and deletes a Project with the canonical version', () => {
-    const success = jasmine.createSpy('success');
-    fixture.componentInstance.mutationSucceeded.subscribe(success);
     profiles.deleteProject.and.returnValue(of({ profileVersion: 4 }));
     fixture.componentInstance.openProjectDeleteConfirmation(project);
     fixture.componentInstance.confirmProjectDelete();
@@ -142,7 +140,6 @@ describe('ProjectsSectionComponent', () => {
     expect(profiles.deleteProject).toHaveBeenCalledWith('1', 1, 3);
     expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Project deleted successfully.');
-    expect(success).toHaveBeenCalledWith({ profileId: '1', previewInvalidated: true });
   });
 
   it('requires reload and explicit retry after a Project delete conflict', () => {

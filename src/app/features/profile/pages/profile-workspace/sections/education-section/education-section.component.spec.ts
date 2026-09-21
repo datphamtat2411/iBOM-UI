@@ -200,9 +200,7 @@ describe('EducationSectionComponent', () => {
     expect(fixture.componentInstance.educations).toEqual([education]);
   });
 
-  it('deletes Education with the canonical version and emits mutation success', () => {
-    const success = jasmine.createSpy('success');
-    fixture.componentInstance.mutationSucceeded.subscribe(success);
+  it('deletes Education with the canonical version', () => {
     profiles.deleteEducation.and.returnValue(of({ profileVersion: 4 }));
     fixture.componentInstance.openEducationDeleteConfirmation(education);
     fixture.componentInstance.confirmEducationDelete();
@@ -210,7 +208,6 @@ describe('EducationSectionComponent', () => {
     expect(profiles.deleteEducation).toHaveBeenCalledWith('1', 1, 3);
     expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
     expect(fixture.componentInstance.educations).toEqual([]);
-    expect(success).toHaveBeenCalledWith({ profileId: '1', previewInvalidated: true });
     expect(notifications.showSuccess).toHaveBeenCalledWith('Education deleted successfully.');
   });
 

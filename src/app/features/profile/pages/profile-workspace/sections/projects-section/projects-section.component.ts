@@ -7,7 +7,7 @@ import { NotificationService } from '../../../../../../core/notifications/notifi
 import { ProfileDetail, Project } from '../../../../models/profile.models';
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileService } from '../../../../services/profile.service';
-import { ProfileSectionMutationSuccess, ProjectNavigationRequest } from '../profile-section-events';
+import { ProjectNavigationRequest } from '../profile-section-events';
 
 @Component({
   selector: 'app-projects-section',
@@ -23,7 +23,6 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) profile!: ProfileDetail;
   @Input() mutationBlocked = false;
   @Output() readonly interactionActiveChange = new EventEmitter<boolean>();
-  @Output() readonly mutationSucceeded = new EventEmitter<ProfileSectionMutationSuccess>();
   @Output() readonly navigationRequested = new EventEmitter<ProjectNavigationRequest>();
 
   projects: Project[] = [];
@@ -150,7 +149,6 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
         this.closeProjectDeleteConfirmation();
         this.projectMessage = 'Project deleted successfully.';
         this.notifications.showSuccess(this.projectMessage);
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
         this.loadProjects(profileId);
       },
       error: (error: unknown) => {

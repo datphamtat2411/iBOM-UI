@@ -89,12 +89,10 @@ describe('AboutMeSectionComponent', () => {
     expect(profiles.update).not.toHaveBeenCalled();
   });
 
-  it('updates the canonical Profile version and emits mutation success after saving', () => {
+  it('updates the canonical Profile and clears the dirty editor after saving', () => {
     const updated = { ...profile, firstName: 'Updated', version: 4, hasPreviewed: false };
     context.replaceDetail.and.callFake((next: ProfileDetail) => context.detail.set(next));
     profiles.update.and.returnValue(of(updated));
-    const success = jasmine.createSpy('success');
-    fixture.componentInstance.mutationSucceeded.subscribe(success);
     openEditor();
     fixture.componentInstance.editForm.controls.firstName.setValue('Updated');
     fixture.componentInstance.editForm.markAsDirty();
@@ -102,7 +100,6 @@ describe('AboutMeSectionComponent', () => {
 
     expect(profiles.update).toHaveBeenCalledWith('1', jasmine.objectContaining({ firstName: 'Updated', version: 3 }));
     expect(context.replaceDetail).toHaveBeenCalledWith(updated);
-    expect(success).toHaveBeenCalledWith({ profileId: '1', previewInvalidated: true });
     expect(fixture.componentInstance.isEditing).toBeFalse();
     expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
     expect(notifications.showSuccess).toHaveBeenCalledWith('About Me updated successfully.');
@@ -172,5 +169,18 @@ describe('AboutMeSectionComponent', () => {
     fixture.componentInstance.cancelEditing();
     fixture.componentInstance.discardEditing();
     expect(fixture.componentInstance.isEditing).toBeFalse();
+  });
+
+  it('discards its draft when the application navigation decision allows leaving', async () => {
+    openEditor();
+    fixture.componentInstance.editForm.controls.firstName.setValue('Draft');
+    fixture.componentInstance.editForm.markAsDirty();
+    const decision = fixture.componentInstance.editSession.requestNavigation('/dashboard');
+
+    fixture.componentInstance.editSession.resolveNavigation(true);
+
+    await expectAsync(decision).toBeResolvedTo(true);
+    expect(fixture.componentInstance.isEditing).toBeFalse();
+    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
   });
 });

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../../../core/http/api.models';
 import { NotificationService } from '../../../../../../core/notifications/notification.service';
@@ -8,7 +9,6 @@ import { ProfileDetail, UpdateProfileRequest } from '../../../../models/profile.
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
-import { ProfileSectionMutationSuccess } from '../profile-section-events';
 
 type EditableAboutMeField = Exclude<keyof UpdateProfileRequest, 'profileName' | 'version'>;
 type EditableAboutMeValues = Pick<UpdateProfileRequest, EditableAboutMeField>;
@@ -30,7 +30,6 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) profile!: ProfileDetail;
   @Input() mutationBlocked = false;
   @Output() readonly interactionActiveChange = new EventEmitter<boolean>();
-  @Output() readonly mutationSucceeded = new EventEmitter<ProfileSectionMutationSuccess>();
 
   readonly editForm = this.formBuilder.nonNullable.group({
     firstName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -54,9 +53,11 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
   private originalValues: EditableAboutMeValues | null = null;
   private mutationGeneration = 0;
   private interactionActive = false;
+  private readonly navigationDiscardSubscription: Subscription;
 
   constructor() {
     this.editForm.valueChanges.subscribe(() => this.syncDirtyState());
+    this.navigationDiscardSubscription = this.editSession.navigationDiscarded$().subscribe(() => this.discardEditing());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -67,6 +68,7 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.navigationDiscardSubscription.unsubscribe();
     this.editSession.setDirty(false);
     this.setInteractionActive(false);
   }
@@ -163,11 +165,9 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
         this.context.replaceDetail(updated);
         this.isSubmitting = false;
         this.conflict = false;
-        this.previewInvalidated = !updated.hasPreviewed;
         this.saveMessage = 'About Me updated successfully.';
         this.notifications.showSuccess(this.saveMessage);
         this.closeEditor();
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: this.previewInvalidated });
       },
       error: (error: unknown) => {
         if (!this.isCurrentOperation(profileId, operationGeneration)) return;
@@ -370,5 +370,4 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
     return error instanceof HttpErrorResponse ? error.error as ApiErrorResponse : undefined;
   }
 
-  private previewInvalidated = false;
 }

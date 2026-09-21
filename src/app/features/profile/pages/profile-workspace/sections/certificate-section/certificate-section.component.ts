@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, Subscription, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../../../core/http/api.models';
 import { NotificationService } from '../../../../../../core/notifications/notification.service';
@@ -9,7 +9,6 @@ import { Certificate, CertificateRequest, ProfileDetail } from '../../../../mode
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
-import { ProfileSectionMutationSuccess } from '../profile-section-events';
 
 type CertificateEditorMode = 'create' | 'edit' | null;
 type EditableCertificateField = keyof EditableCertificateValues;
@@ -36,7 +35,6 @@ export class CertificateSectionComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) profile!: ProfileDetail;
   @Input() mutationBlocked = false;
   @Output() readonly interactionActiveChange = new EventEmitter<boolean>();
-  @Output() readonly mutationSucceeded = new EventEmitter<ProfileSectionMutationSuccess>();
 
   readonly certificateForm = this.formBuilder.nonNullable.group({
     certificateName: ['', [Validators.required, Validators.maxLength(255)]],
@@ -69,9 +67,11 @@ export class CertificateSectionComponent implements OnChanges, OnDestroy {
   private deleteRecoveryGeneration = 0;
   private deleteConflict = false;
   private interactionActive = false;
+  private readonly navigationDiscardSubscription: Subscription;
 
   constructor() {
     this.certificateForm.valueChanges.subscribe(() => this.syncDirtyState());
+    this.navigationDiscardSubscription = this.editSession.navigationDiscarded$().subscribe(() => this.discardEditing());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -82,6 +82,7 @@ export class CertificateSectionComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.navigationDiscardSubscription.unsubscribe();
     this.listCancel.next();
     this.listCancel.complete();
     this.editSession.setDirty(false);
@@ -201,7 +202,6 @@ export class CertificateSectionComponent implements OnChanges, OnDestroy {
         this.notifications.showSuccess(this.certificateMessage);
         if (addAnother) this.resetCertificateForAnother();
         else this.closeCertificateEditor();
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
       },
       error: (error: unknown) => {
         if (!this.isCurrentCertificateOperation(profileId, operationGeneration)) return;
@@ -251,7 +251,6 @@ export class CertificateSectionComponent implements OnChanges, OnDestroy {
         this.certificateMessage = 'Certificate deleted successfully.';
         this.notifications.showSuccess(this.certificateMessage);
         this.closeCertificateDeleteConfirmation();
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
       },
       error: (error: unknown) => {
         if (!this.isCurrentCertificateOperation(profileId, operationGeneration, false)) return;

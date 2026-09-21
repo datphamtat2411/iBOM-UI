@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, Subscription, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../../../core/http/api.models';
 import { NotificationService } from '../../../../../../core/notifications/notification.service';
@@ -9,7 +9,6 @@ import { ProfileDetail, ProfileSkill, ProfileSkillRequest, SkillMasterOption } f
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
-import { ProfileSectionMutationSuccess } from '../profile-section-events';
 
 type SkillEditorMode = 'create' | 'edit' | null;
 type EditableSkillField = keyof EditableSkillValues;
@@ -38,7 +37,6 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) profile!: ProfileDetail;
   @Input() mutationBlocked = false;
   @Output() readonly interactionActiveChange = new EventEmitter<boolean>();
-  @Output() readonly mutationSucceeded = new EventEmitter<ProfileSectionMutationSuccess>();
 
   readonly skillForm = this.formBuilder.group({
     skillId: this.formBuilder.control<number | string | null>(null, [Validators.required]),
@@ -92,9 +90,11 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
   private skillSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private deleteConflict = false;
   private interactionActive = false;
+  private readonly navigationDiscardSubscription: Subscription;
 
   constructor() {
     this.skillForm.valueChanges.subscribe(() => this.syncDirtyState());
+    this.navigationDiscardSubscription = this.editSession.navigationDiscarded$().subscribe(() => this.discardEditing());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -105,6 +105,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.navigationDiscardSubscription.unsubscribe();
     this.skillListCancel.next();
     this.skillListCancel.complete();
     this.skillMasterCancel.next();
@@ -236,7 +237,6 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
         this.skillConflict = false;
         this.skillMessage = mode === 'edit' ? 'Skill updated successfully.' : 'Skill added successfully.';
         this.notifications.showSuccess(this.skillMessage);
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
         if (addAnother) this.resetSkillForAnother();
         else this.closeSkillEditor();
       },
@@ -291,7 +291,6 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
         this.isSkillDeleting = false;
         this.skillMessage = 'Skill deleted successfully.';
         this.notifications.showSuccess(this.skillMessage);
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
         this.closeSkillDeleteConfirmation();
       },
       error: (error: unknown) => {

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, Subject, of } from 'rxjs';
 
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { ProfileDetail, ProfileSummary } from '../../models/profile.models';
@@ -46,28 +46,12 @@ describe('ProfileWorkspaceComponent', () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
     router = { navigate: jasmine.createSpy('navigate') };
     profiles = {
-      update: jasmine.createSpy('update'),
       delete: jasmine.createSpy('delete'),
       listEducations: jasmine.createSpy('listEducations').and.returnValue(of([])),
-      createEducation: jasmine.createSpy('createEducation'),
-      updateEducation: jasmine.createSpy('updateEducation'),
-      deleteEducation: jasmine.createSpy('deleteEducation'),
       listProfileLanguages: jasmine.createSpy('listProfileLanguages').and.returnValue(of([])),
-      createProfileLanguage: jasmine.createSpy('createProfileLanguage'),
-      updateProfileLanguage: jasmine.createSpy('updateProfileLanguage'),
-      deleteProfileLanguage: jasmine.createSpy('deleteProfileLanguage'),
       listCertificates: jasmine.createSpy('listCertificates').and.returnValue(of([])),
-      createCertificate: jasmine.createSpy('createCertificate'),
-      updateCertificate: jasmine.createSpy('updateCertificate'),
-      deleteCertificate: jasmine.createSpy('deleteCertificate'),
       listProjects: jasmine.createSpy('listProjects').and.returnValue(of([])),
-      deleteProject: jasmine.createSpy('deleteProject'),
       listProfileSkills: jasmine.createSpy('listProfileSkills').and.returnValue(of([])),
-      createProfileSkill: jasmine.createSpy('createProfileSkill'),
-      updateProfileSkill: jasmine.createSpy('updateProfileSkill'),
-      deleteProfileSkill: jasmine.createSpy('deleteProfileSkill'),
-      listLanguageMaster: jasmine.createSpy('listLanguageMaster').and.returnValue(of({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 })),
-      listSkillMaster: jasmine.createSpy('listSkillMaster').and.returnValue(of({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 })),
     };
     context = {
       summaries: signal([summary]),
@@ -125,9 +109,12 @@ describe('ProfileWorkspaceComponent', () => {
     return fixture.debugElement.query(By.directive(SkillSectionComponent)).componentInstance;
   }
 
-  it('loads the selected Profile and renders both feature-local section components', () => {
+  it('loads the selected Profile and renders each feature-local section component', () => {
     expect(context.loadSummaries).toHaveBeenCalled();
     expect(context.loadDetail).toHaveBeenCalledWith('1');
+    expect(about().profile).toBe(detail);
+    expect(projectsSection().profile).toBe(detail);
+    expect(fixture.componentInstance.sections.map(([id]) => id)).toEqual(['about', 'education', 'languages', 'certificates', 'projects', 'skills']);
     expect(fixture.nativeElement.querySelector('#workspace-section-about')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-education')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-languages')).toBeTruthy();
@@ -140,25 +127,35 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.nativeElement.querySelector('.section-nav')?.textContent).toContain('About Me');
     expect(fixture.nativeElement.querySelector('.section-nav')?.textContent).toContain('Education');
 
+    about().interactionActiveChange.emit(true);
     context.selectedId.set('2');
     context.detail.set({ ...detail, id: 2, profileName: 'Frontend CV' });
     params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
 
     expect(context.loadDetail).toHaveBeenCalledWith('2');
     expect(fixture.componentInstance.activeSection).toBe('about');
+    expect(fixture.componentInstance.mutationOwner).toBeNull();
+    expect(about().profile.id).toBe(2);
   });
 
-  it('coordinates the extracted child interaction lock with Project mutations', () => {
-    about().startEditing();
+  it('coordinates one child interaction owner with Project mutations and releases it', () => {
+    about().interactionActiveChange.emit(true);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.workspaceMutationLocked()).toBeTrue();
+    expect(fixture.componentInstance.mutationOwner).toBe('about');
     expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeTrue();
     expect((fixture.nativeElement.querySelector('#workspace-section-education .section-title button') as HTMLButtonElement).disabled).toBeTrue();
+
+    about().interactionActiveChange.emit(false);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.mutationOwner).toBeNull();
+    expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeFalse();
   });
 
   it('coordinates Certificate ownership with the remaining Workspace sections', () => {
-    certificates().startCertificateCreate();
+    certificates().interactionActiveChange.emit(true);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.workspaceMutationLocked()).toBeTrue();
@@ -167,38 +164,29 @@ describe('ProfileWorkspaceComponent', () => {
   });
 
   it('keeps Project route navigation in Workspace while preserving the child boundary', () => {
-    projectsSection().requestProjectCreate();
-    const project = {
-      id: 99,
-      name: 'Project',
-      description: 'Description',
-      startDate: null,
-      endDate: null,
-      status: 'ONGOING' as const,
-      position: 'Engineer',
-      teamSize: null,
-      responsibilities: null,
-      programmingLanguages: null,
-      tools: null,
-    };
-    projectsSection().projects = [project];
-    projectsSection().requestProjectEdit(project);
+    about().interactionActiveChange.emit(true);
+    projectsSection().navigationRequested.emit({ projectId: null });
+    expect(router.navigate).not.toHaveBeenCalled();
+
+    about().interactionActiveChange.emit(false);
+    projectsSection().navigationRequested.emit({ projectId: null });
+    projectsSection().navigationRequested.emit({ projectId: 99 });
 
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 'new']);
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 99]);
   });
 
-  it('prevents About Me from starting while Education owns the mutation context', () => {
-    education().startEducationCreate();
+  it('prevents About Me mutation entry while Education owns the mutation context', () => {
+    education().interactionActiveChange.emit(true);
     fixture.detectChanges();
 
-    expect(education().educationEditorMode).toBe('create');
-    expect(fixture.componentInstance.canStartAboutMeMutation()).toBeFalse();
+    expect(fixture.componentInstance.mutationOwner).toBe('education');
+    expect(fixture.componentInstance.mutationBlockedFor('about')).toBeTrue();
     expect((fixture.nativeElement.querySelector('#workspace-section-about .edit-about-button') as HTMLButtonElement).disabled).toBeTrue();
   });
 
   it('blocks remaining sections when the Language child owns the context', () => {
-    languageSection().startLanguageCreate();
+    languageSection().interactionActiveChange.emit(true);
     fixture.detectChanges();
 
     expect((fixture.nativeElement.querySelector('#workspace-section-about .edit-about-button') as HTMLButtonElement).disabled).toBeTrue();
@@ -206,7 +194,7 @@ describe('ProfileWorkspaceComponent', () => {
   });
 
   it('blocks remaining sections when the Skill child owns the context', () => {
-    skillSection().startSkillCreate();
+    skillSection().interactionActiveChange.emit(true);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.workspaceMutationLocked()).toBeTrue();
@@ -214,30 +202,24 @@ describe('ProfileWorkspaceComponent', () => {
     expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeTrue();
   });
 
-  it('coordinates successful child mutations through the Workspace preview signal', () => {
-    fixture.componentInstance.previewInvalidated = false;
-    about().mutationSucceeded.emit({ profileId: '1', previewInvalidated: true });
-    expect(fixture.componentInstance.previewInvalidated).toBeTrue();
-
-    education().mutationSucceeded.emit({ profileId: '1', previewInvalidated: true });
-    expect(fixture.componentInstance.previewInvalidated).toBeTrue();
-  });
-
-  it('ignores a mutation success signal for a Profile that is no longer selected', () => {
-    fixture.componentInstance.previewInvalidated = false;
-    context.selectedId.set('2');
-    about().mutationSucceeded.emit({ profileId: '1', previewInvalidated: true });
-    expect(fixture.componentInstance.previewInvalidated).toBeFalse();
-  });
-
-  it('uses the application edit session for extracted dirty navigation', () => {
-    about().startEditing();
-    about().editForm.controls.firstName.setValue('Changed');
-    about().editForm.markAsDirty();
-
-    expect(fixture.componentInstance.editSession.dirty()).toBeTrue();
+  it('uses the application edit session for dirty navigation decisions', async () => {
+    fixture.componentInstance.editSession.setDirty(true);
+    const decision = fixture.componentInstance.editSession.requestNavigation('/dashboard');
     fixture.componentInstance.discardPendingNavigation();
-    expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
-    expect(about().isEditing).toBeFalse();
+    await expectAsync(decision).toBeResolvedTo(true);
+  });
+
+  it('ignores a stale Profile delete response after the route changes', () => {
+    const pendingDelete = new Subject<void>();
+    profiles['delete'].and.returnValue(pendingDelete);
+    const secondSummary = { ...summary, id: 2, profileName: 'Frontend CV' };
+    context.summaries.set([summary, secondSummary]);
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.componentInstance.confirmDelete();
+
+    params.next(convertToParamMap({ profileId: '2' }));
+    pendingDelete.next();
+
+    expect(router.navigate).not.toHaveBeenCalledWith(['/profiles', 2]);
   });
 });

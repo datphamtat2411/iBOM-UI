@@ -22,12 +22,12 @@
           }
         </nav>
         <div class="workspace-sections">
-          <app-about-me-section [profile]="profile" [mutationBlocked]="!canStartAboutMeMutation()" (interactionActiveChange)="aboutMeInteractionChanged($event)" (mutationSucceeded)="sectionMutationSucceeded($event)"></app-about-me-section>
-          <app-education-section [profile]="profile" [mutationBlocked]="!canStartEducationMutation()" (interactionActiveChange)="educationInteractionChanged($event)" (mutationSucceeded)="sectionMutationSucceeded($event)"></app-education-section>
-          <app-language-section [profile]="profile" [mutationBlocked]="!canStartWorkspaceMutation()" (interactionActiveChange)="languageInteractionChanged($event)" (mutationSucceeded)="sectionMutationSucceeded($event)"></app-language-section>
-          <app-certificate-section [profile]="profile" [mutationBlocked]="!canStartWorkspaceMutation()" (interactionActiveChange)="certificateInteractionChanged($event)" (mutationSucceeded)="sectionMutationSucceeded($event)"></app-certificate-section>
-          <app-projects-section [profile]="profile" [mutationBlocked]="!canStartWorkspaceMutation()" (interactionActiveChange)="projectsInteractionChanged($event)" (mutationSucceeded)="sectionMutationSucceeded($event)" (navigationRequested)="projectNavigationRequested($event)"></app-projects-section>
-          <app-skill-section [profile]="profile" [mutationBlocked]="!canStartWorkspaceMutation()" (interactionActiveChange)="skillInteractionChanged($event)" (mutationSucceeded)="sectionMutationSucceeded($event)"></app-skill-section>
+          <app-about-me-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('about')" (interactionActiveChange)="mutationInteractionChanged('about', $event)"></app-about-me-section>
+          <app-education-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('education')" (interactionActiveChange)="mutationInteractionChanged('education', $event)"></app-education-section>
+          <app-language-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('languages')" (interactionActiveChange)="mutationInteractionChanged('languages', $event)"></app-language-section>
+          <app-certificate-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('certificates')" (interactionActiveChange)="mutationInteractionChanged('certificates', $event)"></app-certificate-section>
+          <app-projects-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('projects')" (interactionActiveChange)="mutationInteractionChanged('projects', $event)" (navigationRequested)="projectNavigationRequested($event)"></app-projects-section>
+          <app-skill-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('skills')" (interactionActiveChange)="mutationInteractionChanged('skills', $event)"></app-skill-section>
         </div>
       </div>
     }

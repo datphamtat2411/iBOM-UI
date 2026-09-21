@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { Observable, Subject } from 'rxjs';
 
 export interface PendingProfileNavigation {
   url: string;
@@ -8,12 +9,17 @@ export interface PendingProfileNavigation {
 export class ProfileEditSessionService {
   readonly dirty = signal(false);
   readonly pendingNavigation = signal<PendingProfileNavigation | null>(null);
+  private readonly navigationDiscarded = new Subject<void>();
 
   private pendingDecision: Promise<boolean> | null = null;
   private resolveDecision: ((allow: boolean) => void) | null = null;
 
   setDirty(dirty: boolean): void {
     this.dirty.set(dirty);
+  }
+
+  navigationDiscarded$(): Observable<void> {
+    return this.navigationDiscarded.asObservable();
   }
 
   requestNavigation(url: string): Promise<boolean> {
@@ -26,6 +32,7 @@ export class ProfileEditSessionService {
   }
 
   resolveNavigation(allow: boolean): void {
+    if (allow) this.navigationDiscarded.next();
     const resolve = this.resolveDecision;
     this.resolveDecision = null;
     this.pendingDecision = null;

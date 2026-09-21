@@ -161,16 +161,13 @@ describe('CertificateSectionComponent', () => {
     expect(profiles.createCertificate.calls.argsFor(1)[1].version).toBe(4);
   });
 
-  it('deletes a Certificate and emits the cross-section mutation success', () => {
-    const success = jasmine.createSpy('success');
-    fixture.componentInstance.mutationSucceeded.subscribe(success);
+  it('deletes a Certificate with the canonical version', () => {
     profiles.deleteCertificate.and.returnValue(of({ profileVersion: 4 }));
     fixture.componentInstance.openCertificateDeleteConfirmation(certificate);
     fixture.componentInstance.confirmCertificateDelete();
 
     expect(profiles.deleteCertificate).toHaveBeenCalledWith('1', 1, 3);
     expect(fixture.componentInstance.certificates).toEqual([]);
-    expect(success).toHaveBeenCalledWith({ profileId: '1', previewInvalidated: true });
     expect(notifications.showSuccess).toHaveBeenCalledWith('Certificate deleted successfully.');
   });
 

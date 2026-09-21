@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, Subscription, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../../../core/http/api.models';
 import { NotificationService } from '../../../../../../core/notifications/notification.service';
@@ -9,7 +9,6 @@ import { LanguageLevel, LanguageMasterOption, ProfileDetail, ProfileLanguage, Pr
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
-import { ProfileSectionMutationSuccess } from '../profile-section-events';
 
 type LanguageEditorMode = 'create' | 'edit' | null;
 type EditableLanguageField = keyof EditableLanguageValues;
@@ -37,7 +36,6 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) profile!: ProfileDetail;
   @Input() mutationBlocked = false;
   @Output() readonly interactionActiveChange = new EventEmitter<boolean>();
-  @Output() readonly mutationSucceeded = new EventEmitter<ProfileSectionMutationSuccess>();
 
   readonly languageLevels: ReadonlyArray<{ value: LanguageLevel; label: string }> = [
     { value: 'BEGINNER', label: 'Beginner' },
@@ -96,9 +94,11 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
   private languageSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private deleteConflict = false;
   private interactionActive = false;
+  private readonly navigationDiscardSubscription: Subscription;
 
   constructor() {
     this.languageForm.valueChanges.subscribe(() => this.syncDirtyState());
+    this.navigationDiscardSubscription = this.editSession.navigationDiscarded$().subscribe(() => this.discardEditing());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -109,6 +109,7 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.navigationDiscardSubscription.unsubscribe();
     this.languageListCancel.next();
     this.languageListCancel.complete();
     this.languageMasterCancel.next();
@@ -242,7 +243,6 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
         this.languageConflict = false;
         this.languageMessage = mode === 'edit' ? 'Language updated successfully.' : 'Language added successfully.';
         this.notifications.showSuccess(this.languageMessage);
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
         if (addAnother) this.resetLanguageForAnother();
         else this.closeLanguageEditor();
       },
@@ -297,7 +297,6 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
         this.isLanguageDeleting = false;
         this.languageMessage = 'Language deleted successfully.';
         this.notifications.showSuccess(this.languageMessage);
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
         this.closeLanguageDeleteConfirmation();
       },
       error: (error: unknown) => {

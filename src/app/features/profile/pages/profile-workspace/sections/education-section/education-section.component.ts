@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, Subscription, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../../../core/http/api.models';
 import { NotificationService } from '../../../../../../core/notifications/notification.service';
@@ -9,7 +9,6 @@ import { Education, EducationRequest, EducationStatus, ProfileDetail } from '../
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
-import { ProfileSectionMutationSuccess } from '../profile-section-events';
 
 type EducationEditorMode = 'create' | 'edit' | null;
 type EditableEducationField = keyof EditableEducationValues;
@@ -40,7 +39,6 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) profile!: ProfileDetail;
   @Input() mutationBlocked = false;
   @Output() readonly interactionActiveChange = new EventEmitter<boolean>();
-  @Output() readonly mutationSucceeded = new EventEmitter<ProfileSectionMutationSuccess>();
 
   readonly educationForm = this.formBuilder.nonNullable.group({
     schoolName: ['', [Validators.required, Validators.maxLength(255)]],
@@ -76,10 +74,12 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
   private deleteRecoveryGeneration = 0;
   private deleteConflict = false;
   private interactionActive = false;
+  private readonly navigationDiscardSubscription: Subscription;
 
   constructor() {
     this.educationForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.educationForm.controls.status.valueChanges.subscribe(() => this.updateEducationDateValidation());
+    this.navigationDiscardSubscription = this.editSession.navigationDiscarded$().subscribe(() => this.discardEditing());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -90,6 +90,7 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.navigationDiscardSubscription.unsubscribe();
     this.listCancel.next();
     this.listCancel.complete();
     this.editSession.setDirty(false);
@@ -205,7 +206,6 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
         this.notifications.showSuccess(this.educationMessage);
         if (addAnother) this.resetEducationForAnother();
         else this.closeEducationEditor();
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
       },
       error: (error: unknown) => {
         if (!this.isCurrentEducationOperation(profileId, operationGeneration)) return;
@@ -255,7 +255,6 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
         this.educationMessage = 'Education deleted successfully.';
         this.notifications.showSuccess(this.educationMessage);
         this.closeEducationDeleteConfirmation();
-        this.mutationSucceeded.emit({ profileId, previewInvalidated: true });
       },
       error: (error: unknown) => {
         if (!this.isCurrentEducationOperation(profileId, operationGeneration, false)) return;
