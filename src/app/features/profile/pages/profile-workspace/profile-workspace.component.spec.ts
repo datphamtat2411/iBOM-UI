@@ -9,8 +9,12 @@ import { ProfileDetail, ProfileSummary } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
 import { AboutMeSectionComponent } from './sections/about-me-section/about-me-section.component';
+import { CertificateSectionComponent } from './sections/certificate-section/certificate-section.component';
 import { EducationSectionComponent } from './sections/education-section/education-section.component';
+import { LanguageSectionComponent } from './sections/language-section/language-section.component';
+import { ProjectsSectionComponent } from './sections/projects-section/projects-section.component';
 import { ProfileWorkspaceComponent } from './profile-workspace.component';
+import { SkillSectionComponent } from './sections/skill-section/skill-section.component';
 
 describe('ProfileWorkspaceComponent', () => {
   let fixture: ComponentFixture<ProfileWorkspaceComponent>;
@@ -105,11 +109,31 @@ describe('ProfileWorkspaceComponent', () => {
     return fixture.debugElement.query(By.directive(EducationSectionComponent)).componentInstance;
   }
 
+  function certificates(): CertificateSectionComponent {
+    return fixture.debugElement.query(By.directive(CertificateSectionComponent)).componentInstance;
+  }
+
+  function projectsSection(): ProjectsSectionComponent {
+    return fixture.debugElement.query(By.directive(ProjectsSectionComponent)).componentInstance;
+  }
+
+  function languageSection(): LanguageSectionComponent {
+    return fixture.debugElement.query(By.directive(LanguageSectionComponent)).componentInstance;
+  }
+
+  function skillSection(): SkillSectionComponent {
+    return fixture.debugElement.query(By.directive(SkillSectionComponent)).componentInstance;
+  }
+
   it('loads the selected Profile and renders both feature-local section components', () => {
     expect(context.loadSummaries).toHaveBeenCalled();
     expect(context.loadDetail).toHaveBeenCalledWith('1');
     expect(fixture.nativeElement.querySelector('#workspace-section-about')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-education')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#workspace-section-languages')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#workspace-section-certificates')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#workspace-section-projects')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#workspace-section-skills')).toBeTruthy();
   });
 
   it('keeps section navigation anchors and selected Profile switching in Workspace', () => {
@@ -133,6 +157,37 @@ describe('ProfileWorkspaceComponent', () => {
     expect((fixture.nativeElement.querySelector('#workspace-section-education .section-title button') as HTMLButtonElement).disabled).toBeTrue();
   });
 
+  it('coordinates Certificate ownership with the remaining Workspace sections', () => {
+    certificates().startCertificateCreate();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.workspaceMutationLocked()).toBeTrue();
+    expect((fixture.nativeElement.querySelector('#workspace-section-about .edit-about-button') as HTMLButtonElement).disabled).toBeTrue();
+    expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeTrue();
+  });
+
+  it('keeps Project route navigation in Workspace while preserving the child boundary', () => {
+    projectsSection().requestProjectCreate();
+    const project = {
+      id: 99,
+      name: 'Project',
+      description: 'Description',
+      startDate: null,
+      endDate: null,
+      status: 'ONGOING' as const,
+      position: 'Engineer',
+      teamSize: null,
+      responsibilities: null,
+      programmingLanguages: null,
+      tools: null,
+    };
+    projectsSection().projects = [project];
+    projectsSection().requestProjectEdit(project);
+
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 'new']);
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 99]);
+  });
+
   it('prevents About Me from starting while Education owns the mutation context', () => {
     education().startEducationCreate();
     fixture.detectChanges();
@@ -142,12 +197,21 @@ describe('ProfileWorkspaceComponent', () => {
     expect((fixture.nativeElement.querySelector('#workspace-section-about .edit-about-button') as HTMLButtonElement).disabled).toBeTrue();
   });
 
-  it('blocks extracted sections when an unextracted Language editor owns the context', () => {
-    fixture.componentInstance.startLanguageCreate();
+  it('blocks remaining sections when the Language child owns the context', () => {
+    languageSection().startLanguageCreate();
     fixture.detectChanges();
 
     expect((fixture.nativeElement.querySelector('#workspace-section-about .edit-about-button') as HTMLButtonElement).disabled).toBeTrue();
     expect((fixture.nativeElement.querySelector('#workspace-section-education .section-title button') as HTMLButtonElement).disabled).toBeTrue();
+  });
+
+  it('blocks remaining sections when the Skill child owns the context', () => {
+    skillSection().startSkillCreate();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.workspaceMutationLocked()).toBeTrue();
+    expect((fixture.nativeElement.querySelector('#workspace-section-about .edit-about-button') as HTMLButtonElement).disabled).toBeTrue();
+    expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeTrue();
   });
 
   it('coordinates successful child mutations through the Workspace preview signal', () => {

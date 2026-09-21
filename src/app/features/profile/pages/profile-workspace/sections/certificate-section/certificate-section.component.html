@@ -1,0 +1,45 @@
+<section class="content-section" id="workspace-section-certificates" aria-labelledby="certificates-title">
+  <div class="section-title"><div><h2 id="certificates-title">Certificates</h2><p>Profile-specific certificate records for this CV version.</p></div><button class="btn" type="button" (click)="startCertificateCreate()" [disabled]="mutationBlocked">Add certificate</button></div>
+  @if (certificateMessage) { <div class="notice success" role="status">{{ certificateMessage }}</div> }
+  @if (certificateLoading) {
+    <div class="section-state" role="status" aria-live="polite"><p>Loading Certificate records.</p></div>
+  } @else if (certificateError) {
+    <div class="notice error" role="alert"><p>We could not load Certificate records for this Profile.</p><button class="btn text" type="button" (click)="retryCertificates()">Try again</button></div>
+  } @else {
+    @if (certificateEditorMode) {
+      <form class="certificate-editor" [formGroup]="certificateForm" (ngSubmit)="submitCertificate()" novalidate>
+        @if (certificateErrorMessage) { <div class="notice error" role="alert">{{ certificateErrorMessage }}</div> }
+        @if (certificateConflict) { <div class="notice warning" role="alert"><strong>Latest Profile required.</strong> Your Certificate draft is preserved, but saving is blocked until you reload the latest version. <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button></div> }
+        <section class="form-section"><h3>Certificate details</h3><div class="form-grid">
+          <div class="field"><label for="certificate-name">Certificate Name</label><input id="certificate-name" type="text" formControlName="certificateName" maxlength="255" [attr.aria-invalid]="certificateFieldInvalid('certificateName')">@if (certificateFieldInvalid('certificateName')) { <span class="field-error">{{ certificateFieldError('certificateName') }}</span> }</div>
+          <div class="field"><label for="certificate-issue-date">Issue Date</label><input id="certificate-issue-date" type="date" formControlName="issueDate" [max]="certificateDateMax" [attr.aria-invalid]="certificateFieldInvalid('issueDate')">@if (certificateFieldInvalid('issueDate')) { <span class="field-error">{{ certificateFieldError('issueDate') }}</span> }</div>
+        </div></section>
+        <div class="sticky-actions"><span class="unsaved" [class.is-saving]="isCertificateSubmitting" [class.is-dirty]="hasCertificateChanges()" role="status" aria-live="polite">{{ isCertificateSubmitting ? 'Saving...' : certificateConflict ? 'Reload required' : hasCertificateChanges() ? 'Unsaved changes' : 'No changes' }}</span><div class="editor-actions"><button class="btn" type="button" (click)="cancelEditing()" [disabled]="isCertificateSubmitting">Cancel</button>@if (certificateEditorMode === 'create') { <button class="btn" type="button" (click)="submitCertificate('add-another')" [disabled]="certificateForm.invalid || !hasCertificateChanges() || isCertificateSubmitting || certificateConflict" [attr.aria-busy]="isCertificateSubmitting">Save &amp; add another</button> }<button class="btn primary" type="submit" [disabled]="certificateForm.invalid || !hasCertificateChanges() || isCertificateSubmitting || certificateConflict" [attr.aria-busy]="isCertificateSubmitting">{{ isCertificateSubmitting ? 'Saving...' : certificateEditorMode === 'edit' ? 'Save Certificate' : 'Add Certificate' }}</button></div></div>
+      </form>
+    }
+    @if (certificates.length) {
+      <div class="record-list">
+        @for (certificate of certificates; track certificate.id) {
+          <div class="record">
+            <div><h3>{{ certificate.certificateName }}</h3><p>Profile-specific certificate record</p></div>
+            <div class="record-meta"><div>{{ certificate.issueDate }}</div><div class="record-actions"><button class="btn text" type="button" (click)="startCertificateEdit(certificate)" [disabled]="mutationBlocked">Edit</button><button class="btn danger certificate-delete-button" type="button" (click)="openCertificateDeleteConfirmation(certificate)" [disabled]="mutationBlocked" [attr.aria-busy]="isCertificateDeleting" [attr.aria-label]="'Delete ' + certificateRecordLabel(certificate)"><span aria-hidden="true">&minus;</span></button></div></div>
+          </div>
+        }
+      </div>
+    } @else if (!certificateEditorMode) {
+      <div class="empty-state"><p>No Certificates exist in this Profile. Add one when it is relevant to this CV version.</p><button class="btn" type="button" (click)="startCertificateCreate()" [disabled]="mutationBlocked">Add certificate</button></div>
+    }
+  }
+</section>
+
+@if (cancelConfirmation) {
+  <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="certificate-cancel-warning-title" aria-describedby="certificate-cancel-warning-copy"><h2 id="certificate-cancel-warning-title">Discard editor changes?</h2><p id="certificate-cancel-warning-copy">Your entered values will be discarded from this editor.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepEditing()">Keep Editing</button><button class="btn primary" type="button" (click)="discardEditing()">Discard</button></div></section></div>
+}
+@if (reloadConfirmation) {
+  <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="certificate-reload-warning-title" aria-describedby="certificate-reload-warning-copy"><h2 id="certificate-reload-warning-title">Reload the latest Profile?</h2><p id="certificate-reload-warning-copy">This replaces the current editor draft with the newest saved Profile and section data. You cannot save the current draft after reloading.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepEditing()">Keep Editing</button><button class="btn primary" type="button" (click)="confirmReloadLatest()">Discard and Reload Latest</button></div></section></div>
+}
+@if (certificateDeleteConfirmation) {
+  @if (certificateDeleteTarget; as target) {
+    <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-certificate-title" aria-describedby="delete-certificate-copy"><h2 id="delete-certificate-title">Delete {{ certificateRecordLabel(target) }}?</h2><p id="delete-certificate-copy">This removes this Certificate record from the selected Profile only. This action cannot be undone.</p>@if (certificateDeleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ certificateDeleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelCertificateDelete()" [disabled]="isCertificateDeleting">Cancel</button>@if (hasDeleteConflict()) { <button class="btn text" type="button" (click)="reloadLatest()" [disabled]="isReloading">{{ isReloading ? 'Reloading...' : 'Reload Latest' }}</button> }<button class="btn danger" type="button" (click)="confirmCertificateDelete()" [disabled]="isCertificateDeleting || isReloading || hasDeleteConflict()" [attr.aria-busy]="isCertificateDeleting">{{ isCertificateDeleting ? 'Deleting...' : 'Delete Certificate' }}</button></div></section></div>
+  }
+}
