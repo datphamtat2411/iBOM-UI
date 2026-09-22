@@ -17,6 +17,8 @@ export interface ProfileDetail extends ProfileSummary {
   createdAt: string;
 }
 
+export type ProfileResponse = ProfileDetail;
+
 export interface CreateProfileRequest {
   profileName: string;
   firstName: string;
@@ -25,6 +27,10 @@ export interface CreateProfileRequest {
   yearsOfExperience: number;
   personality: string;
   technicalSummary: string;
+}
+
+export interface ProfileCopyRequest {
+  profileName: string;
 }
 
 export interface UpdateProfileRequest {

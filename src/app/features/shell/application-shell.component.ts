@@ -3,13 +3,15 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 
 import { AuthService } from '../../core/auth/auth.service';
 import { NotificationService } from '../../core/notifications/notification.service';
+import { ProfileCopyComponent } from '../profile/components/profile-copy/profile-copy.component';
+import { ProfileResponse } from '../profile/models/profile.models';
 import { ProfileContextService } from '../profile/services/profile-context.service';
 import { ProfileEditSessionService } from '../profile/services/profile-edit-session.service';
 
 @Component({
   selector: 'app-application-shell',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, ProfileCopyComponent],
   templateUrl: './application-shell.component.html',
   styleUrl: './application-shell.component.scss',
 })
@@ -31,6 +33,8 @@ export class ApplicationShellComponent {
   navigationOpen = false;
   accountMenuOpen = false;
   logoutInProgress = false;
+  copyModalOpen = false;
+  copySource: { id: string; name: string } | null = null;
 
   constructor() {
     this.profileContext.loadSummaries();
@@ -91,7 +95,45 @@ export class ApplicationShellComponent {
     this.closeProfileMenu();
     void this.router.navigate(['/profiles/new']);
   }
+  openCopyProfile(): void {
+    this.closeProfileMenu();
+    const source = this.currentCopySource();
+    if (!source) return;
+
+    this.profileEditSession.requestNavigation(`/profiles/${source.id}`).then((allow) => {
+      if (!allow || !this.currentCopySource() || this.currentCopySource()?.id !== source.id) return;
+      this.copySource = source;
+      this.copyModalOpen = true;
+    });
+  }
+  closeCopyProfile(): void {
+    this.copyModalOpen = false;
+    this.copySource = null;
+  }
+  profileCopied(copied: ProfileResponse): void {
+    const source = this.copySource;
+    if (!source || !this.currentCopySource() || this.currentCopySource()?.id !== source.id) {
+      this.closeCopyProfile();
+      return;
+    }
+
+    this.closeCopyProfile();
+    this.profileContext.refreshSummariesAndSelect(copied.id).subscribe({
+      next: () => {
+        this.notifications.showSuccess('Profile copied successfully.');
+        void this.router.navigate(['/profiles', copied.id]);
+      },
+    });
+  }
   isSelectedProfile(id: number | string): boolean { return String(id) === this.profileContext.selectedId(); }
+
+  private currentCopySource(): { id: string; name: string } | null {
+    const selectedId = this.profileContext.selectedId();
+    const summary = this.profileContext.summaries().find((profile) => String(profile.id) === selectedId);
+    const detail = this.profileContext.detail();
+    if (!selectedId || !summary || (detail && String(detail.id) !== selectedId)) return null;
+    return { id: selectedId, name: detail?.profileName ?? summary.profileName };
+  }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {

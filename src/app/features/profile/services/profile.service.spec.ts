@@ -38,6 +38,15 @@ describe('ProfileService', () => {
     request.flush({ data: { id: 2, ...profile } });
   });
 
+  it('copies a Profile with an encoded source URL and only the new Profile name', () => {
+    const requestBody = { profileName: 'Copied CV' };
+    service.copy('profile/1', requestBody).subscribe((copied) => expect(copied.id).toBe(2));
+    const request = http.expectOne('/api/profiles/profile%2F1/copy');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(requestBody);
+    request.flush({ data: { id: 2, profileName: 'Copied CV' } });
+  });
+
   it('updates a Profile with the immutable name and current version', () => {
     const profile = { profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 6, personality: 'Methodical', technicalSummary: 'Angular and Java', version: 4 };
     service.update('profile/1', profile).subscribe((updated) => expect(updated.version).toBe(5));

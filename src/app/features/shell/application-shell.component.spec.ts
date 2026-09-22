@@ -12,7 +12,7 @@ import { ApplicationShellComponent } from './application-shell.component';
 describe('ApplicationShellComponent', () => {
   let fixture: ComponentFixture<ApplicationShellComponent>;
   let auth: { user: ReturnType<typeof signal>; logoutError: ReturnType<typeof signal>; logout: jasmine.Spy };
-  let profileContext: { summaries: ReturnType<typeof signal>; summariesLoading: ReturnType<typeof signal>; summariesError: ReturnType<typeof signal>; selectedId: ReturnType<typeof signal>; detail: ReturnType<typeof signal>; detailLoading: ReturnType<typeof signal>; loadSummaries: jasmine.Spy };
+  let profileContext: { summaries: ReturnType<typeof signal>; summariesLoading: ReturnType<typeof signal>; summariesError: ReturnType<typeof signal>; selectedId: ReturnType<typeof signal>; detail: ReturnType<typeof signal>; detailLoading: ReturnType<typeof signal>; loadSummaries: jasmine.Spy; refreshSummariesAndSelect: jasmine.Spy };
   let editSession: ProfileEditSessionService;
 
   beforeEach(async () => {
@@ -22,7 +22,7 @@ describe('ApplicationShellComponent', () => {
       logout: jasmine.createSpy('logout').and.returnValue(of(undefined)),
     };
     profileContext = {
-      summaries: signal([]), summariesLoading: signal(false), summariesError: signal(null), selectedId: signal(null), detail: signal(null), detailLoading: signal(false), loadSummaries: jasmine.createSpy('loadSummaries'),
+      summaries: signal([]), summariesLoading: signal(false), summariesError: signal(null), selectedId: signal(null), detail: signal(null), detailLoading: signal(false), loadSummaries: jasmine.createSpy('loadSummaries'), refreshSummariesAndSelect: jasmine.createSpy('refreshSummariesAndSelect').and.returnValue(of(undefined)),
     };
     await TestBed.configureTestingModule({
       imports: [ApplicationShellComponent],
@@ -169,7 +169,7 @@ describe('ApplicationShellComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
   });
 
-  it('renders an operable Profile selector when one Profile exists', () => {
+  it('renders static selected context with Create and Copy actions when one Profile exists', () => {
     const router = TestBed.inject(Router);
     spyOn(router, 'navigate').and.resolveTo(true);
     profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
@@ -177,14 +177,11 @@ describe('ApplicationShellComponent', () => {
     spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
     fixture.detectChanges();
 
-    const trigger = fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement;
-    expect(trigger.textContent).toContain('Backend CV');
-    trigger.click();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('.profile-option').length).toBe(1);
-    expect(fixture.nativeElement.querySelector('.profile-menu-actions button')?.textContent).toContain('Create Profile');
-    (fixture.nativeElement.querySelector('.profile-option') as HTMLButtonElement).click();
-    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 1]);
+    expect(fixture.nativeElement.querySelector('.profile-trigger')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.profile-static-context')?.textContent).toContain('Backend CV');
+    expect(fixture.nativeElement.querySelectorAll('.profile-context-actions button').length).toBe(2);
+    (fixture.nativeElement.querySelector('.profile-context-actions button') as HTMLButtonElement).click();
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
   });
 
   it('renders the Profile switcher for multiple Profiles and navigates on selection', () => {
@@ -200,12 +197,13 @@ describe('ApplicationShellComponent', () => {
 
     (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
     fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.profile-menu-actions')?.textContent).toContain('Copy Profile');
     (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
 
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
   });
 
-  it('removes a deleted Profile from the selector after summaries refresh', () => {
+  it('renders the remaining Profile as static context after summaries refresh', () => {
     const router = TestBed.inject(Router);
     profileContext.summaries.set([
       { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
@@ -221,8 +219,9 @@ describe('ApplicationShellComponent', () => {
     profileContext.selectedId.set('2');
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll('.profile-option').length).toBe(1);
-    expect(fixture.nativeElement.querySelector('.profile-option')?.textContent).not.toContain('Backend CV');
+    expect(fixture.nativeElement.querySelector('.profile-trigger')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.profile-static-context')?.textContent).toContain('Frontend CV');
+    expect(fixture.nativeElement.querySelector('.profile-static-context')?.textContent).not.toContain('Backend CV');
   });
 
   it('opens Create Profile from the Profile menu without changing the selected Profile', () => {
@@ -243,6 +242,38 @@ describe('ApplicationShellComponent', () => {
 
     expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
     expect(profileContext.selectedId()).toBe('1');
+  });
+
+  it('refreshes summaries, selects, navigates, and notifies after a successful Copy', () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
+    const notifications = TestBed.inject(NotificationService);
+    spyOn(notifications, 'showSuccess');
+    profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.selectedId.set('1');
+    const component = fixture.componentInstance;
+    component.copySource = { id: '1', name: 'Backend CV' };
+    component.copyModalOpen = true;
+    component.profileCopied({ id: 2, profileName: 'Copied CV' } as never);
+
+    expect(profileContext.refreshSummariesAndSelect).toHaveBeenCalledWith(2);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Profile copied successfully.');
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+    expect(component.copyModalOpen).toBeFalse();
+  });
+
+  it('coordinates dirty state before opening Copy and does not open when changes are kept', async () => {
+    const component = fixture.componentInstance;
+    profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.selectedId.set('1');
+    editSession.setDirty(true);
+
+    component.openCopyProfile();
+    expect(editSession.pendingNavigation()).toEqual({ url: '/profiles/1' });
+    editSession.resolveNavigation(false);
+    await fixture.whenStable();
+
+    expect(component.copyModalOpen).toBeFalse();
   });
 
   it('renders application success feedback outside routed feature components', () => {

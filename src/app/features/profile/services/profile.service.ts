@@ -7,6 +7,8 @@ import { ApiResponse } from '../../../core/http/api.models';
 import { API_BASE_URL } from '../../../core/http/api.config';
 import {
   CreateProfileRequest,
+  ProfileCopyRequest,
+  ProfileResponse,
   CertificateMutationResponse,
   CertificateRequest,
   CertificateResponse,
@@ -48,6 +50,12 @@ export class ProfileService {
 
   create(profile: CreateProfileRequest): Observable<ProfileDetail> {
     return this.http.post<ApiResponse<ProfileDetail>>(`${API_BASE_URL}/profiles`, profile).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  copy(sourceProfileId: number | string, profile: ProfileCopyRequest): Observable<ProfileResponse> {
+    return this.http.post<ApiResponse<ProfileResponse>>(`${API_BASE_URL}/profiles/${encodeURIComponent(String(sourceProfileId))}/copy`, profile).pipe(
       map((response) => response.data),
     );
   }

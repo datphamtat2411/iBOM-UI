@@ -50,7 +50,7 @@
     <header class="topbar">
       <div class="context-line">
         @if (contextTitle === 'Profile Workspace') {
-          @if (profileContext.summaries().length) {
+          @if (profileContext.summaries().length > 1) {
             <div class="profile-switcher">
               <button class="profile-trigger" type="button" aria-haspopup="menu" [attr.aria-expanded]="profileMenuOpen" aria-controls="profile-menu" (click)="toggleProfileMenu()">
                 <span><small>My Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span><span aria-hidden="true">⌄</span>
@@ -61,9 +61,17 @@
                    @for (profile of profileContext.summaries(); track profile.id) {
                      <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small></span><span class="mono">{{ profile.completeness !== undefined ? profile.completeness + '%' : '' }}</span></button>
                    }
-                   <div class="profile-menu-actions"><button class="btn text" type="button" role="menuitem" (click)="createProfile()">Create Profile</button></div>
-                </div>
-              }
+                    <div class="profile-menu-actions"><button class="btn text" type="button" role="menuitem" (click)="createProfile()">Create Profile</button><button class="btn text" type="button" role="menuitem" (click)="openCopyProfile()">Copy Profile</button></div>
+                 </div>
+               }
+             </div>
+          } @else if (profileContext.summaries().length === 1) {
+            <div class="profile-static-context" aria-label="Selected Profile">
+              <span><small>My Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span>
+              <div class="profile-context-actions">
+                <button class="btn text" type="button" (click)="createProfile()">Create Profile</button>
+                <button class="btn text" type="button" (click)="openCopyProfile()">Copy Profile</button>
+              </div>
             </div>
           } @else {
             <button class="profile-create-cta" type="button" (click)="createProfile()">Create Profile</button>
@@ -76,4 +84,7 @@
 </div>
 @if (notifications.notification(); as notification) {
   <div class="application-toast" data-notification-toast role="status" aria-live="polite" aria-atomic="true">{{ notification.message }}</div>
+}
+@if (copyModalOpen && copySource; as source) {
+  <app-profile-copy [sourceProfileId]="source.id" [sourceProfileName]="source.name" (closed)="closeCopyProfile()" (copied)="profileCopied($event)" />
 }
