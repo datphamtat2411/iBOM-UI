@@ -112,6 +112,40 @@ describe('CvPreviewComponent', () => {
     expect(fixture?.nativeElement.textContent).toContain('Preview required');
   });
 
+  it('loads every File Name Format page in backend order while keeping Automatic available', () => {
+    profiles.listFileNameFormats.and.callFake((page: number) => of(page === 0
+      ? { content: [{ id: 7, name: 'Name - Title' }, { id: 8, name: 'Name - Role' }], page: 0, size: 10, totalElements: 3, totalPages: 2 }
+      : { content: [{ id: 9, name: 'Name - Date' }], page: 1, size: 10, totalElements: 3, totalPages: 2 }));
+
+    const component = render();
+
+    expect(profiles.listFileNameFormats).toHaveBeenCalledWith(0, 10);
+    expect(profiles.listFileNameFormats).toHaveBeenCalledWith(1, 10);
+    expect(component.fileNameFormats).toEqual([
+      { id: 7, name: 'Name - Title' },
+      { id: 8, name: 'Name - Role' },
+      { id: 9, name: 'Name - Date' },
+    ]);
+    expect(component.fileNameFormatsLoading).toBeFalse();
+    expect(component.fileNameFormatsError).toBe('');
+  });
+
+  it('does not present partial File Name Formats when a later page fails', () => {
+    const secondPage = new Subject<{ content: { id: number; name: string }[]; page: number; size: number; totalElements: number; totalPages: number }>();
+    profiles.listFileNameFormats.and.returnValues(
+      of({ content: [{ id: 7, name: 'Name - Title' }], page: 0, size: 10, totalElements: 2, totalPages: 2 }),
+      secondPage,
+    );
+
+    const component = render();
+    expect(component.fileNameFormatsLoading).toBeTrue();
+    secondPage.error(new HttpErrorResponse({ status: 503, error: { message: 'Formats unavailable.' } }));
+
+    expect(component.fileNameFormats).toEqual([]);
+    expect(component.fileNameFormatsLoading).toBeFalse();
+    expect(component.fileNameFormatsError).toBe('Formats unavailable.');
+  });
+
   it('prevents duplicate Preview generation while the backend request is active', () => {
     const request = new Subject<Blob>();
     profiles.preview.and.returnValue(request);
@@ -204,7 +238,27 @@ describe('CvPreviewComponent', () => {
     expect(context.reloadDetail).toHaveBeenCalledTimes(2);
     expect(context.detail()?.lastExportedAt).toBe('2026-01-02T12:00:00Z');
     expect(component.previewState).toBe('valid');
+    expect(component.exportSuccess).toBe('DOCX export downloaded successfully.');
     expect(component.isExporting).toBeFalse();
+  });
+
+  it('shows PDF success feedback only after the browser download and Profile reconciliation complete', () => {
+    const request = new Subject<HttpResponse<Blob>>();
+    const validDetail = { ...detail, hasPreviewed: true };
+    profiles.download.and.returnValue(request);
+    reloadWith(validDetail);
+    const component = renderValid(validDetail);
+
+    component.exportDocument('pdf');
+    expect(component.exportSuccess).toBe('');
+    request.next(new HttpResponse({
+      body: new Blob(['backend pdf'], { type: 'application/pdf' }),
+      headers: new HttpHeaders({ 'Content-Disposition': 'attachment; filename="backend.pdf"' }),
+    }));
+
+    expect(component.exportSuccess).toBe('PDF export downloaded successfully.');
+    expect(component.previewState).toBe('valid');
+    expect(component.documentUrl).not.toBeNull();
   });
 
   it('preserves the valid Preview after an ordinary export failure and allows retry', async () => {
@@ -221,6 +275,7 @@ describe('CvPreviewComponent', () => {
     expect(component.previewState).toBe('valid');
     expect(component.documentUrl).not.toBeNull();
     expect(component.exportError).toBe('Format was removed.');
+    expect(component.exportSuccess).toBe('');
     expect(component.isExporting).toBeFalse();
     component.exportDocument('pdf');
     expect(profiles.download).toHaveBeenCalledWith('1', 'pdf', '7');
@@ -251,6 +306,7 @@ describe('CvPreviewComponent', () => {
 
     expect(component.previewState).toBe('loading');
     expect(component.exportError).toBe('');
+    expect(component.exportSuccess).toBe('');
   });
 
   it('does not accept PDF bytes until Profile ID, version, and hasPreviewed reconcile', () => {
@@ -307,6 +363,74 @@ describe('CvPreviewComponent', () => {
     expect(component.previewState).toBe('unavailable');
     expect(component.documentUrl).toBeNull();
     expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('classifies a PROFILE_NOT_FOUND JSON error delivered as a Preview Blob', async () => {
+    const request = new Subject<Blob>();
+    profiles.preview.and.returnValue(request);
+    const component = render();
+    const errorBody = new Blob([JSON.stringify({ errorCode: 'PROFILE_NOT_FOUND' })], { type: 'application/json' });
+    spyOn(errorBody, 'text').and.returnValue(Promise.resolve(JSON.stringify({ errorCode: 'PROFILE_NOT_FOUND' })));
+
+    component.generatePreview();
+    request.error(new HttpErrorResponse({ status: 404, error: errorBody }));
+    await fixture!.whenStable();
+
+    expect(component.previewState).toBe('unavailable');
+    expect(component.previewError).toBe('This Profile is not available to your account.');
+    expect(component.documentUrl).toBeNull();
+  });
+
+  it('retains version-conflict retry behavior for a PROFILE_VERSION_CONFLICT Preview Blob', async () => {
+    const request = new Subject<Blob>();
+    profiles.preview.and.returnValue(request);
+    const component = render();
+    const errorBody = new Blob([JSON.stringify({ errorCode: 'PROFILE_VERSION_CONFLICT' })], { type: 'application/json' });
+    spyOn(errorBody, 'text').and.returnValue(Promise.resolve(JSON.stringify({ errorCode: 'PROFILE_VERSION_CONFLICT' })));
+
+    component.generatePreview();
+    request.error(new HttpErrorResponse({ status: 409, error: errorBody }));
+    await fixture!.whenStable();
+
+    expect(component.previewState).toBe('failure');
+    expect(component.previewError).toBe('The Profile changed while Preview was generated. Review the Profile and retry.');
+  });
+
+  it('falls back to generic Preview failure for a malformed Preview Blob error', async () => {
+    const request = new Subject<Blob>();
+    profiles.preview.and.returnValue(request);
+    const component = render();
+    const errorBody = new Blob(['not-json'], { type: 'application/json' });
+    spyOn(errorBody, 'text').and.returnValue(Promise.resolve('not-json'));
+
+    component.generatePreview();
+    request.error(new HttpErrorResponse({ status: 500, error: errorBody }));
+    await fixture!.whenStable();
+
+    expect(component.previewState).toBe('failure');
+    expect(component.previewError).toBe('Preview could not be generated right now. Please retry.');
+  });
+
+  it('ignores a decoded Preview Blob error after the Profile switches', async () => {
+    const request = new Subject<Blob>();
+    profiles.preview.and.returnValue(request);
+    const component = render();
+    const errorBody = new Blob([JSON.stringify({ errorCode: 'PROFILE_NOT_FOUND' })], { type: 'application/json' });
+    let resolveBody!: (body: string) => void;
+    spyOn(errorBody, 'text').and.returnValue(new Promise<string>((resolve) => { resolveBody = resolve; }));
+
+    component.generatePreview();
+    request.error(new HttpErrorResponse({ status: 404, error: errorBody }));
+    context.selectedId.set('2');
+    context.detail.set(null);
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture?.detectChanges();
+    resolveBody(JSON.stringify({ errorCode: 'PROFILE_NOT_FOUND' }));
+    await fixture!.whenStable();
+
+    expect(component.previewState).toBe('loading');
+    expect(component.previewError).toBe('');
+    expect(component.documentUrl).toBeNull();
   });
 
   it('invalidates pending Preview responses and the displayed document when the Profile switches', () => {

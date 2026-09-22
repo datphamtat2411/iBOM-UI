@@ -35,6 +35,7 @@
 .last-exported { margin: 0 !important; font-size: 12px; }
 .preview-help { margin-top: 12px !important; font-size: 12px; }
 .error-copy { color: #8d241d !important; }
+.success-copy { color: #205d39 !important; }
 .document-stage { min-height: 700px; max-width: 100%; padding: 30px; background-color: var(--paper-muted, #ece8de); background-image: linear-gradient(rgb(216 210 196 / 45%) 1px, transparent 1px), linear-gradient(90deg, rgb(216 210 196 / 35%) 1px, transparent 1px); background-size: 32px 32px; overflow: auto; overscroll-behavior: contain; }
 .pdf-surface { display: block; width: min(100%, 820px); min-height: 1018px; margin: 0 auto; border: 0; background: #fff; box-shadow: 0 12px 34px rgb(23 25 29 / 16%); }
 .document-placeholder { display: grid; width: min(720px, 100%); min-height: 1018px; margin: 0 auto; padding: 58px 62px; align-content: start; gap: 16px; background: #fff; box-shadow: 0 12px 34px rgb(23 25 29 / 16%); }

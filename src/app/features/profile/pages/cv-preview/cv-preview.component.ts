@@ -2,9 +2,9 @@ import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { Component, effect, inject, OnDestroy } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { EMPTY, expand, reduce, Subscription } from 'rxjs';
 
-import { CvExportFormat, FileNameFormat, ProfileDetail } from '../../models/profile.models';
+import { CvExportFormat, FileNameFormat, FileNameFormatPage, ProfileDetail } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
 
@@ -22,6 +22,7 @@ interface PendingExport {
   version: number;
   hasPreviewed: boolean;
   fileNameFormatId: string | null;
+  format: CvExportFormat;
   generation: number;
   detail: ProfileDetail;
 }
@@ -29,6 +30,8 @@ interface PendingExport {
 interface BackendErrorDetails {
   errorCode: string | null;
   message: string | null;
+  blobBody?: boolean;
+  decoded?: boolean;
 }
 
 @Component({
@@ -54,6 +57,7 @@ export class CvPreviewComponent implements OnDestroy {
   selectedFileNameFormatId: string | null = null;
   exportingFormat: CvExportFormat | null = null;
   exportError = '';
+  exportSuccess = '';
 
   private readonly routeSubscription: Subscription;
   private fileNameFormatsSubscription: Subscription | null = null;
@@ -67,6 +71,7 @@ export class CvPreviewComponent implements OnDestroy {
   private previewGeneration = 0;
   private exportGeneration = 0;
   private observedProfileVersion: number | null = null;
+  private fileNameFormatsLoaded = false;
   private documentObjectUrl: string | null = null;
   private documentProfileId: string | null = null;
   private documentVersion: number | null = null;
@@ -88,6 +93,7 @@ export class CvPreviewComponent implements OnDestroy {
   ngOnDestroy(): void {
     this.routeSubscription.unsubscribe();
     this.fileNameFormatsSubscription?.unsubscribe();
+    this.fileNameFormatsSubscription = null;
     this.invalidatePreview('loading');
   }
 
@@ -134,6 +140,7 @@ export class CvPreviewComponent implements OnDestroy {
       version: detail.version,
       hasPreviewed: detail.hasPreviewed,
       fileNameFormatId: this.selectedFileNameFormatId,
+      format,
       generation: ++this.exportGeneration,
       detail,
     };
@@ -141,6 +148,7 @@ export class CvPreviewComponent implements OnDestroy {
     this.activeExportGeneration = pending.generation;
     this.exportingFormat = format;
     this.exportError = '';
+    this.exportSuccess = '';
 
     const request = pending.fileNameFormatId === null
       ? this.profileService.download(profileId, format)
@@ -161,6 +169,7 @@ export class CvPreviewComponent implements OnDestroy {
     this.observedProfileVersion = null;
     this.selectedFileNameFormatId = null;
     this.exportError = '';
+    this.exportSuccess = '';
 
     if (profileId) this.context.loadDetail(profileId);
     else this.context.beginSelection(null);
@@ -202,6 +211,7 @@ export class CvPreviewComponent implements OnDestroy {
         this.clearDocument();
         this.previewState = 'required';
         this.previewError = '';
+        this.exportSuccess = '';
       }
       return;
     }
@@ -221,6 +231,7 @@ export class CvPreviewComponent implements OnDestroy {
     this.activePreviewGeneration = generation;
     this.previewState = 'generating';
     this.previewError = '';
+    this.exportSuccess = '';
     this.clearDocument();
 
     const request = this.profileService.preview(profileId);
@@ -241,13 +252,31 @@ export class CvPreviewComponent implements OnDestroy {
       },
       error: (error: unknown) => {
         if (!this.isCurrentPreview(profileId, capturedVersion, capturedHasPreviewed, generation)) return;
-        this.activePreviewGeneration = null;
-        this.previewSubscription = null;
-        this.pendingDocument = null;
-        this.clearDocument();
-        this.setPreviewFailure(error);
+        this.previewFailed(error, profileId, capturedVersion, capturedHasPreviewed, generation);
       },
     });
+  }
+
+  private previewFailed(error: unknown, profileId: string, capturedVersion: number, capturedHasPreviewed: boolean, generation: number): void {
+    const body = error instanceof HttpErrorResponse ? error.error : error;
+    if (typeof Blob !== 'undefined' && body instanceof Blob) {
+      void this.readBackendError(error).then((details) => {
+        this.finishPreviewFailure(error, details, profileId, capturedVersion, capturedHasPreviewed, generation);
+      });
+      return;
+    }
+
+    this.finishPreviewFailure(error, this.backendErrorDetails(error), profileId, capturedVersion, capturedHasPreviewed, generation);
+  }
+
+  private finishPreviewFailure(error: unknown, details: BackendErrorDetails, profileId: string, capturedVersion: number, capturedHasPreviewed: boolean, generation: number): void {
+    if (!this.isCurrentPreview(profileId, capturedVersion, capturedHasPreviewed, generation)) return;
+
+    this.activePreviewGeneration = null;
+    this.previewSubscription = null;
+    this.pendingDocument = null;
+    this.clearDocument();
+    this.setPreviewFailure(error, details);
   }
 
   private finishReconciliation(detail: ProfileDetail, profileId: string, capturedVersion: number, generation: number): void {
@@ -264,6 +293,7 @@ export class CvPreviewComponent implements OnDestroy {
       this.previewError = detail.hasPreviewed
         ? 'The Profile changed while Preview was generated. Please retry Preview.'
         : '';
+      this.exportSuccess = '';
       return;
     }
 
@@ -283,17 +313,19 @@ export class CvPreviewComponent implements OnDestroy {
     this.setPreviewFailure(error);
   }
 
-  private setPreviewFailure(error: unknown): void {
-    if (this.isUnavailableError(error)) {
+  private setPreviewFailure(error: unknown, details: BackendErrorDetails = this.backendErrorDetails(error)): void {
+    if (this.isUnavailableError(error, details)) {
       this.previewState = 'unavailable';
       this.previewError = 'This Profile is not available to your account.';
+      this.exportSuccess = '';
       return;
     }
 
     this.previewState = 'failure';
-    this.previewError = this.isVersionConflict(error)
+    this.previewError = this.isVersionConflict(error, details)
       ? 'The Profile changed while Preview was generated. Review the Profile and retry.'
       : 'Preview could not be generated right now. Please retry.';
+    this.exportSuccess = '';
   }
 
   private isCurrentPreview(profileId: string, version: number, hasPreviewed: boolean, generation: number): boolean {
@@ -336,6 +368,7 @@ export class CvPreviewComponent implements OnDestroy {
     this.activeExportGeneration = null;
     this.pendingExport = null;
     this.exportingFormat = null;
+    this.exportSuccess = '';
     this.pendingDocument = null;
     this.clearDocument();
     this.previewState = nextState;
@@ -359,19 +392,38 @@ export class CvPreviewComponent implements OnDestroy {
   }
 
   private loadFileNameFormats(): void {
+    if (this.fileNameFormatsLoading || this.fileNameFormatsSubscription || this.fileNameFormatsLoaded) return;
+
     this.fileNameFormatsLoading = true;
-    this.fileNameFormatsSubscription = this.profileService.listFileNameFormats(0, 10).subscribe({
-      next: (page) => {
-        this.fileNameFormats = page.content;
-        this.fileNameFormatsLoading = false;
-        this.fileNameFormatsSubscription = null;
+    this.fileNameFormatsError = '';
+    this.fileNameFormats = [];
+
+    const request = this.profileService.listFileNameFormats(0, 10).pipe(
+      expand((page: FileNameFormatPage) => {
+        const nextPage = page.page + 1;
+        return nextPage < page.totalPages
+          ? this.profileService.listFileNameFormats(nextPage, page.size)
+          : EMPTY;
+      }, 1),
+      reduce((formats, page) => formats.concat(page.content), [] as FileNameFormat[]),
+    );
+    const subscription = request.subscribe({
+      next: (formats) => {
+        this.fileNameFormats = formats;
+        this.fileNameFormatsLoaded = true;
       },
       error: (error: unknown) => {
+        this.fileNameFormats = [];
         this.fileNameFormatsLoading = false;
         this.fileNameFormatsError = this.backendMessage(error) || 'File Name Formats could not be loaded.';
         this.fileNameFormatsSubscription = null;
       },
+      complete: () => {
+        this.fileNameFormatsLoading = false;
+        this.fileNameFormatsSubscription = null;
+      },
     });
+    this.fileNameFormatsSubscription = subscription.closed ? null : subscription;
   }
 
   private exportSucceeded(response: HttpResponse<Blob>, pending: PendingExport): void {
@@ -434,6 +486,7 @@ export class CvPreviewComponent implements OnDestroy {
     this.observedProfileVersion = detail.version;
     this.previewError = '';
     this.exportError = '';
+    this.exportSuccess = `${pending.format.toUpperCase()} export downloaded successfully.`;
     this.previewState = 'valid';
   }
 
@@ -503,6 +556,7 @@ export class CvPreviewComponent implements OnDestroy {
     this.activeExportGeneration = null;
     this.pendingExport = null;
     this.exportingFormat = null;
+    this.exportSuccess = '';
   }
 
   private isCurrentExportContext(pending: PendingExport): boolean {
@@ -564,9 +618,9 @@ export class CvPreviewComponent implements OnDestroy {
     const body = error instanceof HttpErrorResponse ? error.error : error;
     if (typeof Blob !== 'undefined' && body instanceof Blob) {
       try {
-        return this.backendErrorDetails(JSON.parse(await body.text()));
+        return { ...this.backendErrorDetails(JSON.parse(await body.text())), blobBody: true, decoded: true };
       } catch {
-        return this.backendErrorDetails(error);
+        return { ...this.backendErrorDetails(error), blobBody: true, decoded: false };
       }
     }
     return this.backendErrorDetails(error);
@@ -608,13 +662,15 @@ export class CvPreviewComponent implements OnDestroy {
       || errorCode === 'PROFILE_NOT_FOUND';
   }
 
-  isUnavailableError(error: unknown): boolean {
+  isUnavailableError(error: unknown, details?: BackendErrorDetails): boolean {
+    if (details?.blobBody) return details.decoded === true && details.errorCode === 'PROFILE_NOT_FOUND';
     return this.context.isNotFound(error)
-      || (error instanceof HttpErrorResponse && error.status === 404 && this.errorCode(error) === 'PROFILE_NOT_FOUND');
+      || (error instanceof HttpErrorResponse && error.status === 404 && (details?.errorCode ?? this.errorCode(error)) === 'PROFILE_NOT_FOUND');
   }
 
-  private isVersionConflict(error: unknown): boolean {
-    return error instanceof HttpErrorResponse
-      && (error.status === 409 || error.error?.errorCode === 'PROFILE_VERSION_CONFLICT');
+  private isVersionConflict(error: unknown, details?: BackendErrorDetails): boolean {
+    if (!(error instanceof HttpErrorResponse)) return false;
+    if (details?.blobBody) return details.decoded === true && details.errorCode === 'PROFILE_VERSION_CONFLICT';
+    return error.status === 409 || (details?.errorCode ?? error.error?.errorCode) === 'PROFILE_VERSION_CONFLICT';
   }
 }
