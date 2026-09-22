@@ -29,6 +29,15 @@ describe('ProfileService', () => {
     request.flush({ data: { id: 'profile-1', profileName: 'Backend CV' } });
   });
 
+  it('requests the backend-generated Preview PDF with an encoded Profile ID and Blob response', () => {
+    const pdf = new Blob(['pdf'], { type: 'application/pdf' });
+    service.preview('profile/1').subscribe((result) => expect(result).toBe(pdf));
+    const request = http.expectOne('/api/cv/preview/profile%2F1');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.responseType).toBe('blob');
+    request.flush(pdf, { headers: { 'Content-Type': 'application/pdf' } });
+  });
+
   it('creates a Profile with the backend field names and unwraps the response', () => {
     const profile = { profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java' };
     service.create(profile).subscribe((created) => expect(created.id).toBe(2));

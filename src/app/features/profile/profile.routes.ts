@@ -36,6 +36,14 @@ export const profileRoutes: Routes = [
       ),
   },
   {
+    path: ':profileId/preview',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('./pages/cv-preview/cv-preview.component').then(
+        (component) => component.CvPreviewComponent,
+      ),
+  },
+  {
     path: ':profileId',
     canActivate: [profileDirtyNavigationGuard],
     loadComponent: () =>

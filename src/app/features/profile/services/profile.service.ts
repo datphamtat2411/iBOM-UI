@@ -48,6 +48,10 @@ export class ProfileService {
     );
   }
 
+  preview(profileId: string): Observable<Blob> {
+    return this.http.get(`${API_BASE_URL}/cv/preview/${encodeURIComponent(profileId)}`, { responseType: 'blob' });
+  }
+
   create(profile: CreateProfileRequest): Observable<ProfileDetail> {
     return this.http.post<ApiResponse<ProfileDetail>>(`${API_BASE_URL}/profiles`, profile).pipe(
       map((response) => response.data),

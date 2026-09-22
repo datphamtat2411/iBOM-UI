@@ -139,6 +139,12 @@ describe('ProfileWorkspaceComponent', () => {
     expect(about().profile.id).toBe(2);
   });
 
+  it('navigates to Preview using the selected Profile ID', () => {
+    fixture.componentInstance.openPreview();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'preview']);
+  });
+
   it('coordinates one child interaction owner with Project mutations and releases it', () => {
     about().interactionActiveChange.emit(true);
     fixture.detectChanges();

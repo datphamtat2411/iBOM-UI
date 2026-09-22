@@ -14,7 +14,7 @@
     <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading {{ profileName() }}.</p></div>
   } @else {
     @if (context.detail(); as profile) {
-      <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · About Me and Profile-specific content</p></div><div class="heading-actions"><button class="btn danger delete-profile-button" type="button" title="Available while more than one active Profile exists" [disabled]="context.summaries().length <= 1 || !canStartWorkspaceMutation()" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></div>
+       <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · About Me and Profile-specific content</p></div><div class="heading-actions"><button class="btn" type="button" (click)="openPreview()">Preview CV</button><button class="btn danger delete-profile-button" type="button" title="Available while more than one active Profile exists" [disabled]="context.summaries().length <= 1 || !canStartWorkspaceMutation()" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></div>
       <div class="workspace-grid">
         <nav class="section-nav" aria-label="Profile sections">
           @for (section of sections; track section[0]) {

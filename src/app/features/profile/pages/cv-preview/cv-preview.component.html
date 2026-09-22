@@ -1,0 +1,71 @@
+<section class="profile-page preview-page" aria-labelledby="preview-title">
+  @if (previewState !== 'generating' && (context.detailLoading() || (!context.detail() && !context.detailError()))) {
+    <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading the saved Profile before requesting its Preview.</p></div>
+  } @else if (context.detailError() && isUnavailableError(context.detailError())) {
+    <div class="workspace-state error" role="alert"><h1>Profile not found</h1><p>This Profile is not available to your account.</p></div>
+  } @else if (context.detailError()) {
+    <div class="workspace-state error" role="alert"><h1>Unable to load Profile</h1><p>We could not load this Profile. Please try again later.</p></div>
+  } @else {
+    <div class="page-heading">
+      <div><h1 id="preview-title">CV Preview</h1><p>{{ context.detail()?.profileName ?? 'Current Profile' }} · Current saved Profile document</p></div>
+      <div class="heading-actions"><button class="btn" type="button" (click)="returnToProfile()">Return to Profile</button></div>
+    </div>
+
+    <div class="notice preview-banner" [class.success]="previewState === 'valid'" [class.info]="previewState === 'generating'" [class.warning]="previewState === 'required'" [class.error]="previewState === 'failure'" [class.unavailable]="previewState === 'unavailable'" [attr.role]="previewState === 'failure' || previewState === 'unavailable' ? 'alert' : 'status'" aria-live="polite">
+      @if (previewState === 'required') {
+        <span><strong>Preview required.</strong> No current document is available for this Profile.</span>
+        <span class="mono small">CURRENT PROFILE</span>
+      } @else if (previewState === 'loading') {
+        <span><strong>Loading Profile.</strong> Checking the current saved Profile before Preview.</span>
+        <span class="mono small">PLEASE WAIT</span>
+      } @else if (previewState === 'generating') {
+        <span><strong>Generating Preview.</strong> Preparing the saved Profile document.</span>
+        <span class="mono small">PLEASE WAIT</span>
+      } @else if (previewState === 'valid') {
+        <span><strong>Preview valid.</strong> The document below reflects the current saved Profile.</span>
+        <span class="mono small">CURRENT PROFILE</span>
+      } @else {
+        <span><strong>Preview unavailable.</strong> {{ previewError }}</span>
+        <span class="mono small">RETRY REQUIRED</span>
+      }
+    </div>
+
+    <div class="preview-layout">
+      <aside class="preview-tools" aria-label="Preview controls">
+        <h2>Document controls</h2>
+        <p>Preview is generated from the current saved Profile. A document is shown only after the backend confirms it is current.</p>
+        <span class="status" [class.required]="previewState === 'required'" [class.generating]="previewState === 'generating'" [class.valid]="previewState === 'valid'" [class.error]="previewState === 'failure' || previewState === 'unavailable'">
+          @if (previewState === 'required') { Preview required }
+          @else if (previewState === 'loading') { Loading Profile }
+          @else if (previewState === 'generating') { Generating Preview }
+          @else if (previewState === 'valid') { Preview valid }
+          @else { Preview unavailable }
+        </span>
+        <div class="preview-actions">
+          @if (previewState === 'required') {
+            <button class="btn primary" type="button" (click)="generatePreview()">Generate Preview</button>
+          } @else if (previewState === 'generating') {
+            <button class="btn primary" type="button" disabled aria-busy="true">Generating Preview...</button>
+          } @else if (previewState === 'failure') {
+            <button class="btn primary" type="button" (click)="retryPreview()">Retry Preview</button>
+          }
+        </div>
+        @if (previewError && previewState === 'failure') { <p class="preview-help error-copy">{{ previewError }}</p> }
+      </aside>
+
+      <div class="document-stage" aria-label="Backend-generated PDF document">
+        @if (previewState === 'valid' && documentUrl) {
+          <iframe class="pdf-surface" [src]="documentUrl" title="Current Profile PDF Preview"></iframe>
+        } @else if (previewState === 'generating') {
+          <div class="document-placeholder" role="status" aria-live="polite"><span class="placeholder-line title"></span><span class="placeholder-line medium"></span><span class="placeholder-line wide"></span><span class="placeholder-line wide"></span><span class="placeholder-line short"></span><p>Preparing the backend-generated PDF...</p></div>
+        } @else if (previewState === 'required') {
+          <div class="document-placeholder empty"><h2>No current document</h2><p>Generate a Preview to display the PDF returned by the backend.</p><button class="btn primary" type="button" (click)="generatePreview()">Generate Preview</button></div>
+        } @else if (previewState === 'loading') {
+          <div class="document-placeholder empty" role="status"><h2>Loading Profile</h2><p>Checking the current saved Profile before requesting a PDF.</p></div>
+        } @else {
+          <div class="document-placeholder empty"><h2>Document unavailable</h2><p>{{ previewError || 'A current PDF is not available for this Profile.' }}</p></div>
+        }
+      </div>
+    </div>
+  }
+</section>

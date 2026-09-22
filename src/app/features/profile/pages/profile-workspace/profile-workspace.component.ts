@@ -96,6 +96,13 @@ export class ProfileWorkspaceComponent {
     void this.router.navigate(['/profiles', profileId]);
   }
 
+  openPreview(): void {
+    const profileId = this.context.selectedId();
+    const profile = this.context.detail();
+    if (!profileId || !profile || String(profile.id) !== profileId) return;
+    void this.router.navigate(['/profiles', profileId, 'preview']);
+  }
+
   openDeleteConfirmation(): void {
     if (!this.canStartWorkspaceMutation() || this.context.summaries().length <= 1) return;
     const profileId = this.context.selectedId();

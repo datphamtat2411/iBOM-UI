@@ -109,6 +109,18 @@ describe('ProfileContextService', () => {
     expect(service.detail()).toEqual({ ...detail, hasPreviewed: false, version: 5 });
   });
 
+  it('publishes replaced Profile detail as the authority for Preview validity', () => {
+    service.beginSelection('1');
+    service.detail.set({ ...detail, hasPreviewed: true, version: 4 });
+    const updated = { ...detail, version: 5, hasPreviewed: false };
+
+    service.replaceDetail(updated);
+
+    expect(service.detail()).toEqual(updated);
+    expect(service.detail()?.hasPreviewed).toBeFalse();
+    expect(service.detail()?.version).toBe(5);
+  });
+
   it('ignores a section mutation returned for a Profile that is no longer selected', () => {
     service.beginSelection('1');
     service.detail.set({ ...detail, hasPreviewed: true, version: 4 });
