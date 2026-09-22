@@ -1,12 +1,13 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { HttpParams } from '@angular/common/http';
 import { map, Observable } from 'rxjs';
 
 import { ApiResponse } from '../../../core/http/api.models';
 import { API_BASE_URL } from '../../../core/http/api.config';
 import {
   CreateProfileRequest,
+  CvExportFormat,
+  FileNameFormatPage,
   ProfileCopyRequest,
   ProfileResponse,
   CertificateMutationResponse,
@@ -50,6 +51,23 @@ export class ProfileService {
 
   preview(profileId: string): Observable<Blob> {
     return this.http.get(`${API_BASE_URL}/cv/preview/${encodeURIComponent(profileId)}`, { responseType: 'blob' });
+  }
+
+  listFileNameFormats(page: number, size: number): Observable<FileNameFormatPage> {
+    const params = new HttpParams({ fromObject: { page, size } });
+    return this.http.get<ApiResponse<FileNameFormatPage>>(`${API_BASE_URL}/master/file-name-formats`, { params }).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  download(profileId: string, format: CvExportFormat, fileNameFormatId?: number | string): Observable<HttpResponse<Blob>> {
+    let params = new HttpParams({ fromObject: { format } });
+    if (fileNameFormatId !== undefined) params = params.set('fileNameFormatId', String(fileNameFormatId));
+    return this.http.get(`${API_BASE_URL}/cv/download/${encodeURIComponent(profileId)}`, {
+      params,
+      observe: 'response',
+      responseType: 'blob',
+    });
   }
 
   create(profile: CreateProfileRequest): Observable<ProfileDetail> {

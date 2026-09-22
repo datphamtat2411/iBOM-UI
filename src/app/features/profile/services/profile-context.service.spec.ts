@@ -11,7 +11,7 @@ describe('ProfileContextService', () => {
   let sessionEnded: Subject<void>;
   let profiles: { list: jasmine.Spy; get: jasmine.Spy; create: jasmine.Spy };
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
-  const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: null, technicalSummary: null, hasPreviewed: false, version: 1, createdAt: '2026-01-01' };
+  const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: null, technicalSummary: null, hasPreviewed: false, version: 1, createdAt: '2026-01-01', lastExportedAt: null, preferredFileNameFormatId: null };
 
   beforeEach(() => {
     sessionEnded = new Subject<void>();

@@ -33,6 +33,8 @@ describe('CertificateSectionComponent', () => {
     version: 3,
     updatedAt: '2026-01-01',
     createdAt: '2026-01-01',
+    lastExportedAt: null,
+    preferredFileNameFormatId: null,
   };
   const certificate: Certificate = { id: 1, certificateName: 'AWS Developer', issueDate: '2024-04-01' };
 

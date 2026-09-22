@@ -27,6 +27,12 @@
 .status.error { color: #8d241d; }
 .preview-actions { display: grid; gap: 8px; margin-top: 18px; }
 .preview-actions .btn { width: 100%; }
+.export-controls { display: grid; gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--shell-border, #d8d2c4); }
+.format-field { display: grid; gap: 6px; color: var(--shell-muted, #6b675f); font-size: 12px; font-weight: 700; }
+.format-field select { min-height: 40px; padding: 8px 10px; border: 1px solid var(--shell-border, #d8d2c4); background: #fff; color: var(--shell-ink, #17191d); font: inherit; }
+.export-stack { display: grid; gap: 8px; }
+.export-stack .btn { width: 100%; }
+.last-exported { margin: 0 !important; font-size: 12px; }
 .preview-help { margin-top: 12px !important; font-size: 12px; }
 .error-copy { color: #8d241d !important; }
 .document-stage { min-height: 700px; max-width: 100%; padding: 30px; background-color: var(--paper-muted, #ece8de); background-image: linear-gradient(rgb(216 210 196 / 45%) 1px, transparent 1px), linear-gradient(90deg, rgb(216 210 196 / 35%) 1px, transparent 1px); background-size: 32px 32px; overflow: auto; overscroll-behavior: contain; }

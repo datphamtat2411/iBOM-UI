@@ -15,6 +15,8 @@ export interface ProfileDetail extends ProfileSummary {
   hasPreviewed: boolean;
   version: number;
   createdAt: string;
+  lastExportedAt: string | null;
+  preferredFileNameFormatId: number | string | null;
 }
 
 export type ProfileResponse = ProfileDetail;
@@ -167,6 +169,21 @@ export interface LanguageMasterPage {
   totalElements: number;
   totalPages: number;
 }
+
+export interface FileNameFormat {
+  id: number | string;
+  name: string;
+}
+
+export interface FileNameFormatPage {
+  content: FileNameFormat[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export type CvExportFormat = 'pdf' | 'docx';
 
 export interface ProfileSkill {
   profileSkillId: number | string;

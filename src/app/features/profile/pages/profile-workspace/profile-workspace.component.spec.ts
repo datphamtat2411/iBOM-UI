@@ -40,7 +40,7 @@ describe('ProfileWorkspaceComponent', () => {
   let profiles: Record<string, jasmine.Spy>;
 
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
-  const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01' };
+  const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01', lastExportedAt: null, preferredFileNameFormatId: null };
 
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));

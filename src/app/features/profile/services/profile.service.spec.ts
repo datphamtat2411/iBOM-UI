@@ -38,6 +38,38 @@ describe('ProfileService', () => {
     request.flush(pdf, { headers: { 'Content-Type': 'application/pdf' } });
   });
 
+  it('loads paginated File Name Formats and unwraps the response page', () => {
+    const page = { content: [{ id: 4, name: 'Name - Title' }], page: 1, size: 10, totalElements: 11, totalPages: 2 };
+    service.listFileNameFormats(1, 10).subscribe((result) => expect(result).toEqual(page));
+    const request = http.expectOne((candidate) => candidate.url === '/api/master/file-name-formats');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('page')).toBe('1');
+    expect(request.request.params.get('size')).toBe('10');
+    request.flush({ data: page });
+  });
+
+  it('requests an encoded export with a format, optional File Name Format, Blob response, and response headers', () => {
+    const docx = new Blob(['docx'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    service.download('profile/1', 'docx', 7).subscribe((response) => {
+      expect(response.body).toBe(docx);
+      expect(response.headers.get('Content-Disposition')).toBe('attachment; filename="backend.docx"');
+    });
+    const request = http.expectOne((candidate) => candidate.url === '/api/cv/download/profile%2F1');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('format')).toBe('docx');
+    expect(request.request.params.get('fileNameFormatId')).toBe('7');
+    expect(request.request.responseType).toBe('blob');
+    request.flush(docx, { headers: { 'Content-Disposition': 'attachment; filename="backend.docx"' } });
+  });
+
+  it('omits File Name Format from Automatic exports', () => {
+    service.download('profile-1', 'pdf').subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/cv/download/profile-1');
+    expect(request.request.params.get('format')).toBe('pdf');
+    expect(request.request.params.has('fileNameFormatId')).toBeFalse();
+    request.flush(new Blob(['pdf'], { type: 'application/pdf' }), { headers: { 'Content-Disposition': 'attachment; filename="backend.pdf"' } });
+  });
+
   it('creates a Profile with the backend field names and unwraps the response', () => {
     const profile = { profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java' };
     service.create(profile).subscribe((created) => expect(created.id).toBe(2));

@@ -1,4 +1,4 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpHeaders, HttpResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -21,9 +21,10 @@ describe('CvPreviewComponent', () => {
     loadDetail: jasmine.Spy;
     reloadDetail: jasmine.Spy;
     beginSelection: jasmine.Spy;
+    replaceDetail: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
-  let profiles: { preview: jasmine.Spy };
+  let profiles: { preview: jasmine.Spy; listFileNameFormats: jasmine.Spy; download: jasmine.Spy };
 
   const detail: ProfileDetail = {
     id: 1,
@@ -38,12 +39,18 @@ describe('CvPreviewComponent', () => {
     hasPreviewed: false,
     version: 3,
     createdAt: '2026-01-01',
+    lastExportedAt: null,
+    preferredFileNameFormatId: null,
   };
 
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
     router = { navigate: jasmine.createSpy('navigate') };
-    profiles = { preview: jasmine.createSpy('preview').and.returnValue(NEVER) };
+    profiles = {
+      preview: jasmine.createSpy('preview').and.returnValue(NEVER),
+      listFileNameFormats: jasmine.createSpy('listFileNameFormats').and.returnValue(of({ content: [{ id: 7, name: 'Name - Title' }], page: 0, size: 10, totalElements: 1, totalPages: 1 })),
+      download: jasmine.createSpy('download').and.returnValue(NEVER),
+    };
     context = {
       selectedId: signal<string | null>('1'),
       detail: signal<ProfileDetail | null>(detail),
@@ -52,6 +59,7 @@ describe('CvPreviewComponent', () => {
       loadDetail: jasmine.createSpy('loadDetail'),
       reloadDetail: jasmine.createSpy('reloadDetail').and.returnValue(of(detail)),
       beginSelection: jasmine.createSpy('beginSelection'),
+      replaceDetail: jasmine.createSpy('replaceDetail').and.callFake((updated: ProfileDetail) => context.detail.set(updated)),
       isNotFound: jasmine.createSpy('isNotFound').and.returnValue(false),
     };
 
@@ -84,6 +92,15 @@ describe('CvPreviewComponent', () => {
       context.detail.set(reloaded);
       return of(reloaded);
     });
+  }
+
+  function renderValid(currentDetail: ProfileDetail = { ...detail, hasPreviewed: true }): CvPreviewComponent {
+    profiles.preview.and.returnValue(of(new Blob(['backend pdf'], { type: 'application/pdf' })));
+    reloadWith(currentDetail);
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:preview');
+    const component = render(currentDetail);
+    fixture?.detectChanges();
+    return component;
   }
 
   it('loads the route Profile and renders the required state without requesting a PDF', () => {
@@ -122,6 +139,118 @@ describe('CvPreviewComponent', () => {
     expect(component.documentUrl).not.toBeNull();
     expect(fixture?.nativeElement.querySelector('iframe')).toBeTruthy();
     expect(fixture?.nativeElement.querySelector('.cv-page')).toBeNull();
+  });
+
+  it('keeps export controls unavailable until the current Preview is valid', () => {
+    render();
+
+    const buttons = fixture?.nativeElement.querySelectorAll('.export-stack button') as NodeListOf<HTMLButtonElement>;
+    expect(buttons.length).toBe(2);
+    expect(Array.from(buttons).every((button) => button.disabled)).toBeTrue();
+  });
+
+  it('uses Automatic without a File Name Format and ignores duplicate export submissions', () => {
+    const request = new Subject<HttpResponse<Blob>>();
+    profiles.download.and.returnValue(request);
+    const component = renderValid();
+
+    component.exportDocument('pdf');
+    component.exportDocument('docx');
+
+    expect(profiles.download).toHaveBeenCalledTimes(1);
+    expect(profiles.download).toHaveBeenCalledWith('1', 'pdf');
+    expect(component.isExporting).toBeTrue();
+  });
+
+  it('sends an explicitly selected File Name Format only for that export', () => {
+    const request = new Subject<HttpResponse<Blob>>();
+    profiles.download.and.returnValue(request);
+    const component = renderValid();
+    component.selectedFileNameFormatId = '7';
+
+    component.exportDocument('docx');
+
+    expect(profiles.download).toHaveBeenCalledWith('1', 'docx', '7');
+  });
+
+  it('downloads the backend filename, revokes the temporary URL, and consumes refreshed export metadata', () => {
+    const request = new Subject<HttpResponse<Blob>>();
+    const validDetail = { ...detail, hasPreviewed: true };
+    const refreshed = { ...validDetail, lastExportedAt: '2026-01-02T12:00:00Z' };
+    const exported = new Blob(['backend docx'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    profiles.download.and.returnValue(request);
+    profiles.preview.and.returnValue(of(new Blob(['backend pdf'], { type: 'application/pdf' })));
+    let reloadCount = 0;
+    context.reloadDetail.and.callFake(() => {
+      const next = reloadCount++ === 0 ? validDetail : refreshed;
+      context.detail.set(next);
+      return of(next);
+    });
+    const createObjectUrl = spyOn(URL, 'createObjectURL').and.returnValues('blob:preview', 'blob:download');
+    const revokeObjectUrl = spyOn(URL, 'revokeObjectURL');
+    const createElement = spyOn(document, 'createElement').and.callThrough();
+    const component = render(validDetail);
+
+    component.exportDocument('docx');
+    request.next(new HttpResponse({
+      body: exported,
+      headers: new HttpHeaders({ 'Content-Disposition': "attachment; filename*=UTF-8''backend%20cv.docx" }),
+    }));
+
+    const anchor = createElement.calls.mostRecent().returnValue as HTMLAnchorElement;
+    expect(anchor.download).toBe('backend cv.docx');
+    expect(createObjectUrl).toHaveBeenCalledWith(exported);
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:download');
+    expect(context.reloadDetail).toHaveBeenCalledTimes(2);
+    expect(context.detail()?.lastExportedAt).toBe('2026-01-02T12:00:00Z');
+    expect(component.previewState).toBe('valid');
+    expect(component.isExporting).toBeFalse();
+  });
+
+  it('preserves the valid Preview after an ordinary export failure and allows retry', async () => {
+    const first = new Subject<HttpResponse<Blob>>();
+    const second = new Subject<HttpResponse<Blob>>();
+    profiles.download.and.returnValues(first, second);
+    const component = renderValid();
+    component.selectedFileNameFormatId = '7';
+
+    component.exportDocument('pdf');
+    first.error(new HttpErrorResponse({ status: 404, error: { errorCode: 'FILE_NAME_FORMAT_NOT_FOUND', message: 'Format was removed.' } }));
+    await Promise.resolve();
+
+    expect(component.previewState).toBe('valid');
+    expect(component.documentUrl).not.toBeNull();
+    expect(component.exportError).toBe('Format was removed.');
+    expect(component.isExporting).toBeFalse();
+    component.exportDocument('pdf');
+    expect(profiles.download).toHaveBeenCalledWith('1', 'pdf', '7');
+    expect(second.observed).toBeTrue();
+  });
+
+  it('ignores stale export responses and reconciliation after a Profile switch', () => {
+    const request = new Subject<HttpResponse<Blob>>();
+    const reconciliation = new Subject<ProfileDetail>();
+    profiles.download.and.returnValue(request);
+    const validDetail = { ...detail, hasPreviewed: true };
+    profiles.preview.and.returnValue(of(new Blob(['backend pdf'], { type: 'application/pdf' })));
+    context.reloadDetail.and.returnValues(of(validDetail), reconciliation);
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:preview');
+    const component = render(validDetail);
+    component.exportDocument('pdf');
+    request.next(new HttpResponse({
+      body: new Blob(['backend pdf'], { type: 'application/pdf' }),
+      headers: new HttpHeaders({ 'Content-Disposition': 'attachment; filename="stale.pdf"' }),
+    }));
+
+    expect(context.reloadDetail).toHaveBeenCalledTimes(2);
+    context.selectedId.set('2');
+    context.detail.set(null);
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture?.detectChanges();
+    reconciliation.next({ ...detail, id: 2, hasPreviewed: true, version: 9 });
+
+    expect(component.previewState).toBe('loading');
+    expect(component.exportError).toBe('');
   });
 
   it('does not accept PDF bytes until Profile ID, version, and hasPreviewed reconcile', () => {

@@ -32,6 +32,8 @@ describe('AboutMeSectionComponent', () => {
     version: 3,
     updatedAt: '2026-01-01',
     createdAt: '2026-01-01',
+    lastExportedAt: null,
+    preferredFileNameFormatId: null,
   };
 
   beforeEach(async () => {

@@ -39,6 +39,8 @@ describe('SkillSectionComponent', () => {
     version: 3,
     updatedAt: '2026-01-01',
     createdAt: '2026-01-01',
+    lastExportedAt: null,
+    preferredFileNameFormatId: null,
   };
   const angularSkill: ProfileSkill = { profileSkillId: 1, skillId: 10, skillName: 'Angular', categoryId: 1, categoryCode: 'FE', categoryName: 'Frontend', experienceYears: 4.5, lastUsed: '2026-01-01' };
   const javaSkill: ProfileSkill = { profileSkillId: 2, skillId: 11, skillName: 'Java', categoryId: 2, categoryCode: 'BE', categoryName: 'Backend', experienceYears: 6, lastUsed: null };

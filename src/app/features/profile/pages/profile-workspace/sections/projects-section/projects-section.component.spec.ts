@@ -32,6 +32,8 @@ describe('ProjectsSectionComponent', () => {
     version: 3,
     updatedAt: '2026-01-01',
     createdAt: '2026-01-01',
+    lastExportedAt: null,
+    preferredFileNameFormatId: null,
   };
   const project: Project = {
     id: 1,

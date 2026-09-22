@@ -32,6 +32,8 @@ describe('EducationSectionComponent', () => {
     version: 3,
     updatedAt: '2026-01-01',
     createdAt: '2026-01-01',
+    lastExportedAt: null,
+    preferredFileNameFormatId: null,
   };
   const education: Education = { id: 1, schoolName: 'North University', degree: 'BSc Computer Science', fieldOfStudy: 'Computing', startDate: '2020-09-01', endDate: null, status: 'ONGOING' };
 

@@ -39,6 +39,8 @@ describe('ProjectEditorComponent', () => {
     hasPreviewed: true,
     version: 3,
     createdAt: '2026-01-01',
+    lastExportedAt: null,
+    preferredFileNameFormatId: null,
   };
   const project: Project = {
     id: 1,

@@ -39,6 +39,8 @@ describe('LanguageSectionComponent', () => {
     version: 3,
     updatedAt: '2026-01-01',
     createdAt: '2026-01-01',
+    lastExportedAt: null,
+    preferredFileNameFormatId: null,
   };
   const english: ProfileLanguage = { profileLanguageId: 1, languageId: 10, languageName: 'English', level: 'ADVANCED' };
   const vietnamese: ProfileLanguage = { profileLanguageId: 2, languageId: 11, languageName: 'Vietnamese', level: 'NATIVE' };

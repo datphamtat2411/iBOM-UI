@@ -51,6 +51,24 @@
           }
         </div>
         @if (previewError && previewState === 'failure') { <p class="preview-help error-copy">{{ previewError }}</p> }
+        <div class="export-controls">
+          <label class="format-field" for="file-name-format">File Name Format
+            <select id="file-name-format" [value]="selectedFileNameFormatId ?? ''" (change)="selectFileNameFormat($event)" [disabled]="!canExport || isExporting">
+              <option value="">Automatic</option>
+              @for (format of fileNameFormats; track format.id) {
+                <option [value]="format.id">{{ format.name }}</option>
+              }
+            </select>
+          </label>
+          <div class="export-stack" aria-label="Export document">
+            <button class="btn" type="button" (click)="exportDocument('pdf')" [disabled]="!canExport || isExporting" [attr.aria-busy]="exportingFormat === 'pdf' ? 'true' : null">{{ exportingFormat === 'pdf' ? 'Exporting PDF...' : 'Export PDF' }}</button>
+            <button class="btn" type="button" (click)="exportDocument('docx')" [disabled]="!canExport || isExporting" [attr.aria-busy]="exportingFormat === 'docx' ? 'true' : null">{{ exportingFormat === 'docx' ? 'Exporting DOCX...' : 'Export DOCX' }}</button>
+          </div>
+          @if (fileNameFormatsLoading) { <p class="preview-help">Loading File Name Formats...</p> }
+          @if (fileNameFormatsError) { <p class="preview-help error-copy" role="alert">{{ fileNameFormatsError }}</p> }
+          @if (exportError) { <p class="preview-help error-copy" role="alert">{{ exportError }}</p> }
+          @if (context.detail()?.lastExportedAt) { <p class="last-exported">Last exported: {{ context.detail()?.lastExportedAt }}</p> }
+        </div>
       </aside>
 
       <div class="document-stage" aria-label="Backend-generated PDF document">
