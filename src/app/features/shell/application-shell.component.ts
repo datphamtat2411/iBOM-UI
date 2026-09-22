@@ -1,4 +1,4 @@
-import { Component, computed, HostListener, inject } from '@angular/core';
+import { Component, computed, effect, HostListener, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
@@ -35,11 +35,21 @@ export class ApplicationShellComponent {
   logoutInProgress = false;
   copyModalOpen = false;
   copySource: { id: string; name: string } | null = null;
+  private copyWorkflowGeneration = 0;
+  private activeCopyWorkflow: { generation: number; sourceId: string; routeUrl: string } | null = null;
 
   constructor() {
     this.profileContext.loadSummaries();
+    effect(() => {
+      const currentSource = this.currentCopySource();
+      const workflow = this.activeCopyWorkflow;
+      if (!workflow || !this.copyModalOpen) return;
+      if (!currentSource || currentSource.id !== workflow.sourceId) this.invalidateCopyWorkflow();
+    });
     this.router.events.subscribe((event) => {
-      if (event instanceof NavigationEnd) this.accountMenuOpen = false;
+      if (!(event instanceof NavigationEnd)) return;
+      this.accountMenuOpen = false;
+      if (this.activeCopyWorkflow && event.urlAfterRedirects !== this.activeCopyWorkflow.routeUrl) this.invalidateCopyWorkflow();
     });
   }
 
@@ -101,27 +111,51 @@ export class ApplicationShellComponent {
     if (!source) return;
 
     this.profileEditSession.requestNavigation(`/profiles/${source.id}`).then((allow) => {
-      if (!allow || !this.currentCopySource() || this.currentCopySource()?.id !== source.id) return;
+      const routeUrl = this.router.url;
+      if (!allow || !this.currentCopySource() || this.currentCopySource()?.id !== source.id || !this.isCurrentProfileRoute(source.id, routeUrl)) return;
+      const generation = ++this.copyWorkflowGeneration;
+      this.activeCopyWorkflow = { generation, sourceId: source.id, routeUrl };
       this.copySource = source;
       this.copyModalOpen = true;
     });
   }
   closeCopyProfile(): void {
-    this.copyModalOpen = false;
-    this.copySource = null;
+    this.invalidateCopyWorkflow();
+  }
+  copyCompleted(copied: ProfileResponse): void {
+    const source = this.copySource;
+    const workflow = this.activeCopyWorkflow;
+    if (!copied || !source || !workflow || workflow.sourceId !== source.id || !this.isCurrentCopyWorkflow(workflow) || !this.currentCopySource() || this.currentCopySource()?.id !== source.id) {
+      this.invalidateCopyWorkflow();
+    }
   }
   profileCopied(copied: ProfileResponse): void {
     const source = this.copySource;
-    if (!source || !this.currentCopySource() || this.currentCopySource()?.id !== source.id) {
-      this.closeCopyProfile();
+    const workflow = this.activeCopyWorkflow;
+    if (!source || !workflow || workflow.sourceId !== source.id || !this.isCurrentCopyWorkflow(workflow) || !this.currentCopySource() || this.currentCopySource()?.id !== source.id) {
+      this.invalidateCopyWorkflow();
       return;
     }
 
-    this.closeCopyProfile();
+    this.copyModalOpen = false;
+    this.copySource = null;
     this.profileContext.refreshSummariesAndSelect(copied.id).subscribe({
       next: () => {
+        if (!this.isCurrentCopyWorkflow(workflow)) {
+          this.invalidateCopyWorkflow();
+          return;
+        }
+        this.activeCopyWorkflow = null;
         this.notifications.showSuccess('Profile copied successfully.');
         void this.router.navigate(['/profiles', copied.id]);
+      },
+      error: () => {
+        if (!this.isCurrentCopyWorkflow(workflow)) {
+          this.invalidateCopyWorkflow();
+          return;
+        }
+        this.activeCopyWorkflow = null;
+        this.notifications.showSuccess('Profile copied successfully, but the Profile workspace could not be refreshed. Please try again.');
       },
     });
   }
@@ -133,6 +167,22 @@ export class ApplicationShellComponent {
     const detail = this.profileContext.detail();
     if (!selectedId || !summary || (detail && String(detail.id) !== selectedId)) return null;
     return { id: selectedId, name: detail?.profileName ?? summary.profileName };
+  }
+
+  private invalidateCopyWorkflow(): void {
+    this.copyWorkflowGeneration++;
+    this.activeCopyWorkflow = null;
+    this.copyModalOpen = false;
+    this.copySource = null;
+  }
+
+  private isCurrentCopyWorkflow(workflow: { generation: number; sourceId: string; routeUrl: string }): boolean {
+    return this.activeCopyWorkflow?.generation === workflow.generation && this.router.url === workflow.routeUrl;
+  }
+
+  private isCurrentProfileRoute(profileId: string, routeUrl: string): boolean {
+    const path = routeUrl.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    return path === `/profiles/${profileId}`;
   }
 
   @HostListener('document:click', ['$event'])

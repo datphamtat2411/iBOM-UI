@@ -86,5 +86,5 @@
   <div class="application-toast" data-notification-toast role="status" aria-live="polite" aria-atomic="true">{{ notification.message }}</div>
 }
 @if (copyModalOpen && copySource; as source) {
-  <app-profile-copy [sourceProfileId]="source.id" [sourceProfileName]="source.name" (closed)="closeCopyProfile()" (copied)="profileCopied($event)" />
+  <app-profile-copy [sourceProfileId]="source.id" [sourceProfileName]="source.name" (closed)="closeCopyProfile()" (copied)="copyCompleted($event)" (openCopied)="profileCopied($event)" />
 }

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { NavigationEnd, provideRouter, Router } from '@angular/router';
 import { signal } from '@angular/core';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { NotificationService } from '../../core/notifications/notification.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -244,21 +244,78 @@ describe('ApplicationShellComponent', () => {
     expect(profileContext.selectedId()).toBe('1');
   });
 
-  it('refreshes summaries, selects, navigates, and notifies after a successful Copy', () => {
+  it('refreshes summaries, selects, navigates, and notifies after a successful Copy', async () => {
     const router = TestBed.inject(Router);
     spyOn(router, 'navigate').and.resolveTo(true);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
     const notifications = TestBed.inject(NotificationService);
     spyOn(notifications, 'showSuccess');
     profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
     profileContext.selectedId.set('1');
     const component = fixture.componentInstance;
-    component.copySource = { id: '1', name: 'Backend CV' };
-    component.copyModalOpen = true;
+    component.openCopyProfile();
+    await fixture.whenStable();
     component.profileCopied({ id: 2, profileName: 'Copied CV' } as never);
 
     expect(profileContext.refreshSummariesAndSelect).toHaveBeenCalledWith(2);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Profile copied successfully.');
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+    expect(component.copyModalOpen).toBeFalse();
+  });
+
+  it('keeps the Copy modal open after the API response until Open copied Profile is chosen', async () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.selectedId.set('1');
+    const component = fixture.componentInstance;
+
+    component.openCopyProfile();
+    await fixture.whenStable();
+    component.copyCompleted({ id: 2, profileName: 'Copied CV' } as never);
+
+    expect(component.copyModalOpen).toBeTrue();
+    expect(profileContext.refreshSummariesAndSelect).not.toHaveBeenCalled();
+  });
+
+  it('reports Copy success when Profile reconciliation fails without navigating or retrying', async () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    const notifications = TestBed.inject(NotificationService);
+    spyOn(notifications, 'showSuccess');
+    profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.selectedId.set('1');
+    profileContext.refreshSummariesAndSelect.and.returnValue(throwError(() => new Error('unavailable')));
+    const component = fixture.componentInstance;
+    component.openCopyProfile();
+    await fixture.whenStable();
+
+    component.profileCopied({ id: 2, profileName: 'Copied CV' } as never);
+
+    expect(profileContext.refreshSummariesAndSelect).toHaveBeenCalledTimes(1);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Profile copied successfully, but the Profile workspace could not be refreshed. Please try again.');
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(component.copyModalOpen).toBeFalse();
+  });
+
+  it('closes and invalidates Copy when navigation leaves the source Profile', async () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    const component = fixture.componentInstance;
+    profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.selectedId.set('1');
+
+    component.openCopyProfile();
+    await fixture.whenStable();
+    expect(component.copyModalOpen).toBeTrue();
+
+    (router.events as unknown as Subject<NavigationEnd>).next(new NavigationEnd(1, '/profiles/1', '/dashboard'));
+    component.profileCopied({ id: 2, profileName: 'Copied CV' } as never);
+
+    expect(profileContext.refreshSummariesAndSelect).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalledWith(['/profiles', 2]);
     expect(component.copyModalOpen).toBeFalse();
   });
 

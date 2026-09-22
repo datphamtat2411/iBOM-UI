@@ -127,6 +127,21 @@ describe('ProfileContextService', () => {
     expect(service.selectedId()).toBe('2');
   });
 
+  it('records and propagates a failed summary refresh without selecting the copied Profile', () => {
+    const refreshed = new Subject<ProfileSummary[]>();
+    const failure = new Error('unavailable');
+    const onError = jasmine.createSpy('onError');
+    profiles.list.and.returnValue(refreshed);
+
+    service.refreshSummariesAndSelect(2).subscribe({ error: onError });
+    refreshed.error(failure);
+
+    expect(service.summariesError()).toBe(failure);
+    expect(service.summariesLoading()).toBeFalse();
+    expect(service.selectedId()).toBeNull();
+    expect(onError).toHaveBeenCalledWith(failure);
+  });
+
   it('clears deleted detail state and selects the first Profile in refreshed backend order', () => {
     const refreshed = new Subject<ProfileSummary[]>();
     const remaining = { ...summary, id: 2, profileName: 'Frontend CV' };

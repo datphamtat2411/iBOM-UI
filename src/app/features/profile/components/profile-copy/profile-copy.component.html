@@ -1,15 +1,64 @@
 <div class="modal-backdrop" role="presentation">
   <section class="copy-modal" role="dialog" aria-modal="true" aria-labelledby="copy-profile-title" aria-describedby="copy-profile-copy">
-    @if (warningRequired) {
+    @if (step === 'success') {
+      <div class="copy-success">
+        <h2 id="copy-profile-title">Profile copied</h2>
+        <p id="copy-profile-copy">Your new independent Profile is ready.</p>
+        <div class="success-summary">
+          <span>Copied Profile</span>
+          <strong>{{ completedProfile?.profileName }}</strong>
+        </div>
+        <div class="modal-actions">
+          <button class="btn primary open-copied" type="button" (click)="openCopiedProfile()">Open copied Profile</button>
+          <button class="btn" type="button" (click)="copyAnother()">Copy another Profile</button>
+        </div>
+      </div>
+    } @else if (warningRequired) {
       <h2 id="copy-profile-title">Copy another Profile?</h2>
       <p id="copy-profile-copy">You already have five or more active Profiles. You can continue, but consider whether an existing Profile is a better fit.</p>
       <div class="modal-actions">
         <button class="btn" type="button" (click)="cancel()">Cancel</button>
         <button class="btn primary" type="button" (click)="confirmWarning()">Continue to Copy Profile</button>
       </div>
+    } @else if (step === 'source') {
+      <div class="source-selection">
+        <h2 id="copy-profile-title">Copy Profile</h2>
+        <p id="copy-profile-copy">Choose an active Profile to use as the source for your independent copy.</p>
+        @if (message) { <div class="form-message" role="alert">{{ message }}</div> }
+        <div class="field search-field">
+          <label for="copy-profile-search">Search Profiles</label>
+          <input id="copy-profile-search" type="search" [value]="sourceSearch" (input)="setSourceSearch($event)" autocomplete="off">
+        </div>
+        <div class="source-list" role="radiogroup" aria-label="Copy source Profile">
+          @if (isRefreshingSources) {
+            <p class="source-list-status" role="status">Refreshing active Profiles...</p>
+          } @else if (!filteredSourceProfiles.length) {
+            <p class="source-list-status">No active Profiles match your search.</p>
+          } @else {
+            @for (profile of filteredSourceProfiles; track profile.id) {
+              <button class="source-option" type="button" role="radio" [class.selected]="isSelectedSource(profile)" [attr.aria-checked]="isSelectedSource(profile)" (click)="selectSource(profile.id)">
+                <span class="source-copy">
+                  <strong>{{ profile.profileName }}</strong>
+                  <small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small>
+                  @if (isWorkspaceProfile(profile)) { <span class="current-label">Current Profile</span> }
+                </span>
+                <span class="source-selection-indicator" aria-hidden="true">{{ isSelectedSource(profile) ? '✓' : '' }}</span>
+              </button>
+            }
+          }
+        </div>
+        <div class="modal-actions">
+          <button class="btn" type="button" (click)="cancel()">Cancel</button>
+          <button class="btn primary source-continue" type="button" [disabled]="!selectedSource() || isRefreshingSources" (click)="continueToName()">Continue</button>
+        </div>
+      </div>
     } @else {
       <h2 id="copy-profile-title">Copy Profile</h2>
-      <p id="copy-profile-copy">Create an independent Profile from <strong>{{ sourceProfileName }}</strong>. Profile sections are copied by the server.</p>
+      <p id="copy-profile-copy">Create an independent Profile from the selected source. Profile sections are copied by the server.</p>
+      <div class="selected-source-summary">
+        <span>Copy from</span>
+        <strong>{{ selectedSource()?.profileName }}</strong>
+      </div>
       <form [formGroup]="copyForm" (ngSubmit)="submit()" novalidate>
         @if (message) { <div class="form-message" role="alert">{{ message }}</div> }
         <div class="field">
@@ -19,6 +68,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn" type="button" (click)="cancel()" [disabled]="isSubmitting">Cancel</button>
+          <button class="btn copy-back" type="button" (click)="backToSources()" [disabled]="isSubmitting">Back</button>
           <button class="btn primary" type="submit" [disabled]="isSubmitting" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Copying...' : 'Copy Profile' }}</button>
         </div>
       </form>
