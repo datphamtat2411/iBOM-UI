@@ -101,6 +101,33 @@ describe('SkillManagementComponent', () => {
     pagedFixture.destroy();
   });
 
+  it('recovers the previous page only when deleting its only non-first-page row', () => {
+    const component = fixture.componentInstance;
+    service.deleteSkill.and.returnValue(of(undefined));
+
+    component.page = 1;
+    component.search = 'java';
+    component.skills = [java];
+    service.listSkills.calls.reset();
+    component.openDeleteConfirmation(java);
+    component.confirmDelete();
+    expect(service.listSkills).toHaveBeenCalledWith(0, 10, 'java');
+
+    component.page = 1;
+    component.skills = [java, angular];
+    service.listSkills.calls.reset();
+    component.openDeleteConfirmation(java);
+    component.confirmDelete();
+    expect(service.listSkills).toHaveBeenCalledWith(1, 10, 'java');
+
+    component.page = 0;
+    component.skills = [java];
+    service.listSkills.calls.reset();
+    component.openDeleteConfirmation(java);
+    component.confirmDelete();
+    expect(service.listSkills).toHaveBeenCalledWith(0, 10, 'java');
+  });
+
   it('requires a Skill Name and controlled Category', () => {
     fixture.componentInstance.openCreate();
     fixture.detectChanges();
@@ -110,6 +137,21 @@ describe('SkillManagementComponent', () => {
     expect(fixture.componentInstance.skillForm.controls.name.errors?.['required']).toBeTrue();
     expect(fixture.componentInstance.skillForm.controls.categoryId.errors?.['required']).toBeTrue();
     expect(fixture.nativeElement.querySelector('#skill-category')?.tagName).toBe('SELECT');
+  });
+
+  it('enforces the backend Skill Name limit of 255 characters', () => {
+    const component = fixture.componentInstance;
+    component.openCreate();
+    fixture.detectChanges();
+
+    const name = component.skillForm.controls.name;
+    name.setValue('a'.repeat(255));
+    expect(name.valid).toBeTrue();
+    expect(fixture.nativeElement.querySelector('#skill-name').getAttribute('maxlength')).toBe('255');
+
+    name.setValue('a'.repeat(256));
+    expect(name.errors?.['maxlength']).toEqual({ requiredLength: 255, actualLength: 256 });
+    expect(component.fieldError('name')).toBe('Skill Name must be 255 characters or fewer.');
   });
 
   it('trims Skill Name in the exact create payload, refreshes the current list, and notifies on success', () => {
@@ -176,6 +218,6 @@ describe('SkillManagementComponent', () => {
   });
 });
 
-function pageOf(content: Skill[], page: number, totalPages: number) {
-  return of({ content, page, size: 10, totalElements: content.length, totalPages });
+function pageOf(content: Skill[], page: number, totalPages: number, totalElements = content.length) {
+  return of({ content, page, size: 10, totalElements, totalPages });
 }

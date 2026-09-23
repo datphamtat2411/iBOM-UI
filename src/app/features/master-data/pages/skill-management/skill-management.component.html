@@ -81,7 +81,7 @@
         <div class="form-grid">
           <div class="field">
             <label for="skill-name">Skill Name</label>
-            <input id="skill-name" type="text" formControlName="name" maxlength="150" [attr.aria-invalid]="fieldInvalid('name')" aria-describedby="skill-name-error">
+            <input id="skill-name" type="text" formControlName="name" maxlength="255" [attr.aria-invalid]="fieldInvalid('name')" aria-describedby="skill-name-error">
             @if (fieldInvalid('name')) { <span class="field-error" id="skill-name-error">{{ fieldError('name') }}</span> }
           </div>
           <div class="field">

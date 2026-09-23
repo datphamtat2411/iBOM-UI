@@ -59,12 +59,20 @@ export class LanguageMasterManagementComponent implements OnInit {
     this.loadLanguages(0);
   }
 
-  loadLanguages(page = this.currentPage): void {
+  loadLanguages(page = this.currentPage, search = this.searchTerm): void {
+    const requestedPage = Math.max(0, page);
+    const requestedSearch = search.trim();
     const generation = ++this.loadGeneration;
+    this.currentPage = requestedPage;
+    this.searchTerm = requestedSearch;
     this.loading = true;
     this.loadError = null;
+    this.languages = [];
+    this.totalPages = 0;
+    this.totalElements = 0;
+    this.hasLoaded = false;
 
-    this.languageService.list(page, this.pageSize, this.searchTerm).subscribe({
+    this.languageService.list(requestedPage, this.pageSize, requestedSearch).subscribe({
       next: (result) => {
         if (generation !== this.loadGeneration) return;
         this.languages = result.content;
@@ -83,7 +91,7 @@ export class LanguageMasterManagementComponent implements OnInit {
   }
 
   retryLanguages(): void {
-    this.loadLanguages(this.currentPage);
+    if (!this.loading) this.loadLanguages(this.currentPage);
   }
 
   setSearchDraft(value: string): void {
@@ -217,6 +225,9 @@ export class LanguageMasterManagementComponent implements OnInit {
     const target = this.deleteTarget;
     if (!this.deleteConfirmationOpen || !target || this.pendingMutation !== null) return;
 
+    const requestedPage = this.currentPage;
+    const requestedSearch = this.searchTerm;
+    const shouldLoadPreviousPage = requestedPage > 0 && this.languages.length === 1;
     this.pendingMutation = 'delete';
     this.deleteErrorMessage = '';
     this.languageService.delete(target.id).subscribe({
@@ -225,7 +236,7 @@ export class LanguageMasterManagementComponent implements OnInit {
         this.deleteConfirmationOpen = false;
         this.deleteTarget = null;
         this.notifications.showSuccess('Language deleted successfully.');
-        this.loadLanguages(this.currentPage);
+        this.loadLanguages(shouldLoadPreviousPage ? requestedPage - 1 : requestedPage, requestedSearch);
       },
       error: (error: unknown) => {
         this.pendingMutation = null;

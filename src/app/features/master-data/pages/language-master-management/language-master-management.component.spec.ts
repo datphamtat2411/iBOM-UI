@@ -84,6 +84,36 @@ describe('LanguageMasterManagementComponent', () => {
     languages.list.calls.reset();
     component.setSearchDraft('');
     expect(languages.list).toHaveBeenCalledWith(0, 10, '');
+    expect(component.searchDraft).toBe('');
+    expect(component.searchTerm).toBe('');
+    expect(component.currentPage).toBe(0);
+  });
+
+  it('recovers the previous page only when deleting its only non-first-page row', () => {
+    const component = initialize();
+    languages.delete.and.returnValue(of(undefined));
+
+    component.currentPage = 1;
+    component.searchTerm = 'jap';
+    component.languages = [japanese];
+    languages.list.calls.reset();
+    component.openDeleteConfirmation(japanese);
+    component.confirmDelete();
+    expect(languages.list).toHaveBeenCalledWith(0, 10, 'jap');
+
+    component.currentPage = 1;
+    component.languages = [english, japanese];
+    languages.list.calls.reset();
+    component.openDeleteConfirmation(japanese);
+    component.confirmDelete();
+    expect(languages.list).toHaveBeenCalledWith(1, 10, 'jap');
+
+    component.currentPage = 0;
+    component.languages = [japanese];
+    languages.list.calls.reset();
+    component.openDeleteConfirmation(japanese);
+    component.confirmDelete();
+    expect(languages.list).toHaveBeenCalledWith(0, 10, 'jap');
   });
 
   it('shows loading, empty, no-result, failure, and retry states', () => {
@@ -109,9 +139,59 @@ describe('LanguageMasterManagementComponent', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeTruthy();
 
     languages.list.and.returnValue(of(page([])));
+    component.searchDraft = 'changed draft';
     component.retryLanguages();
     fixture.detectChanges();
     expect(languages.list).toHaveBeenCalledWith(0, 10, 'missing');
+  });
+
+  it('clears prior rows and result metadata when a new query fails', () => {
+    languages.list.and.returnValue(of(page([english])));
+    const component = initialize();
+    expect(component.languages).toEqual([english]);
+
+    const failedRequest = new Subject<LanguageMasterPage>();
+    languages.list.and.returnValue(failedRequest);
+    component.searchDraft = 'missing';
+    component.searchLanguages();
+    fixture.detectChanges();
+    expect(component.loading).toBeTrue();
+    expect(component.languages).toEqual([]);
+    expect(fixture.nativeElement.textContent).not.toContain('English');
+
+    failedRequest.error(new HttpErrorResponse({ status: 503, error: { errorCode: 'REQUEST_FAILED', message: 'query failed' } }));
+    fixture.detectChanges();
+    expect(component.languages).toEqual([]);
+    expect(component.totalElements).toBe(0);
+    expect(component.totalPages).toBe(0);
+    expect(fixture.nativeElement.textContent).toContain('Unable to load Languages right now.');
+    expect(fixture.nativeElement.textContent).not.toContain('English');
+    expect(fixture.nativeElement.querySelector('table')).toBeNull();
+  });
+
+  it('retries the failed submitted page and search instead of the draft, and clear resets both', () => {
+    const component = initialize();
+    const failedRequest = new Subject<LanguageMasterPage>();
+    languages.list.and.returnValue(failedRequest);
+    component.searchTerm = 'jap';
+    component.searchDraft = 'draft';
+    component.loadLanguages(2);
+    failedRequest.error(new HttpErrorResponse({ status: 503, error: { errorCode: 'REQUEST_FAILED' } }));
+
+    languages.list.and.returnValue(of(page([])));
+    component.searchDraft = 'different draft';
+    component.retryLanguages();
+    expect(languages.list).toHaveBeenCalledWith(2, 10, 'jap');
+
+    languages.list.calls.reset();
+    component.currentPage = 1;
+    component.searchTerm = 'jap';
+    component.searchDraft = ' jap ';
+    component.clearSearch();
+    expect(component.searchDraft).toBe('');
+    expect(component.searchTerm).toBe('');
+    expect(component.currentPage).toBe(0);
+    expect(languages.list).toHaveBeenCalledWith(0, 10, '');
   });
 
   it('uses the exact blank-name validation message without submitting', () => {

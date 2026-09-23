@@ -26,7 +26,7 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
 
   readonly pageSize = 10;
   readonly skillForm = this.formBuilder.group({
-    name: this.formBuilder.nonNullable.control('', [this.trimmedRequiredValidator()]),
+    name: this.formBuilder.nonNullable.control('', [this.trimmedRequiredValidator(), Validators.maxLength(255)]),
     categoryId: this.formBuilder.control<number | string | null>(null, [Validators.required]),
   });
 
@@ -251,6 +251,7 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
     if (errors?.['server']) return errors['server'];
     if (errors?.['duplicate']) return errors['duplicate'];
     if (errors?.['required']) return field === 'name' ? 'Skill Name is required.' : 'Category is required.';
+    if (errors?.['maxlength']) return 'Skill Name must be 255 characters or fewer.';
     return errors ? 'This value is not valid.' : '';
   }
 
@@ -270,6 +271,9 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
     const target = this.deleteTarget;
     if (!this.deleteConfirmation || !target || this.isDeleting) return;
 
+    const requestedPage = this.page;
+    const requestedSearch = this.search;
+    const shouldLoadPreviousPage = requestedPage > 0 && this.skills.length === 1;
     this.isDeleting = true;
     this.deleteErrorMessage = '';
     this.masterDataService.deleteSkill(target.id).pipe(takeUntil(this.destroy$)).subscribe({
@@ -277,7 +281,7 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
         this.isDeleting = false;
         this.closeDeleteConfirmation();
         this.notifications.showSuccess('Skill deleted successfully.');
-        this.loadSkills(this.page, this.search);
+        this.loadSkills(shouldLoadPreviousPage ? requestedPage - 1 : requestedPage, requestedSearch);
       },
       error: (error: unknown) => {
         this.isDeleting = false;
