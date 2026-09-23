@@ -598,18 +598,92 @@ export class CvPreviewComponent implements OnDestroy {
     const disposition = response.headers.get('Content-Disposition');
     if (!disposition) return null;
 
-    const encoded = disposition.match(/filename\*\s*=\s*(?:UTF-8'')?([^;]+)/i)?.[1];
-    const plain = disposition.match(/filename\s*=\s*([^;]+)/i)?.[1];
-    const raw = encoded ?? plain;
-    if (!raw) return null;
+    let plainFilename: string | null = null;
+    let extendedFilename: string | null = null;
+    let parameterStart = 0;
+    let quoted = false;
+    let escaped = false;
 
-    let filename = raw.trim().replace(/^"|"$/g, '');
+    for (let index = 0; index <= disposition.length; index++) {
+      const character = disposition[index];
+      if (quoted) {
+        if (escaped) {
+          escaped = false;
+        } else if (character === '\\') {
+          escaped = true;
+        } else if (character === '"') {
+          quoted = false;
+        }
+        continue;
+      }
+
+      if (character === '"') {
+        quoted = true;
+        continue;
+      }
+      if (index < disposition.length && character !== ';') continue;
+
+      const parameter = disposition.slice(parameterStart, index).trim();
+      parameterStart = index + 1;
+      const separator = parameter.indexOf('=');
+      if (separator < 0) continue;
+
+      const name = parameter.slice(0, separator).trim().toLowerCase();
+      if (name !== 'filename' && name !== 'filename*') continue;
+
+      const value = this.contentDispositionParameterValue(parameter.slice(separator + 1));
+      if (value === null) continue;
+
+      if (name === 'filename*') {
+        const candidate = this.decodeExtendedFilename(value);
+        if (candidate && !extendedFilename) extendedFilename = candidate;
+      } else {
+        const candidate = this.safeFilename(value);
+        if (candidate && !plainFilename) plainFilename = candidate;
+      }
+    }
+
+    return extendedFilename ?? plainFilename;
+  }
+
+  private contentDispositionParameterValue(rawValue: string): string | null {
+    const value = rawValue.trim();
+    if (!value) return null;
+    if (!value.startsWith('"')) return value;
+    if (value.length < 2 || !value.endsWith('"')) return null;
+
+    let unquoted = '';
+    let escaped = false;
+    for (let index = 1; index < value.length - 1; index++) {
+      const character = value[index];
+      if (escaped) {
+        unquoted += character;
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '"') {
+        return null;
+      } else {
+        unquoted += character;
+      }
+    }
+
+    return escaped ? null : unquoted;
+  }
+
+  private decodeExtendedFilename(value: string): string | null {
+    const charsetEnd = value.indexOf("'");
+    const languageEnd = charsetEnd < 0 ? -1 : value.indexOf("'", charsetEnd + 1);
+    if (charsetEnd <= 0 || languageEnd < 0 || value.slice(0, charsetEnd).toLowerCase() !== 'utf-8') return null;
+
     try {
-      filename = decodeURIComponent(filename);
+      return this.safeFilename(decodeURIComponent(value.slice(languageEnd + 1)));
     } catch {
       return null;
     }
+  }
 
+  private safeFilename(filename: string): string | null {
     return filename && filename !== '.' && filename !== '..' && !/[\\/\u0000-\u001f\u007f]/.test(filename)
       ? filename
       : null;

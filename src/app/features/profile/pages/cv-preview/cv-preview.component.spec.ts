@@ -103,6 +103,19 @@ describe('CvPreviewComponent', () => {
     return component;
   }
 
+  function completeExport(disposition?: string): { component: CvPreviewComponent; createElement: jasmine.Spy } {
+    const request = new Subject<HttpResponse<Blob>>();
+    profiles.download.and.returnValue(request);
+    const component = renderValid();
+    const createElement = spyOn(document, 'createElement').and.callThrough();
+    component.exportDocument('pdf');
+    request.next(new HttpResponse({
+      body: new Blob(['backend pdf'], { type: 'application/pdf' }),
+      headers: disposition === undefined ? new HttpHeaders() : new HttpHeaders({ 'Content-Disposition': disposition }),
+    }));
+    return { component, createElement };
+  }
+
   it('loads the route Profile and renders the required state without requesting a PDF', () => {
     const component = render();
 
@@ -286,6 +299,66 @@ describe('CvPreviewComponent', () => {
     expect(component.exportSuccess).toBe('PDF export downloaded successfully.');
     expect(component.previewState).toBe('valid');
     expect(component.documentUrl).not.toBeNull();
+  });
+
+  it('uses a quoted backend filename containing a semicolon', () => {
+    const { createElement } = completeExport('attachment; filename="backend; cv.pdf"');
+
+    const anchor = createElement.calls.mostRecent().returnValue as HTMLAnchorElement;
+    expect(anchor.download).toBe('backend; cv.pdf');
+  });
+
+  it('uses a quoted backend filename containing spaces', () => {
+    const { createElement } = completeExport('attachment; filename="Backend CV.pdf"');
+
+    const anchor = createElement.calls.mostRecent().returnValue as HTMLAnchorElement;
+    expect(anchor.download).toBe('Backend CV.pdf');
+  });
+
+  it('decodes a valid UTF-8 backend filename*', () => {
+    const { createElement } = completeExport("attachment; filename*=UTF-8''J%C3%B3n%20Doe.pdf");
+
+    const anchor = createElement.calls.mostRecent().returnValue as HTMLAnchorElement;
+    expect(anchor.download).toBe('J\u00f3n Doe.pdf');
+  });
+
+  it('prefers a valid filename* over filename', () => {
+    const { createElement } = completeExport("attachment; filename=legacy.pdf; filename*=UTF-8''preferred.pdf");
+
+    const anchor = createElement.calls.mostRecent().returnValue as HTMLAnchorElement;
+    expect(anchor.download).toBe('preferred.pdf');
+  });
+
+  it('falls back to filename when filename* is malformed', () => {
+    const { createElement } = completeExport("attachment; filename=legacy.pdf; filename*=UTF-8''bad%ZZ");
+
+    const anchor = createElement.calls.mostRecent().returnValue as HTMLAnchorElement;
+    expect(anchor.download).toBe('legacy.pdf');
+  });
+
+  it('rejects an unsafe backend path-like filename', () => {
+    const { component, createElement } = completeExport('attachment; filename="../unsafe.pdf"');
+
+    expect(createElement).not.toHaveBeenCalled();
+    expect(component.exportError).toBe('The backend did not provide a usable export filename. Please retry.');
+    expect(component.previewState).toBe('valid');
+    expect(component.documentUrl).not.toBeNull();
+  });
+
+  it('preserves the existing fallback when Content-Disposition is missing', () => {
+    const result = completeExport();
+
+    expect(result.createElement).not.toHaveBeenCalled();
+    expect(result.component.exportError).toBe('The backend did not provide a usable export filename. Please retry.');
+    expect(result.component.previewState).toBe('valid');
+  });
+
+  it('preserves the existing fallback when Content-Disposition is unusable', () => {
+    const result = completeExport('attachment; filename="unterminated');
+
+    expect(result.createElement).not.toHaveBeenCalled();
+    expect(result.component.exportError).toBe('The backend did not provide a usable export filename. Please retry.');
+    expect(result.component.previewState).toBe('valid');
   });
 
   it('preserves the valid Preview after an ordinary export failure and allows retry', async () => {
