@@ -1,0 +1,120 @@
+<section class="language-master-page" aria-labelledby="language-master-title" [attr.aria-busy]="loading || pendingMutation !== null">
+  <header class="page-heading">
+    <div>
+      <p class="page-kicker">Management / Master Data</p>
+      <h1 id="language-master-title">Languages</h1>
+      <p>Maintain the Language Master used by Profile records.</p>
+    </div>
+    <button class="btn primary" type="button" (click)="startCreate()" [disabled]="pendingMutation !== null">Add Language</button>
+  </header>
+
+  @if (pageMessage) { <div class="notice info" role="status">{{ pageMessage }}</div> }
+
+  <section class="query-panel" aria-labelledby="language-search-title">
+    <div>
+      <h2 id="language-search-title">Search Languages</h2>
+      <p>Search Language Name using the server-backed case-insensitive match.</p>
+    </div>
+    <div class="query-controls">
+      <label for="language-search">Language Name</label>
+      <div class="search-actions">
+        <input id="language-search" type="search" autocomplete="off" [value]="searchDraft" (input)="setSearchDraft($any($event.target).value)" (keydown.enter)="searchLanguages()" [disabled]="pendingMutation !== null" />
+        <button class="btn primary" type="button" (click)="searchLanguages()" [disabled]="pendingMutation !== null">Search</button>
+        @if (searchTerm || searchDraft) { <button class="btn text" type="button" (click)="clearSearch()" [disabled]="pendingMutation !== null">Clear</button> }
+      </div>
+    </div>
+  </section>
+
+  @if (loading && !hasLoaded) {
+    <div class="state-panel" role="status" aria-live="polite">Loading Languages...</div>
+  } @else {
+    @if (loadError) {
+      <div class="notice error" role="alert">
+        <span>Unable to load Languages right now.</span>
+        <button class="btn text" type="button" (click)="retryLanguages()" [disabled]="loading || pendingMutation !== null">Retry</button>
+      </div>
+    }
+
+    @if (!languages.length) {
+      <div class="empty-state" role="status">
+        <h2>{{ searchTerm ? 'No Languages found' : 'No Languages yet' }}</h2>
+        <p>{{ searchTerm ? 'Try a different Language Name search.' : 'Add the first Language to make it available to Profile records.' }}</p>
+        @if (searchTerm) { <button class="btn" type="button" (click)="clearSearch()" [disabled]="pendingMutation !== null">Clear search</button> }
+        @else { <button class="btn" type="button" (click)="startCreate()" [disabled]="pendingMutation !== null">Add Language</button> }
+      </div>
+    } @else {
+      <div class="results-heading">
+        <h2>Language records</h2>
+        <span class="metadata">{{ totalElements }} {{ totalElements === 1 ? 'Language' : 'Languages' }}</span>
+      </div>
+      <div class="table-wrap">
+        <table class="language-table">
+          <caption class="visually-hidden">Language Master records</caption>
+          <thead>
+            <tr><th scope="col">Language Name</th><th scope="col">Created Date</th><th scope="col">Updated Date</th><th scope="col" class="actions-column">Actions</th></tr>
+          </thead>
+          <tbody>
+            @for (language of languages; track language.id) {
+              <tr>
+                <td><strong>{{ language.name }}</strong></td>
+                <td class="metadata">{{ language.createdAt }}</td>
+                <td class="metadata">{{ language.updatedAt }}</td>
+                <td class="row-actions">
+                  <button class="btn text" type="button" (click)="startEdit(language)" [disabled]="pendingMutation !== null">Edit</button>
+                  <button class="btn text danger" type="button" (click)="openDeleteConfirmation(language)" [disabled]="pendingMutation !== null">Delete</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (loading) { <div class="refreshing" role="status" aria-live="polite">Refreshing Languages...</div> }
+      @if (totalPages > 1) {
+        <nav class="pagination" aria-label="Languages pagination">
+          <button class="btn text" type="button" aria-label="Previous page" (click)="previousPage()" [disabled]="loading || pendingMutation !== null || currentPage === 0">Previous</button>
+          <span class="metadata">Page {{ currentPage + 1 }} of {{ totalPages }}</span>
+          <button class="btn text" type="button" aria-label="Next page" (click)="nextPage()" [disabled]="loading || pendingMutation !== null || currentPage + 1 >= totalPages">Next</button>
+        </nav>
+      }
+    }
+  }
+</section>
+
+@if (editorOpen) {
+  <div class="dialog-backdrop" role="presentation">
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="language-editor-title" [attr.aria-busy]="pendingMutation === 'create' || pendingMutation === 'update'">
+      <form [formGroup]="editorForm" (ngSubmit)="submitEditor()" novalidate>
+        <div class="dialog-heading">
+          <div><p class="page-kicker">Language Master</p><h2 id="language-editor-title">{{ editorMode === 'create' ? 'Add Language' : 'Edit Language' }}</h2></div>
+          <button class="icon-close" type="button" aria-label="Close Language editor" (click)="cancelEditor()" [disabled]="pendingMutation !== null">&times;</button>
+        </div>
+        @if (editorErrorMessage && editorErrorMessage !== editorNameError()) { <div class="notice error" role="alert">{{ editorErrorMessage }}</div> }
+        <div class="field">
+          <label for="language-name">Language Name</label>
+          <input id="language-name" type="text" formControlName="name" maxlength="255" autocomplete="off" [attr.aria-invalid]="editorNameInvalid()" [attr.aria-describedby]="editorNameInvalid() ? 'language-name-error' : null" />
+          @if (editorNameInvalid()) { <span class="field-error" id="language-name-error" role="alert">{{ editorNameError() }}</span> }
+        </div>
+        <p class="dialog-help">Names are trimmed before they are saved.</p>
+        <div class="dialog-actions">
+          <button class="btn" type="button" (click)="cancelEditor()" [disabled]="pendingMutation !== null">Cancel</button>
+          <button class="btn primary" type="submit" [disabled]="pendingMutation !== null" [attr.aria-busy]="pendingMutation === 'create' || pendingMutation === 'update'">{{ pendingMutation === 'create' || pendingMutation === 'update' ? 'Saving...' : 'Save Language' }}</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (deleteConfirmationOpen && deleteTarget; as target) {
+  <div class="dialog-backdrop" role="presentation">
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="delete-language-title" aria-describedby="delete-language-copy" [attr.aria-busy]="pendingMutation === 'delete'">
+      <p class="page-kicker">Language Master</p>
+      <h2 id="delete-language-title">Delete {{ target.name }}?</h2>
+      <p id="delete-language-copy">This removes the Language Master record. Profile data that references it must be removed first.</p>
+      @if (deleteErrorMessage) { <div class="notice error" role="alert">{{ deleteErrorMessage }}</div> }
+      <div class="dialog-actions">
+        <button class="btn" type="button" (click)="cancelDelete()" [disabled]="pendingMutation === 'delete'">Cancel</button>
+        <button class="btn danger" type="button" (click)="confirmDelete()" [disabled]="pendingMutation === 'delete'" [attr.aria-busy]="pendingMutation === 'delete'">{{ pendingMutation === 'delete' ? 'Deleting...' : 'Delete Language' }}</button>
+      </div>
+    </section>
+  </div>
+}

@@ -5,6 +5,11 @@ const loadMasterDataWorkspace = () =>
     (component) => component.MasterDataWorkspaceComponent,
   );
 
+const loadLanguageMasterManagement = () =>
+  import('./pages/language-master-management/language-master-management.component').then(
+    (component) => component.LanguageMasterManagementComponent,
+  );
+
 export const masterDataRoutes: Routes = [
   {
     path: '',
@@ -23,7 +28,7 @@ export const masterDataRoutes: Routes = [
   },
   {
     path: 'languages',
-    loadComponent: loadMasterDataWorkspace,
+    loadComponent: loadLanguageMasterManagement,
     data: { resource: 'Languages' },
   },
   {
