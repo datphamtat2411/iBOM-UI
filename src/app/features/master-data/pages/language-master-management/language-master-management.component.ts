@@ -54,6 +54,14 @@ export class LanguageMasterManagementComponent implements OnInit {
   deleteErrorMessage = '';
 
   private loadGeneration = 0;
+  private readonly timestampFormatter = new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
 
   ngOnInit(): void {
     this.loadLanguages(0);
@@ -205,6 +213,12 @@ export class LanguageMasterManagementComponent implements OnInit {
     if (errors?.['required']) return 'Please enter Language Name.';
     if (errors?.['maxlength']) return 'Language Name must be 255 characters or fewer.';
     return '';
+  }
+
+  formatTimestamp(value: string | null | undefined): string {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : this.timestampFormatter.format(date);
   }
 
   openDeleteConfirmation(language: LanguageMaster): void {

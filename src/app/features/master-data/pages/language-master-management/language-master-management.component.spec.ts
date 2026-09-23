@@ -68,6 +68,31 @@ describe('LanguageMasterManagementComponent', () => {
     expect(names).toEqual(['Japanese', 'English']);
   });
 
+  it('renders Created and Updated timestamps in Ho Chi Minh time instead of raw ISO values', () => {
+    const boundaryLanguage: LanguageMaster = {
+      ...english,
+      createdAt: '2026-01-01T23:30:00Z',
+      updatedAt: '2026-01-02T23:30:00Z',
+    };
+    languages.list.and.returnValue(of(page([boundaryLanguage])));
+    const component = initialize();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
+    const cells = Array.from(fixture.nativeElement.querySelectorAll('tbody tr td')) as HTMLElement[];
+
+    expect(component.formatTimestamp(boundaryLanguage.createdAt)).toBe(formatter.format(new Date(boundaryLanguage.createdAt)));
+    expect(cells[1].textContent?.trim()).toBe(formatter.format(new Date(boundaryLanguage.createdAt)));
+    expect(cells[2].textContent?.trim()).toBe(formatter.format(new Date(boundaryLanguage.updatedAt)));
+    expect(cells[1].textContent).not.toContain(boundaryLanguage.createdAt);
+    expect(component.formatTimestamp('not-a-timestamp')).toBe('—');
+  });
+
   it('keeps paging and search server-driven, including resetting an empty search to page zero', () => {
     languages.list.and.returnValue(of(page([english, japanese], 0, 2, 11)));
     const component = initialize();

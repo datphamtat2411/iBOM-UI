@@ -37,8 +37,8 @@
               <td><strong>{{ seniority.name }}</strong></td>
               <td class="mono">{{ seniority.fromExperience }}</td>
               <td class="mono">{{ seniority.toExperience === null ? 'Unlimited' : seniority.toExperience }}</td>
-              <td class="mono">{{ formatDate(seniority.createdAt) }}</td>
-              <td class="mono">{{ formatDate(seniority.updatedAt) }}</td>
+              <td class="mono">{{ formatTimestamp(seniority.createdAt) }}</td>
+              <td class="mono">{{ formatTimestamp(seniority.updatedAt) }}</td>
               <td>
                 <div class="record-actions">
                   <button class="btn text" type="button" (click)="startEdit(seniority)" [disabled]="isSubmitting || isDeleting">Edit</button>

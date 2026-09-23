@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { FileNameFormatService } from '../../services/file-name-format.service';
-import { FileNameFormatEditorComponent, parseFileNamePattern, serializeFileNamePattern } from './file-name-format-editor.component';
+import { FileNameFormatEditorComponent, analyzeFileNamePattern, parseFileNamePattern, serializeFileNamePattern } from './file-name-format-editor.component';
 
 describe('FileNameFormatEditorComponent', () => {
   let fixture: ComponentFixture<FileNameFormatEditorComponent>;
@@ -61,6 +61,69 @@ describe('FileNameFormatEditorComponent', () => {
     expect(editor.availablePlaceholders().map((option) => option.value)).toEqual(['LastName', 'Role', 'Date']);
   });
 
+  it('reconstructs recoverable separator arrangements and requires explicit normalization', () => {
+    const editor = fixture.componentInstance;
+    const pattern = '{LastName}-{FirstName}_{Role}_{Date}';
+    editor.format = { ...savedFormat, id: 10, pattern };
+    fixture.detectChanges();
+
+    expect(analyzeFileNamePattern(pattern)).toEqual({
+      kind: 'recoverable',
+      placeholders: ['LastName', 'FirstName', 'Role', 'Date'],
+    });
+    expect(editor.invalidExistingPattern).toBeFalse();
+    expect(editor.normalizationPending).toBeTrue();
+    expect(editor.patternState.placeholders).toEqual(['LastName', 'FirstName', 'Role', 'Date']);
+    expect(editor.serializedPattern()).toBe(pattern);
+    expect(editor.canSubmit()).toBeFalse();
+
+    const separatorButtons = Array.from(fixture.nativeElement.querySelectorAll('.separator-control button')) as HTMLButtonElement[];
+    expect(separatorButtons.map((button) => button.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false']);
+
+    editor.addPlaceholder('Role');
+    editor.removePlaceholder(0);
+    editor.replacePlaceholder(0, 'Role');
+    editor.movePlaceholder(0, 1);
+    expect(editor.patternState.placeholders).toEqual(['LastName', 'FirstName', 'Role', 'Date']);
+  });
+
+  it('normalizes the complete recovered Pattern only after selecting one global separator', () => {
+    const editor = fixture.componentInstance;
+    const pattern = '{LastName}-{FirstName}_{Role}_{Date}';
+    const normalizedPatterns = new Map([
+      ['_', '{LastName}_{FirstName}_{Role}_{Date}'],
+      ['-', '{LastName}-{FirstName}-{Role}-{Date}'],
+      ['none', '{LastName}{FirstName}{Role}{Date}'],
+    ]);
+
+    for (const [separator, normalizedPattern] of normalizedPatterns) {
+      editor.format = { ...savedFormat, id: `normalize-${separator}`, pattern };
+      fixture.detectChanges();
+      editor.setSeparator(separator);
+
+      expect(editor.normalizationPending).toBeFalse();
+      expect(editor.serializedPattern()).toBe(normalizedPattern);
+      expect(editor.canSubmit()).toBeTrue();
+    }
+  });
+
+  it('re-enables builder edits and sends the normalized Pattern after resolution', () => {
+    const editor = fixture.componentInstance;
+    const pattern = '{LastName}-{FirstName}_{Date}';
+    formats.update.and.returnValue(of(savedFormat));
+    editor.format = { ...savedFormat, id: 11, pattern };
+    fixture.detectChanges();
+
+    editor.setSeparator('_');
+    editor.addPlaceholder('Role');
+    editor.submit();
+
+    expect(formats.update).toHaveBeenCalledWith(11, {
+      name: savedFormat.name,
+      pattern: '{LastName}_{FirstName}_{Date}_{Role}',
+    });
+  });
+
   it('allows replacement only with an unused placeholder and hides replacement when all are selected', () => {
     const editor = fixture.componentInstance;
     editor.addPlaceholder('LastName');
@@ -102,6 +165,29 @@ describe('FileNameFormatEditorComponent', () => {
     expect(formats.create).toHaveBeenCalledWith({ name: 'Export format', pattern: '{Role}' });
   });
 
+  it('keeps Create patterns limited to one global separator', () => {
+    const editor = fixture.componentInstance;
+    editor.formatForm.controls.name.setValue('Export format');
+    editor.addPlaceholder('LastName');
+    editor.addPlaceholder('FirstName');
+    editor.setSeparator('_');
+
+    expect(editor.serializedPattern()).toBe('{LastName}_{FirstName}');
+    expect(editor.serializedPattern()).not.toBe('{LastName}-{FirstName}');
+  });
+
+  it('shows the exact blank Format Name message and does not submit', () => {
+    const editor = fixture.componentInstance;
+    editor.addPlaceholder('Role');
+    editor.formatForm.controls.name.setValue('   ');
+    editor.submit();
+    fixture.detectChanges();
+
+    expect(formats.create).not.toHaveBeenCalled();
+    expect(editor.nameFieldError()).toBe('Please enter Format Name.');
+    expect(fixture.nativeElement.textContent).toContain('Please enter Format Name.');
+  });
+
   it('accepts Format Names through 255 characters', () => {
     const editor = fixture.componentInstance;
     formats.create.and.returnValue(of(savedFormat));
@@ -111,13 +197,28 @@ describe('FileNameFormatEditorComponent', () => {
     expect(formats.create).toHaveBeenCalledWith({ name: 'a'.repeat(255), pattern: '{Date}' });
   });
 
-  it('preserves incompatible patterns read-only and blocks save', () => {
-    const incompatiblePatterns = [
-      '{LastName}_{FirstName}-{Date}',
+  it('recovers repeated, prefix, and suffix separator-only literals', () => {
+    const recoverablePatterns = [
       '{LastName}__{FirstName}',
       '_{LastName}_{FirstName}',
       '{LastName}_{FirstName}_',
+    ];
+
+    for (const [index, pattern] of recoverablePatterns.entries()) {
+      fixture.componentInstance.format = { ...savedFormat, id: index + 20, pattern };
+      fixture.detectChanges();
+      expect(fixture.componentInstance.invalidExistingPattern).toBeFalse();
+      expect(fixture.componentInstance.normalizationPending).toBeTrue();
+      expect(fixture.componentInstance.patternState.placeholders).toEqual(['LastName', 'FirstName']);
+    }
+  });
+
+  it('preserves genuinely incompatible patterns read-only and blocks save', () => {
+    const incompatiblePatterns = [
       '{LastName}_{LastName}',
+      '{LastName}_{Unknown}',
+      '{LastName',
+      '{LastName}_free_{Date}',
     ];
 
     for (const [index, pattern] of incompatiblePatterns.entries()) {

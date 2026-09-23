@@ -21,39 +21,52 @@ export const FILE_NAME_PLACEHOLDERS: ReadonlyArray<{ value: FileNamePlaceholder;
 
 const FILE_NAME_PLACEHOLDER_VALUES = new Set<FileNamePlaceholder>(FILE_NAME_PLACEHOLDERS.map((option) => option.value));
 
+export type FileNamePatternAnalysis =
+  | { kind: 'canonical'; state: FileNamePatternBuilderState }
+  | { kind: 'recoverable'; placeholders: FileNamePlaceholder[] };
+
 export function parseFileNamePattern(pattern: string): FileNamePatternBuilderState | null {
+  const analysis = analyzeFileNamePattern(pattern);
+  return analysis?.kind === 'canonical' ? analysis.state : null;
+}
+
+export function analyzeFileNamePattern(pattern: string): FileNamePatternAnalysis | null {
   if (!pattern) return null;
 
   const placeholders: FileNamePlaceholder[] = [];
-  let separator: FileNameSeparator | undefined;
+  const literals: string[] = [];
   let cursor = 0;
 
-  while (cursor < pattern.length) {
-    if (pattern[cursor] !== '{') return null;
-    const close = pattern.indexOf('}', cursor + 1);
+  while (cursor <= pattern.length) {
+    const open = pattern.indexOf('{', cursor);
+    if (open < 0) {
+      literals.push(pattern.slice(cursor));
+      break;
+    }
+    literals.push(pattern.slice(cursor, open));
+    const close = pattern.indexOf('}', open + 1);
     if (close < 0) return null;
 
-    const value = pattern.slice(cursor + 1, close);
+    const value = pattern.slice(open + 1, close);
     if (!isFileNamePlaceholder(value) || placeholders.includes(value)) return null;
     placeholders.push(value);
     cursor = close + 1;
-    if (cursor === pattern.length) break;
-
-    const nextSeparator = pattern[cursor];
-    if (nextSeparator === '{') {
-      if (separator !== undefined && separator !== 'none') return null;
-      separator = 'none';
-      continue;
-    }
-    if (!isFileNameSeparator(nextSeparator) || nextSeparator === 'none') return null;
-    if (pattern[cursor + 1] === nextSeparator) return null;
-    if (separator !== undefined && separator !== nextSeparator) return null;
-    separator = nextSeparator;
-    cursor += 1;
-    if (cursor === pattern.length || pattern[cursor] !== '{') return null;
   }
 
-  return { placeholders, separator: separator ?? 'none' };
+  if (!placeholders.length || literals.some((literal) => [...literal].some((character) => character !== '-' && character !== '_'))) return null;
+
+  if (literals[0] !== '' || literals.at(-1) !== '') return { kind: 'recoverable', placeholders };
+
+  let separator: Exclude<FileNameSeparator, 'none'> | undefined;
+  for (const literal of literals.slice(1, -1)) {
+    if (!literal) continue;
+    if (literal.length !== 1) return { kind: 'recoverable', placeholders };
+    const current = literal as Exclude<FileNameSeparator, 'none'>;
+    if (separator !== undefined && separator !== current) return { kind: 'recoverable', placeholders };
+    separator = current;
+  }
+
+  return { kind: 'canonical', state: { placeholders, separator: separator ?? 'none' } };
 }
 
 export function serializeFileNamePattern(state: Readonly<FileNamePatternBuilderState>): string {
@@ -112,6 +125,7 @@ export class FileNameFormatEditorComponent {
   errorMessage = '';
   isSubmitting = false;
   invalidExistingPattern = false;
+  normalizationPending = false;
   reorderAnnouncement = '';
   originalPattern = '';
   private draggedPlaceholderIndex: number | null = null;
@@ -131,12 +145,13 @@ export class FileNameFormatEditorComponent {
   }
 
   serializedPattern(): string {
-    return this.invalidExistingPattern ? this.originalPattern : serializeFileNamePattern(this.patternState);
+    return this.invalidExistingPattern || this.normalizationPending ? this.originalPattern : serializeFileNamePattern(this.patternState);
   }
 
   isBuilderValid(): boolean {
     const placeholders = this.patternState.placeholders;
     return !this.invalidExistingPattern
+      && !this.normalizationPending
       && placeholders.length > 0
       && new Set(placeholders).size === placeholders.length;
   }
@@ -153,8 +168,8 @@ export class FileNameFormatEditorComponent {
   nameFieldError(): string {
     const errors = this.formatForm.controls.name.errors;
     if (errors?.['backend']) return errors['backend'];
-    if (errors?.['trimmedRequired']) return 'This field is required.';
-    if (errors?.['required']) return 'This field is required.';
+    if (errors?.['trimmedRequired']) return 'Please enter Format Name.';
+    if (errors?.['required']) return 'Please enter Format Name.';
     if (errors?.['maxlength']) return `Use ${errors['maxlength'].requiredLength} characters or fewer.`;
     return errors ? 'This value is not valid.' : '';
   }
@@ -177,7 +192,7 @@ export class FileNameFormatEditorComponent {
   }
 
   addPlaceholder(value: FileNamePlaceholder): void {
-    if (this.isSubmitting || !isFileNamePlaceholder(value) || !this.canAddPlaceholder(value)) return;
+    if (this.isSubmitting || this.normalizationPending || !isFileNamePlaceholder(value) || !this.canAddPlaceholder(value)) return;
     this.patternState = { ...this.patternState, placeholders: [...this.patternState.placeholders, value] };
     this.clearPatternError();
   }
@@ -185,6 +200,7 @@ export class FileNameFormatEditorComponent {
   setSeparator(value: string): void {
     if (this.isSubmitting || !isFileNameSeparator(value)) return;
     this.patternState = { ...this.patternState, separator: value };
+    this.normalizationPending = false;
     this.clearPatternError();
   }
 
@@ -193,7 +209,7 @@ export class FileNameFormatEditorComponent {
   }
 
   replacePlaceholder(index: number, value: string): void {
-    if (this.isSubmitting || !isFileNamePlaceholder(value)) return;
+    if (this.isSubmitting || this.normalizationPending || !isFileNamePlaceholder(value)) return;
     const current = this.patternState.placeholders[index];
     if (current === undefined || !this.canAddPlaceholderAt(value, index)) {
       this.patternError = 'Each placeholder can be used only once.';
@@ -206,7 +222,7 @@ export class FileNameFormatEditorComponent {
   }
 
   removePlaceholder(index: number): void {
-    if (this.isSubmitting || this.patternState.placeholders[index] === undefined) return;
+    if (this.isSubmitting || this.normalizationPending || this.patternState.placeholders[index] === undefined) return;
     this.patternState = {
       ...this.patternState,
       placeholders: this.patternState.placeholders.filter((_, itemIndex) => itemIndex !== index),
@@ -215,7 +231,7 @@ export class FileNameFormatEditorComponent {
   }
 
   movePlaceholder(index: number, direction: -1 | 1): void {
-    if (this.isSubmitting) return;
+    if (this.isSubmitting || this.normalizationPending) return;
     const targetIndex = index + direction;
     if (!this.canMovePlaceholder(index, direction)) return;
     this.reorderPlaceholder(index, targetIndex);
@@ -236,7 +252,7 @@ export class FileNameFormatEditorComponent {
   }
 
   startPlaceholderDrag(index: number, event: DragEvent): void {
-    if (this.isSubmitting) return;
+    if (this.isSubmitting || this.normalizationPending) return;
     this.draggedPlaceholderIndex = index;
     event.dataTransfer?.setData('text/plain', String(index));
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
@@ -248,6 +264,7 @@ export class FileNameFormatEditorComponent {
 
   dropPlaceholder(index: number, event: DragEvent): void {
     event.preventDefault();
+    if (this.normalizationPending) return;
     const transferredIndex = event.dataTransfer?.getData('text/plain');
     const sourceIndex = this.draggedPlaceholderIndex ?? (transferredIndex ? Number(transferredIndex) : NaN);
     this.draggedPlaceholderIndex = null;
@@ -295,16 +312,24 @@ export class FileNameFormatEditorComponent {
     this.errorMessage = '';
     this.patternError = '';
     this.invalidExistingPattern = false;
+    this.normalizationPending = false;
     this.isSubmitting = false;
     this.reorderAnnouncement = '';
     this.originalPattern = this.format?.pattern ?? '';
-    const parsed = this.format ? parseFileNamePattern(this.format.pattern) : null;
-    this.patternState = parsed ?? { placeholders: [], separator: 'none' };
+    const analysis = this.format ? analyzeFileNamePattern(this.format.pattern) : null;
+    this.patternState = analysis?.kind === 'canonical'
+      ? analysis.state
+      : analysis?.kind === 'recoverable'
+        ? { placeholders: analysis.placeholders, separator: 'none' }
+        : { placeholders: [], separator: 'none' };
     this.formatForm.reset({ name: this.format?.name ?? '' });
     this.formatForm.markAsPristine();
     this.formatForm.markAsUntouched();
     this.initializedFormatId = this.format ? String(this.format.id) : null;
-    if (this.format && parsed === null) {
+    if (this.format && analysis?.kind === 'recoverable') {
+      this.normalizationPending = true;
+      this.patternError = 'Select one global separator to normalize this saved Pattern before editing or saving.';
+    } else if (this.format && analysis === null) {
       this.invalidExistingPattern = true;
       this.patternError = 'This saved Pattern cannot be reconstructed safely with the supported placeholders.';
     }

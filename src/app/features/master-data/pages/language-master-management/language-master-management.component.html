@@ -54,8 +54,8 @@
           @for (language of languages; track language.id) {
             <tr>
               <td><strong>{{ language.name }}</strong></td>
-              <td class="metadata">{{ language.createdAt }}</td>
-              <td class="metadata">{{ language.updatedAt }}</td>
+              <td class="metadata">{{ formatTimestamp(language.createdAt) }}</td>
+              <td class="metadata">{{ formatTimestamp(language.updatedAt) }}</td>
               <td class="row-actions">
                 <button class="btn text" type="button" (click)="startEdit(language)" [disabled]="pendingMutation !== null">Edit</button>
                 <button class="btn text danger" type="button" (click)="openDeleteConfirmation(language)" [disabled]="pendingMutation !== null">Delete</button>

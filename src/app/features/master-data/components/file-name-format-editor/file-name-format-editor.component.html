@@ -34,17 +34,24 @@
             <code>{{ originalPattern }}</code>
           </div>
         } @else {
+          @if (normalizationPending) {
+            <div class="normalization-pattern" role="status">
+              <strong>Pattern needs separator normalization.</strong>
+              <p>This saved Pattern uses a non-canonical separator arrangement. Select one global separator before editing or saving can continue.</p>
+              <code>{{ originalPattern }}</code>
+            </div>
+          }
           <div class="builder-list" aria-label="Pattern placeholders">
             @if (!patternState.placeholders.length) {
               <p class="builder-empty">No Pattern placeholders yet. Add a placeholder below.</p>
             }
             @for (placeholder of patternState.placeholders; track placeholder; let index = $index) {
               <div class="builder-row" (dragover)="allowPlaceholderDrop($event)" (drop)="dropPlaceholder(index, $event)">
-                <button class="drag-handle" type="button" [id]="'placeholder-handle-' + index" [disabled]="isSubmitting" [attr.draggable]="!isSubmitting" [attr.aria-label]="'Reorder ' + placeholderLabel(placeholder)" (dragstart)="startPlaceholderDrag(index, $event)" (dragend)="endPlaceholderDrag()" (keydown)="handleReorderKeydown(index, $event)">::</button>
+                <button class="drag-handle" type="button" [id]="'placeholder-handle-' + index" [disabled]="isSubmitting || normalizationPending" [attr.draggable]="!isSubmitting && !normalizationPending" [attr.aria-label]="'Reorder ' + placeholderLabel(placeholder)" (dragstart)="startPlaceholderDrag(index, $event)" (dragend)="endPlaceholderDrag()" (keydown)="handleReorderKeydown(index, $event)">::</button>
                 @if (availablePlaceholdersFor(index).length) {
                   <label class="replacement-control">
                     <span class="sr-only">Replace {{ placeholderLabel(placeholder) }}</span>
-                    <select class="segment-select" [value]="placeholder" (change)="changePlaceholder(index, $event)" [disabled]="isSubmitting">
+                    <select class="segment-select" [value]="placeholder" (change)="changePlaceholder(index, $event)" [disabled]="isSubmitting || normalizationPending">
                       <option [value]="placeholder" [selected]="true">{{ placeholderLabel(placeholder) }}</option>
                       @for (option of availablePlaceholdersFor(index); track option.value) { <option [value]="option.value">{{ option.label }}</option> }
                     </select>
@@ -52,7 +59,7 @@
                 } @else {
                   <span class="placeholder-value">{{ placeholderLabel(placeholder) }}</span>
                 }
-                <button class="btn text danger-text" type="button" (click)="removePlaceholder(index)" [disabled]="isSubmitting" [attr.aria-label]="'Remove ' + placeholderLabel(placeholder)">Remove</button>
+                <button class="btn text danger-text" type="button" (click)="removePlaceholder(index)" [disabled]="isSubmitting || normalizationPending" [attr.aria-label]="'Remove ' + placeholderLabel(placeholder)">Remove</button>
               </div>
             }
           </div>
@@ -63,16 +70,16 @@
                 <span class="control-label">Add placeholder</span>
                 <div class="control-buttons">
                   @for (option of availablePlaceholders(); track option.value) {
-                    <button class="btn text" type="button" (click)="addPlaceholder(option.value)" [disabled]="isSubmitting">+ {{ option.label }}</button>
+                    <button class="btn text" type="button" (click)="addPlaceholder(option.value)" [disabled]="isSubmitting || normalizationPending">+ {{ option.label }}</button>
                   }
                 </div>
               </div>
             }
             <div class="control-group separator-control">
-              <span class="control-label">Separator between placeholders</span>
-              <div class="control-buttons">
-                @for (option of separatorOptions; track option.value) {
-                  <button class="btn text" type="button" (click)="setSeparator(option.value)" [disabled]="isSubmitting" [attr.aria-pressed]="patternState.separator === option.value">{{ option.label }}</button>
+                <span class="control-label">Separator between placeholders</span>
+                <div class="control-buttons">
+                  @for (option of separatorOptions; track option.value) {
+                  <button class="btn text" type="button" (click)="setSeparator(option.value)" [disabled]="isSubmitting" [attr.aria-pressed]="!normalizationPending && patternState.separator === option.value">{{ option.label }}</button>
                 }
               </div>
             </div>

@@ -58,6 +58,14 @@ export class SeniorityManagementComponent implements OnInit, OnDestroy {
 
   private listGeneration = 0;
   private formDestroyed = false;
+  private readonly timestampFormatter = new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
 
   constructor() {
     this.seniorityForm.valueChanges.subscribe(() => {
@@ -223,15 +231,10 @@ export class SeniorityManagementComponent implements OnInit, OnDestroy {
     return `${seniority.fromExperience}–${seniority.toExperience === null ? 'Unlimited' : seniority.toExperience}`;
   }
 
-  formatDate(value: string): string {
+  formatTimestamp(value: string | null | undefined): string {
+    if (!value) return '—';
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '—';
-    return new Intl.DateTimeFormat('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'UTC',
-    }).format(date);
+    return Number.isNaN(date.getTime()) ? '—' : this.timestampFormatter.format(date);
   }
 
   private openEditor(seniority?: Seniority): void {

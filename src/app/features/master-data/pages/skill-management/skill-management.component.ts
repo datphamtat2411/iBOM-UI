@@ -250,7 +250,7 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
     const errors = this.skillForm.controls[field].errors;
     if (errors?.['server']) return errors['server'];
     if (errors?.['duplicate']) return errors['duplicate'];
-    if (errors?.['required']) return field === 'name' ? 'Skill Name is required.' : 'Category is required.';
+    if (errors?.['required']) return field === 'name' ? 'Please enter Skill Name.' : 'Category is required.';
     if (errors?.['maxlength']) return 'Skill Name must be 255 characters or fewer.';
     return errors ? 'This value is not valid.' : '';
   }

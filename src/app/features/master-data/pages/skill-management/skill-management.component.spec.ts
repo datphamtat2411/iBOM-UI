@@ -132,10 +132,13 @@ describe('SkillManagementComponent', () => {
     fixture.componentInstance.openCreate();
     fixture.detectChanges();
     fixture.componentInstance.submitSkill();
+    fixture.detectChanges();
 
     expect(service.createSkill).not.toHaveBeenCalled();
     expect(fixture.componentInstance.skillForm.controls.name.errors?.['required']).toBeTrue();
     expect(fixture.componentInstance.skillForm.controls.categoryId.errors?.['required']).toBeTrue();
+    expect(fixture.componentInstance.fieldError('name')).toBe('Please enter Skill Name.');
+    expect(fixture.nativeElement.textContent).toContain('Please enter Skill Name.');
     expect(fixture.nativeElement.querySelector('#skill-category')?.tagName).toBe('SELECT');
   });
 

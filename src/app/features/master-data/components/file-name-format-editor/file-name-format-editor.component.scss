@@ -35,6 +35,9 @@
 .pattern-error { margin: 12px 0 0; }
 .preview-box, .incompatible-pattern { display: grid; gap: 7px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--grid-border, #d8d2c4); background: var(--paper-bg, #f9f7f1); }
 .preview-box code, .incompatible-pattern code { min-height: 24px; overflow-wrap: anywhere; color: var(--fpt-black, #17191d); font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.5; }
+.normalization-pattern { display: grid; gap: 7px; margin-top: 16px; padding: 12px 14px; border: 1px solid #b88a32; background: #fffaf0; color: #5f491b; font-size: 13px; line-height: 1.5; }
+.normalization-pattern p { margin: 0; }
+.normalization-pattern code { min-height: 24px; overflow-wrap: anywhere; color: #5f491b; font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.5; }
 .incompatible-pattern { border-color: #a62d25; background: #fff8f6; color: #8d241d; font-size: 13px; line-height: 1.5; }
 .incompatible-pattern p { margin: 0; }
 .incompatible-pattern code { color: #8d241d; }

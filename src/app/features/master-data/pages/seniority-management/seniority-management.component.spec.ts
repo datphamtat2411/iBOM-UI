@@ -79,6 +79,33 @@ describe('SeniorityManagementComponent', () => {
     expect(fixture.nativeElement.querySelector('.pagination')).toBeNull();
   });
 
+  it('renders Created and Updated timestamps in Ho Chi Minh time with date and time', () => {
+    const boundarySeniority: Seniority = {
+      ...junior,
+      createdAt: '2026-01-01T23:30:00Z',
+      updatedAt: '2026-01-02T23:30:00Z',
+    };
+    seniorityService.list.and.returnValue(of([boundarySeniority]));
+    const boundaryFixture = TestBed.createComponent(SeniorityManagementComponent);
+    boundaryFixture.detectChanges();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
+    const cells = Array.from(boundaryFixture.nativeElement.querySelectorAll('tbody tr td')) as HTMLElement[];
+
+    expect(boundaryFixture.componentInstance.formatTimestamp(boundarySeniority.createdAt)).toBe(formatter.format(new Date(boundarySeniority.createdAt)));
+    expect(cells[3].textContent?.trim()).toBe(formatter.format(new Date(boundarySeniority.createdAt)));
+    expect(cells[4].textContent?.trim()).toBe(formatter.format(new Date(boundarySeniority.updatedAt)));
+    expect(cells[3].textContent).not.toContain(boundarySeniority.createdAt);
+    expect(boundaryFixture.componentInstance.formatTimestamp('not-a-timestamp')).toBe('—');
+    boundaryFixture.destroy();
+  });
+
   it('shows the empty state and retries a failed list load', () => {
     seniorityService.list.and.returnValues(
       throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Unavailable' } })),
