@@ -12,6 +12,19 @@ export const authGuard: CanActivateFn = () => {
   return authService.isRestored() ? decision() : authService.restoration$().pipe(map(decision));
 };
 
+export const managementGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+  const decision = () => {
+    if (!authService.isAuthenticated()) return router.parseUrl('/login');
+    return ['MANAGER', 'ADMIN'].includes(authService.user()?.role ?? '')
+      ? true
+      : router.parseUrl('/dashboard');
+  };
+
+  return authService.isRestored() ? decision() : authService.restoration$().pipe(map(decision));
+};
+
 export const guestGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);

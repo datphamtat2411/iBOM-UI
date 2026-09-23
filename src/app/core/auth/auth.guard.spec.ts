@@ -3,13 +3,14 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 
-import { authGuard, guestGuard } from './auth.guard';
+import { authGuard, guestGuard, managementGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
 describe('authGuard', () => {
   let auth: {
     isRestored: WritableSignal<boolean>;
     isAuthenticated: WritableSignal<boolean>;
+    user: WritableSignal<{ role: string } | null>;
     restoration$: AuthService['restoration$'];
   };
 
@@ -17,6 +18,7 @@ describe('authGuard', () => {
     auth = {
       isRestored: signal(false),
       isAuthenticated: signal(false),
+      user: signal<{ role: string } | null>(null),
       restoration$: () => of(true),
     };
 
@@ -57,5 +59,27 @@ describe('authGuard', () => {
     auth.isRestored.set(true);
 
     expect(TestBed.runInInjectionContext(() => guestGuard({} as never, {} as never))).toBeTrue();
+  });
+
+  it('allows only managers and admins into Management routes', () => {
+    auth.isRestored.set(true);
+    auth.isAuthenticated.set(true);
+
+    for (const role of ['MANAGER', 'ADMIN']) {
+      auth.user.set({ role });
+      expect(TestBed.runInInjectionContext(() => managementGuard({} as never, {} as never))).toBeTrue();
+    }
+
+    auth.user.set({ role: 'MEMBER' });
+    expect(TestBed.runInInjectionContext(() => managementGuard({} as never, {} as never))).toEqual(TestBed.inject(Router).parseUrl('/dashboard'));
+  });
+
+  it('waits for session restoration before deciding Management access', () => {
+    auth.isAuthenticated.set(true);
+    auth.user.set({ role: 'ADMIN' });
+
+    const result = TestBed.runInInjectionContext(() => managementGuard({} as never, {} as never));
+
+    expect(result).toEqual(jasmine.any(Object));
   });
 });

@@ -25,6 +25,27 @@
           <span class="nav-glyph">02</span><span>Profile Workspace</span>
         </a>
       </div>
+      @if (managementVisible()) {
+        <div class="nav-group management-group">
+          <p class="nav-label">Management</p>
+          <button
+            class="nav-btn nav-parent"
+            type="button"
+            [class.active]="isMasterDataRoute()"
+            [attr.aria-expanded]="masterDataExpanded"
+            aria-controls="master-data-nav"
+            (click)="toggleMasterData()"
+          >
+            <span class="nav-glyph">01</span><span class="nav-parent-label">Master Data</span><span class="nav-chevron" aria-hidden="true"></span>
+          </button>
+          <div id="master-data-nav" class="nav-children" [hidden]="!masterDataExpanded">
+            <a class="nav-btn nav-child" routerLink="/master-data/skills" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">Skills</a>
+            <a class="nav-btn nav-child" routerLink="/master-data/seniority" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">Seniority</a>
+            <a class="nav-btn nav-child" routerLink="/master-data/languages" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">Languages</a>
+            <a class="nav-btn nav-child" routerLink="/master-data/file-name-formats" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">File Name Formats</a>
+          </div>
+        </div>
+      }
     </nav>
 
     <div class="sidebar-foot" aria-label="Current account">

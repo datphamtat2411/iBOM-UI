@@ -1,0 +1,9 @@
+:host { display: block; }
+.master-data-page { padding: 26px 28px 64px; }
+.page-heading { min-height: 56px; margin-bottom: 24px; }
+.page-kicker { margin: 0 0 6px; color: #6b675f; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.page-heading h1 { margin: 0 0 4px; font-size: 32px; line-height: 1.2; }
+.page-heading p:last-child { margin: 0; color: #6b675f; }
+.master-data-notice { display: flex; max-width: 760px; padding: 16px 18px; align-items: baseline; gap: 10px; border: 1px solid #d8d2c4; background: #fff; color: #6b675f; font-size: 13px; line-height: 1.5; }
+.master-data-notice strong { color: #17191d; }
+@media (max-width: 800px) { .master-data-page { padding: 22px 16px 72px; }.master-data-notice { align-items: flex-start; flex-direction: column; gap: 3px; } }

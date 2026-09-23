@@ -23,6 +23,7 @@ export class ApplicationShellComponent {
   readonly notifications = inject(NotificationService);
 
   readonly user = this.authService.user;
+  readonly managementVisible = computed(() => ['MANAGER', 'ADMIN'].includes(this.user()?.role ?? ''));
   readonly logoutError = this.authService.logoutError;
   readonly avatarInitials = computed(() => {
     const username = this.user()?.username?.trim() || this.user()?.email || 'User';
@@ -31,6 +32,7 @@ export class ApplicationShellComponent {
   });
 
   navigationOpen = false;
+  masterDataExpanded = this.isMasterDataRoute();
   accountMenuOpen = false;
   logoutInProgress = false;
   copyModalOpen = false;
@@ -40,6 +42,7 @@ export class ApplicationShellComponent {
 
   constructor() {
     this.profileContext.loadSummaries();
+    let previousUrl = this.router.url;
     effect(() => {
       const currentSource = this.currentCopySource();
       const workflow = this.activeCopyWorkflow;
@@ -49,12 +52,23 @@ export class ApplicationShellComponent {
     this.router.events.subscribe((event) => {
       if (!(event instanceof NavigationEnd)) return;
       this.accountMenuOpen = false;
+      if (this.isMasterDataRoute(event.urlAfterRedirects) && !this.isMasterDataRoute(previousUrl)) {
+        this.masterDataExpanded = true;
+      }
+      previousUrl = event.urlAfterRedirects;
       if (this.activeCopyWorkflow && event.urlAfterRedirects !== this.activeCopyWorkflow.routeUrl) this.invalidateCopyWorkflow();
     });
   }
 
   toggleNavigation(): void {
     this.navigationOpen = !this.navigationOpen;
+  }
+
+  toggleMasterData(): void { this.masterDataExpanded = !this.masterDataExpanded; }
+
+  isMasterDataRoute(url = this.router.url): boolean {
+    const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    return path === '/master-data' || path.startsWith('/master-data/');
   }
 
   toggleAccountMenu(): void { this.accountMenuOpen = !this.accountMenuOpen; }
@@ -83,6 +97,7 @@ export class ApplicationShellComponent {
     });
   }
   get contextTitle(): string {
+    if (this.isMasterDataRoute()) return 'Master Data';
     if (this.router.url.startsWith('/profiles')) return 'Profile Workspace';
     return this.router.url.includes('/account-settings') ? 'Account Settings' : 'Dashboard';
   }

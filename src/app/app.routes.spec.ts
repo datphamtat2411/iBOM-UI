@@ -1,4 +1,6 @@
 import { routes } from './app.routes';
+import { authGuard, managementGuard } from './core/auth/auth.guard';
+import { masterDataRoutes } from './features/master-data/master-data.routes';
 
 describe('application routes', () => {
   it('protects the lazy dashboard shell and renders a lazy dashboard child', () => {
@@ -25,5 +27,13 @@ describe('application routes', () => {
     expect(profiles?.children?.[1].path).toBe('new');
     expect(profiles?.children?.every((route) => route.canActivate)).toBeTrue();
     expect(profiles?.children?.every((route) => route.loadComponent)).toBeTrue();
+  });
+
+  it('protects Master Data with authentication and management authorization', () => {
+    const masterData = routes.find((route) => route.path === 'master-data');
+
+    expect(masterData?.canActivate).toEqual([authGuard, managementGuard]);
+    expect(masterData?.loadComponent).toEqual(jasmine.any(Function));
+    expect(masterData?.children).toBe(masterDataRoutes);
   });
 });

@@ -1,7 +1,8 @@
 import { Routes } from '@angular/router';
 
-import { authGuard, guestGuard } from './core/auth/auth.guard';
+import { authGuard, guestGuard, managementGuard } from './core/auth/auth.guard';
 import { profileDirtyDeactivationGuard } from './features/profile/guards/profile-unsaved-changes.guard';
+import { masterDataRoutes } from './features/master-data/master-data.routes';
 import { profileRoutes } from './features/profile/profile.routes';
 
 export const routes: Routes = [
@@ -53,6 +54,15 @@ export const routes: Routes = [
         (component) => component.ApplicationShellComponent,
       ),
     children: profileRoutes,
+  },
+  {
+    path: 'master-data',
+    canActivate: [authGuard, managementGuard],
+    loadComponent: () =>
+      import('./features/shell/application-shell.component').then(
+        (component) => component.ApplicationShellComponent,
+      ),
+    children: masterDataRoutes,
   },
   {
     path: 'registration',

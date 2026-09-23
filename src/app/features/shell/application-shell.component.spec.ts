@@ -61,6 +61,71 @@ describe('ApplicationShellComponent', () => {
     expect(fixture.nativeElement.querySelector('.sidebar-nav').classList).toContain('open');
   });
 
+  it('shows independent Management navigation only for managers and admins', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.management-group')).toBeNull();
+
+    auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MANAGER' });
+    fixture.detectChanges();
+    expect(element.querySelector('.management-group')).not.toBeNull();
+
+    auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'ADMIN' });
+    fixture.detectChanges();
+    expect(element.querySelector('.management-group')).not.toBeNull();
+  });
+
+  it('keeps Workspace numbering independent from Management numbering', () => {
+    auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MANAGER' });
+    fixture.detectChanges();
+    const groups = fixture.nativeElement.querySelectorAll('.nav-group');
+
+    expect(groups[0].textContent).toContain('01Dashboard');
+    expect(groups[0].textContent).toContain('02Profile Workspace');
+    expect(groups[1].textContent).toContain('01Master Data');
+  });
+
+  it('toggles the Master Data parent without navigating and preserves active child state when collapsed', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/master-data/skills');
+    auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MANAGER' });
+    const component = fixture.componentInstance;
+    component.masterDataExpanded = true;
+    fixture.detectChanges();
+
+    const parent = fixture.nativeElement.querySelector('.nav-parent') as HTMLButtonElement;
+    const children = fixture.nativeElement.querySelector('.nav-children') as HTMLDivElement;
+    const currentUrl = router.url;
+    expect(parent.querySelector('.nav-parent-label')?.nextElementSibling?.classList).toContain('nav-chevron');
+    expect(children.hidden).toBeFalse();
+    parent.click();
+    fixture.detectChanges();
+
+    expect(router.url).toBe(currentUrl);
+    expect(component.masterDataExpanded).toBeFalse();
+    expect(children.hidden).toBeTrue();
+    expect(parent.classList).toContain('active');
+    expect(parent.getAttribute('aria-expanded')).toBe('false');
+    expect(parent.getAttribute('aria-controls')).toBe('master-data-nav');
+
+    parent.click();
+    fixture.detectChanges();
+    expect(component.masterDataExpanded).toBeTrue();
+    expect(children.hidden).toBeFalse();
+  });
+
+  it('expands Master Data when the shell is initialized on a child route', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/master-data/languages');
+    auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MANAGER' });
+    const directFixture = TestBed.createComponent(ApplicationShellComponent);
+    directFixture.detectChanges();
+
+    const parent = directFixture.nativeElement.querySelector('.nav-parent') as HTMLButtonElement;
+    expect(directFixture.componentInstance.masterDataExpanded).toBeTrue();
+    expect(parent.getAttribute('aria-expanded')).toBe('true');
+    directFixture.destroy();
+  });
+
   it('submits sign out once, closes the menu, and navigates after success', () => {
     const pendingLogout = new Subject<void>();
     auth.logout.and.returnValue(pendingLogout);
