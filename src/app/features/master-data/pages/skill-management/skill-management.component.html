@@ -1,0 +1,119 @@
+<section class="skill-management" aria-labelledby="skill-management-title" [attr.aria-busy]="isLoading || categoriesLoading || isSubmitting || isDeleting">
+  <div class="management-heading">
+    <div>
+      <h2 id="skill-management-title">Skill Master</h2>
+      <p>Maintain controlled Skills and their Categories for Profile Skill records.</p>
+    </div>
+    <button class="btn primary" type="button" (click)="openCreate()" [disabled]="isSubmitting || isDeleting">Add Skill</button>
+  </div>
+
+  <form class="search-toolbar" (ngSubmit)="applySearch()" novalidate>
+    <div class="search-field">
+      <label for="skill-search">Search Skill Name</label>
+      <input id="skill-search" type="search" [value]="searchDraft" (input)="searchDraft = $any($event.target).value" placeholder="Search by Skill Name" autocomplete="off">
+    </div>
+    <div class="search-actions">
+      <button class="btn" type="submit" [disabled]="isLoading">Search</button>
+      @if (search) { <button class="btn text" type="button" (click)="clearSearch()" [disabled]="isLoading">Clear</button> }
+    </div>
+  </form>
+
+  @if (listError) {
+    <div class="notice error" role="alert">
+      <span>We could not load Skills right now.</span>
+      <button class="btn text" type="button" (click)="retrySkills()" [disabled]="isLoading">Try again</button>
+    </div>
+  } @else if (isLoading) {
+    <div class="table-wrap" aria-live="polite">
+      <table class="skills-table" aria-label="Skills loading" aria-busy="true">
+        <thead><tr><th>Skill Name</th><th>Category</th><th>Created Date</th><th>Updated Date</th><th>Actions</th></tr></thead>
+        <tbody>
+          @for (row of [1, 2, 3]; track row) { <tr class="table-skeleton"><td><span class="skeleton-line"></span></td><td><span class="skeleton-line short"></span></td><td><span class="skeleton-line short"></span></td><td><span class="skeleton-line short"></span></td><td><span class="skeleton-line short"></span></td></tr> }
+        </tbody>
+      </table>
+    </div>
+  } @else if (skills.length) {
+    <div class="table-wrap">
+      <table class="skills-table" aria-label="Skills">
+        <thead><tr><th scope="col">Skill Name</th><th scope="col">Category</th><th scope="col">Created Date</th><th scope="col">Updated Date</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+          @for (skill of skills; track skill.id) {
+            <tr>
+              <td>{{ skill.name }}</td>
+              <td>{{ skill.categoryName }}</td>
+              <td class="mono">{{ formatTimestamp(skill.createdAt) }}</td>
+              <td class="mono">{{ formatTimestamp(skill.updatedAt) }}</td>
+              <td><div class="record-actions"><button class="btn text" type="button" (click)="openEdit(skill)" [disabled]="isDeleting">Edit</button><button class="btn danger text" type="button" (click)="openDeleteConfirmation(skill)" [disabled]="isDeleting" [attr.aria-label]="'Delete ' + skill.name">Delete</button></div></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (totalPages > 1) {
+      <nav class="pagination" aria-label="Skill pagination">
+        <button class="btn text" type="button" (click)="previousPage()" [disabled]="!canGoPrevious()">Previous</button>
+        <span aria-live="polite">Page {{ page + 1 }} of {{ totalPages }}</span>
+        <button class="btn text" type="button" (click)="nextPage()" [disabled]="!canGoNext()">Next</button>
+      </nav>
+    }
+  } @else if (search) {
+    <div class="empty-state no-results">
+      <h3>No Skills found</h3>
+      <p>No Skills match “{{ search }}”.</p>
+      <button class="btn" type="button" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <h3>No Skills configured</h3>
+      <p>Add a Skill to make it available in Profile Skill records.</p>
+      <button class="btn" type="button" (click)="openCreate()">Add Skill</button>
+    </div>
+  }
+</section>
+
+@if (editorMode) {
+  <div class="modal-backdrop" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="skill-editor-title" aria-describedby="skill-editor-copy">
+      <h2 id="skill-editor-title">{{ editorMode === 'edit' ? 'Edit Skill' : 'Add Skill' }}</h2>
+      <p id="skill-editor-copy">Skills use a controlled Category classification.</p>
+      @if (editorErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ editorErrorMessage }}</div> }
+      <form [formGroup]="skillForm" (ngSubmit)="submitSkill()" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="skill-name">Skill Name</label>
+            <input id="skill-name" type="text" formControlName="name" maxlength="150" [attr.aria-invalid]="fieldInvalid('name')" aria-describedby="skill-name-error">
+            @if (fieldInvalid('name')) { <span class="field-error" id="skill-name-error">{{ fieldError('name') }}</span> }
+          </div>
+          <div class="field">
+            <label for="skill-category">Category</label>
+            <select id="skill-category" formControlName="categoryId" [attr.disabled]="categoriesLoading ? '' : null" [attr.aria-invalid]="fieldInvalid('categoryId')" aria-describedby="skill-category-error">
+              <option [ngValue]="null">Select a Category</option>
+              @for (category of categories; track category.id) { <option [ngValue]="category.id">{{ category.name }}</option> }
+            </select>
+            @if (categoriesLoading) { <span class="helper" role="status">Loading Categories...</span> }
+            @if (categoriesError) { <span class="helper error-copy" role="alert">Unable to load Categories. <button class="btn text" type="button" (click)="retryCategories()" [disabled]="categoriesLoading">Retry</button></span> }
+            @if (fieldInvalid('categoryId')) { <span class="field-error" id="skill-category-error">{{ fieldError('categoryId') }}</span> }
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" type="button" (click)="closeEditor()" [disabled]="isSubmitting">Cancel</button>
+          <button class="btn primary" type="submit" [disabled]="isSubmitting || categoriesLoading" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Saving...' : editorMode === 'edit' ? 'Save Skill' : 'Create Skill' }}</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (deleteConfirmation && deleteTarget; as target) {
+  <div class="modal-backdrop" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-skill-title" aria-describedby="delete-skill-copy">
+      <h2 id="delete-skill-title">Delete {{ target.name }}?</h2>
+      <p id="delete-skill-copy">This removes the Skill from the controlled Master Data list. Profile records that reference it prevent deletion.</p>
+      @if (deleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ deleteErrorMessage }}</div> }
+      <div class="modal-actions">
+        <button class="btn" type="button" (click)="cancelDelete()" [disabled]="isDeleting">Cancel</button>
+        <button class="btn danger" type="button" (click)="confirmDelete()" [disabled]="isDeleting" [attr.aria-busy]="isDeleting">{{ isDeleting ? 'Deleting...' : 'Delete Skill' }}</button>
+      </div>
+    </section>
+  </div>
+}
