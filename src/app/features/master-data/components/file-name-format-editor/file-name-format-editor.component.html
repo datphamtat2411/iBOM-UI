@@ -1,0 +1,97 @@
+<div class="modal-backdrop" role="presentation">
+  <section class="format-modal" role="dialog" aria-modal="true" aria-labelledby="file-name-format-editor-title" aria-describedby="file-name-format-editor-copy">
+    <div class="modal-heading">
+      <div>
+        <p class="eyebrow">Master Data / File Name Formats</p>
+        <h2 id="file-name-format-editor-title">{{ editorTitle }}</h2>
+        <p id="file-name-format-editor-copy">Build the export filename from supported Profile values.</p>
+      </div>
+      <button class="btn text close-button" type="button" aria-label="Close editor" (click)="close()" [disabled]="isSubmitting">Close</button>
+    </div>
+
+    @if (errorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ errorMessage }}</div> }
+
+    <form [formGroup]="formatForm" (ngSubmit)="submit()" novalidate>
+      <div class="field name-field">
+        <label for="file-name-format-name">Format Name</label>
+        <input id="file-name-format-name" type="text" formControlName="name" maxlength="100" autocomplete="off" [attr.aria-invalid]="nameFieldInvalid()">
+        @if (nameFieldInvalid()) { <span class="field-error">{{ nameFieldError() }}</span> }
+      </div>
+
+      <section class="builder-section" aria-labelledby="pattern-builder-title">
+        <div class="section-heading">
+          <div>
+            <h3 id="pattern-builder-title">Pattern Builder</h3>
+            <p>Arrange each placeholder in order and add only hyphen or underscore separators.</p>
+          </div>
+          <span class="mono technical-label">CONTROLLED INPUT</span>
+        </div>
+
+        <div class="builder-list" aria-label="Pattern segments">
+          @if (!patternSegments.length) {
+            <p class="builder-empty">No Pattern segments yet. Add a placeholder below.</p>
+          }
+          @for (segment of patternSegments; track $index) {
+            <div class="builder-row">
+              <span class="segment-number mono" aria-hidden="true">{{ $index + 1 }}</span>
+              @if (segment.kind === 'placeholder') {
+                <label class="sr-only" [for]="'placeholder-' + $index">Placeholder {{ $index + 1 }}</label>
+                <select class="segment-select" [id]="'placeholder-' + $index" [value]="segment.value" (change)="changePlaceholder($index, $event)" [disabled]="isSubmitting">
+                  @for (option of placeholderOptions; track option.value) {
+                    <option [value]="option.value" [disabled]="!canAddPlaceholderAt(option.value, $index)">{{ option.label }}</option>
+                  }
+                </select>
+                <span class="segment-type">placeholder</span>
+                <div class="segment-actions">
+                  <button class="btn text" type="button" (click)="movePlaceholder($index, -1)" [disabled]="isSubmitting || !canMovePlaceholder($index, -1)" aria-label="Move placeholder up">Up</button>
+                  <button class="btn text" type="button" (click)="movePlaceholder($index, 1)" [disabled]="isSubmitting || !canMovePlaceholder($index, 1)" aria-label="Move placeholder down">Down</button>
+                  <button class="btn text danger-text" type="button" (click)="removeSegment($index)" [disabled]="isSubmitting" aria-label="Remove placeholder">Remove</button>
+                </div>
+              } @else {
+                <label class="sr-only" [for]="'separator-' + $index">Separator {{ $index + 1 }}</label>
+                <select class="segment-select" [id]="'separator-' + $index" [value]="segment.value[0]" (change)="changeSeparator($index, $event)" [disabled]="isSubmitting">
+                  @for (option of separatorOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
+                </select>
+                <span class="segment-technical mono" [attr.aria-label]="'Preserved separator run ' + segment.value">{{ segment.value }}</span>
+                <div class="segment-actions">
+                  <span class="segment-type">separator segment</span>
+                  <button class="btn text danger-text" type="button" (click)="removeSegment($index)" [disabled]="isSubmitting" aria-label="Remove separator">Remove</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="builder-controls">
+          <div class="control-group">
+            <span class="control-label">Add placeholder</span>
+            <div class="control-buttons">
+              @for (option of placeholderOptions; track option.value) {
+                <button class="btn text" type="button" (click)="addPlaceholder(option.value)" [disabled]="isSubmitting || !canAddPlaceholder(option.value)">+ {{ option.label }}</button>
+              }
+            </div>
+          </div>
+          <div class="control-group">
+            <span class="control-label">Add separator</span>
+            <div class="control-buttons">
+              @for (option of separatorOptions; track option.value) { <button class="btn text" type="button" (click)="addSeparator(option.value)" [disabled]="isSubmitting">+ {{ option.value }}</button> }
+            </div>
+          </div>
+        </div>
+
+        @if (patternError) { <p class="field-error pattern-error" role="alert">{{ patternError }}</p> }
+        <p class="helper">Role uses the Profile About Me Job Title. Date uses the export date in <span class="mono">yyyyMMdd</span>.</p>
+        <div class="preview-box">
+          <span class="preview-label">Serialized Pattern preview</span>
+          <code aria-readonly="true">{{ serializedPattern() || 'Add a placeholder to preview the Pattern.' }}</code>
+        </div>
+      </section>
+
+      <div class="modal-actions">
+        <span class="busy-copy" role="status" aria-live="polite">{{ isSubmitting ? 'Saving File Name Format...' : 'Input remains open after validation errors.' }}</span>
+        <button class="btn" type="button" (click)="close()" [disabled]="isSubmitting">Cancel</button>
+        <button class="btn primary" type="submit" [disabled]="!canSubmit()" [attr.aria-busy]="isSubmitting">{{ submitLabel }}</button>
+      </div>
+    </form>
+  </section>
+</div>

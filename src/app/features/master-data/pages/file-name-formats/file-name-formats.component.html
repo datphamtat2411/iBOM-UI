@@ -1,0 +1,58 @@
+<section class="file-name-formats-page" aria-labelledby="file-name-formats-title">
+  <div class="page-heading">
+    <div>
+      <p class="page-kicker">Management / Master Data</p>
+      <h1 id="file-name-formats-title">File Name Formats</h1>
+      <p>Control the filename patterns used by Profile exports.</p>
+    </div>
+    <div class="heading-actions"><button class="btn primary" type="button" (click)="openCreate()" [disabled]="mutationPending">Create Format</button></div>
+  </div>
+
+  @if (pageMessage) { <div class="notice info" role="status" aria-live="polite">{{ pageMessage }}</div> }
+
+  @if (isLoading) {
+    <div class="table-wrap" aria-busy="true" aria-label="Loading File Name Formats">
+      <table class="format-table table-skeleton"><thead><tr><th>Format Name</th><th>Format Pattern</th><th>Created Date</th><th>Updated Date</th><th>Actions</th></tr></thead><tbody>@for (row of skeletonRows; track row) { <tr><td><span class="skeleton-line"></span></td><td><span class="skeleton-line"></span></td><td><span class="skeleton-line short"></span></td><td><span class="skeleton-line short"></span></td><td><span class="skeleton-line short"></span></td></tr> }</tbody></table>
+    </div>
+  } @else if (loadError) {
+    <div class="empty-state error-state" role="alert"><h2>Unable to load File Name Formats</h2><p>{{ loadErrorMessage }}</p><button class="btn" type="button" (click)="retry()">Try again</button></div>
+  } @else if (!formats.length) {
+    <div class="empty-state"><h2>No File Name Formats</h2><p>Create a controlled export filename pattern for Profiles.</p><button class="btn" type="button" (click)="openCreate()" [disabled]="mutationPending">Create Format</button></div>
+  } @else {
+    <div class="table-wrap" [attr.aria-busy]="mutationPending">
+      <table class="format-table">
+        <thead><tr><th scope="col">Format Name</th><th scope="col">Format Pattern</th><th scope="col">Created Date</th><th scope="col">Updated Date</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+          @for (format of formats; track format.id) {
+            <tr>
+              <td><strong>{{ format.name }}</strong>@if (format.isDefault) { <span class="default-badge">System default</span> }</td>
+              <td><code class="pattern-value">{{ format.pattern }}</code></td>
+              <td class="technical-cell">{{ formatTimestamp(format.createdAt) }}</td>
+              <td class="technical-cell">{{ formatTimestamp(format.updatedAt) }}</td>
+              <td><div class="record-actions"><button class="btn text" type="button" (click)="openEdit(format)" [disabled]="mutationPending">Edit</button><button class="btn text danger" type="button" (click)="openDelete(format)" [disabled]="mutationPending || format.isDefault" [attr.aria-label]="deleteLabel(format)" [attr.title]="deleteTitle(format)">Delete</button></div></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span class="mono page-count">{{ totalElements }} format{{ totalElements === 1 ? '' : 's' }}</span>
+      <div class="pagination" aria-label="File Name Format pages"><button class="btn text" type="button" (click)="previousPage()" [disabled]="isLoading || currentPage === 0">Previous</button><span class="mono" aria-live="polite">{{ pageStatus() }}</span><button class="btn text" type="button" (click)="nextPage()" [disabled]="isLoading || currentPage + 1 >= totalPages">Next</button></div>
+    </div>
+  }
+</section>
+
+@if (editorOpen) {
+  <app-file-name-format-editor [format]="editingFormat" (closed)="closeEditor()" (saved)="editorSaved($event)" (stale)="editorStale()" />
+}
+
+@if (deleteConfirmation && deleteTarget; as target) {
+  <div class="modal-backdrop" role="presentation">
+    <section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-format-title" aria-describedby="delete-format-copy">
+      <h2 id="delete-format-title">Delete {{ target.name }}?</h2>
+      <p id="delete-format-copy">This removes the File Name Format from Master Data. Profiles that reference it cannot use it after deletion.</p>
+      @if (deleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ deleteErrorMessage }}</div> }
+      <div class="modal-actions"><button class="btn" type="button" (click)="cancelDelete()" [disabled]="isDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmDelete()" [disabled]="isDeleting" [attr.aria-busy]="isDeleting">{{ isDeleting ? 'Deleting...' : 'Delete Format' }}</button></div>
+    </section>
+  </div>
+}

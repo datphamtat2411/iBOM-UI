@@ -10,6 +10,11 @@ const loadLanguageMasterManagement = () =>
     (component) => component.LanguageMasterManagementComponent,
   );
 
+const loadFileNameFormats = () =>
+  import('./pages/file-name-formats/file-name-formats.component').then(
+    (component) => component.FileNameFormatsComponent,
+  );
+
 export const masterDataRoutes: Routes = [
   {
     path: '',
@@ -33,7 +38,6 @@ export const masterDataRoutes: Routes = [
   },
   {
     path: 'file-name-formats',
-    loadComponent: loadMasterDataWorkspace,
-    data: { resource: 'File Name Formats' },
+    loadComponent: loadFileNameFormats,
   },
 ];
