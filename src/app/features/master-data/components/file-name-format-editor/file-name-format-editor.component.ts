@@ -57,16 +57,18 @@ export function analyzeFileNamePattern(pattern: string): FileNamePatternAnalysis
 
   if (literals[0] !== '' || literals.at(-1) !== '') return { kind: 'recoverable', placeholders };
 
-  let separator: Exclude<FileNameSeparator, 'none'> | undefined;
-  for (const literal of literals.slice(1, -1)) {
-    if (!literal) continue;
-    if (literal.length !== 1) return { kind: 'recoverable', placeholders };
-    const current = literal as Exclude<FileNameSeparator, 'none'>;
-    if (separator !== undefined && separator !== current) return { kind: 'recoverable', placeholders };
-    separator = current;
+  const gaps = literals.slice(1, -1);
+  if (gaps.every((gap) => gap === '')) {
+    return { kind: 'canonical', state: { placeholders, separator: 'none' } };
+  }
+  if (gaps.every((gap) => gap === '_')) {
+    return { kind: 'canonical', state: { placeholders, separator: '_' } };
+  }
+  if (gaps.every((gap) => gap === '-')) {
+    return { kind: 'canonical', state: { placeholders, separator: '-' } };
   }
 
-  return { kind: 'canonical', state: { placeholders, separator: separator ?? 'none' } };
+  return { kind: 'recoverable', placeholders };
 }
 
 export function serializeFileNamePattern(state: Readonly<FileNamePatternBuilderState>): string {

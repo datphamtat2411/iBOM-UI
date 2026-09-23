@@ -87,6 +87,32 @@ describe('FileNameFormatEditorComponent', () => {
     expect(editor.patternState.placeholders).toEqual(['LastName', 'FirstName', 'Role', 'Date']);
   });
 
+  it('keeps patterns with mixed empty and separator gaps pending until explicit selection', () => {
+    const patterns = [
+      '{LastName}{FirstName}_{Date}',
+      '{LastName}_{FirstName}{Date}',
+      '{LastName}{FirstName}-{Date}',
+    ];
+
+    for (const [index, pattern] of patterns.entries()) {
+      const editor = fixture.componentInstance;
+      editor.format = { ...savedFormat, id: `mixed-gap-${index}`, pattern };
+      fixture.detectChanges();
+
+      expect(analyzeFileNamePattern(pattern)).toEqual({
+        kind: 'recoverable',
+        placeholders: ['LastName', 'FirstName', 'Date'],
+      });
+      expect(editor.normalizationPending).toBeTrue();
+      expect(editor.patternState).toEqual({ placeholders: ['LastName', 'FirstName', 'Date'], separator: 'none' });
+      expect(editor.serializedPattern()).toBe(pattern);
+      expect(editor.canSubmit()).toBeFalse();
+
+      editor.submit();
+      expect(formats.update).not.toHaveBeenCalled();
+    }
+  });
+
   it('normalizes the complete recovered Pattern only after selecting one global separator', () => {
     const editor = fixture.componentInstance;
     const pattern = '{LastName}-{FirstName}_{Role}_{Date}';
