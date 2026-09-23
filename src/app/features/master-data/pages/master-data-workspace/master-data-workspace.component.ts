@@ -3,9 +3,12 @@ import { ActivatedRoute } from '@angular/router';
 
 import { SkillManagementComponent } from '../skill-management/skill-management.component';
 
+import { SeniorityManagementComponent } from '../seniority-management/seniority-management.component';
+
 @Component({
   selector: 'app-master-data-workspace',
   standalone: true,
+  imports: [SeniorityManagementComponent],
   imports: [SkillManagementComponent],
   templateUrl: './master-data-workspace.component.html',
   styleUrl: './master-data-workspace.component.scss',

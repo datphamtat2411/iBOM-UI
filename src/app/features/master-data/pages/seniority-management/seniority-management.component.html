@@ -1,0 +1,120 @@
+<section class="seniority-management" aria-labelledby="seniority-management-title">
+  <div class="section-title">
+    <div>
+      <h2 id="seniority-management-title">Seniority levels</h2>
+      <p>Manage non-overlapping experience ranges used by Profile Skills.</p>
+    </div>
+    <button class="btn" type="button" (click)="startCreate()" [disabled]="isSubmitting || isDeleting">Add Seniority</button>
+  </div>
+
+  @if (pageMessage) {
+    <div class="notice warning" role="status">{{ pageMessage }}</div>
+  }
+
+  @if (isLoading) {
+    <div class="section-state" role="status" aria-live="polite">Loading Seniority records.</div>
+  } @else if (loadError) {
+    <div class="notice error" role="alert">
+      <span>We could not load Seniority records.</span>
+      <button class="btn text" type="button" (click)="retrySeniorities()">Try again</button>
+    </div>
+  } @else if (seniorities.length) {
+    <div class="seniority-table-wrap">
+      <table class="seniority-table">
+        <thead>
+          <tr>
+            <th scope="col">Level Name</th>
+            <th scope="col">Minimum Experience</th>
+            <th scope="col">Maximum Experience</th>
+            <th scope="col">Created Date</th>
+            <th scope="col">Updated Date</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (seniority of seniorities; track seniority.id) {
+            <tr>
+              <td><strong>{{ seniority.name }}</strong></td>
+              <td class="mono">{{ seniority.fromExperience }}</td>
+              <td class="mono">{{ seniority.toExperience === null ? 'Unlimited' : seniority.toExperience }}</td>
+              <td class="mono">{{ formatDate(seniority.createdAt) }}</td>
+              <td class="mono">{{ formatDate(seniority.updatedAt) }}</td>
+              <td>
+                <div class="record-actions">
+                  <button class="btn text" type="button" (click)="startEdit(seniority)" [disabled]="isSubmitting || isDeleting">Edit</button>
+                  <button class="btn danger" type="button" (click)="openDeleteConfirmation(seniority)" [disabled]="isSubmitting || isDeleting" [attr.aria-label]="'Delete ' + seniority.name">Delete</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <p>No Seniority levels exist yet.</p>
+      <button class="btn" type="button" (click)="startCreate()" [disabled]="isSubmitting || isDeleting">Add Seniority</button>
+    </div>
+  }
+</section>
+
+@if (editorMode) {
+  <div class="modal-backdrop" role="presentation">
+    <section class="editor-modal" role="dialog" aria-modal="true" aria-labelledby="seniority-editor-title">
+      <form [formGroup]="seniorityForm" (ngSubmit)="submit()" novalidate>
+        <h2 id="seniority-editor-title">{{ editorMode === 'edit' ? 'Edit Seniority' : 'Add Seniority' }}</h2>
+        <p>Use a half-open range: the minimum is included and the maximum is excluded.</p>
+
+        @if (editorErrorMessage) {
+          <div class="notice error" role="alert" aria-live="polite">{{ editorErrorMessage }}</div>
+        }
+
+        <div class="field">
+          <label for="seniority-name">Level Name</label>
+          <input id="seniority-name" type="text" formControlName="name" autocomplete="off" [attr.aria-invalid]="fieldInvalid('name')">
+          @if (fieldInvalid('name')) { <span class="field-error">{{ fieldError('name') }}</span> }
+        </div>
+
+        <div class="range-grid">
+          <div class="field">
+            <label for="seniority-from">Minimum Experience</label>
+            <input id="seniority-from" type="number" min="0" step="any" formControlName="fromExperience" [attr.aria-invalid]="fieldInvalid('fromExperience')">
+            @if (fieldInvalid('fromExperience')) { <span class="field-error">{{ fieldError('fromExperience') }}</span> }
+          </div>
+
+          <div class="field">
+            <label for="seniority-to">Maximum Experience <span class="optional">(optional)</span></label>
+            <input id="seniority-to" type="number" min="0" step="any" formControlName="toExperience" [attr.aria-invalid]="fieldInvalid('toExperience')">
+            @if (fieldInvalid('toExperience')) { <span class="field-error">{{ fieldError('toExperience') }}</span> }
+          </div>
+        </div>
+
+        <label class="unlimited-control">
+          <input type="checkbox" formControlName="unlimited">
+          <span>Unlimited maximum experience</span>
+        </label>
+
+        <div class="modal-actions">
+          <button class="btn" type="button" (click)="cancelEditing()" [disabled]="isSubmitting">Cancel</button>
+          <button class="btn primary" type="submit" [disabled]="isSubmitting" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Saving...' : editorMode === 'edit' ? 'Save Seniority' : 'Add Seniority' }}</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (deleteConfirmation && deleteTarget; as target) {
+  <div class="modal-backdrop" role="presentation">
+    <section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-seniority-title" aria-describedby="delete-seniority-copy">
+      <h2 id="delete-seniority-title">Delete {{ target.name }}?</h2>
+      <p id="delete-seniority-copy">This removes the Seniority level with range {{ seniorityRangeLabel(target) }}. This action cannot be undone.</p>
+      @if (deleteErrorMessage) {
+        <div class="notice error" role="alert" aria-live="polite">{{ deleteErrorMessage }}</div>
+      }
+      <div class="modal-actions">
+        <button class="btn" type="button" (click)="cancelDelete()" [disabled]="isDeleting">Cancel</button>
+        <button class="btn danger" type="button" (click)="confirmDelete()" [disabled]="isDeleting" [attr.aria-busy]="isDeleting">{{ isDeleting ? 'Deleting...' : 'Delete Seniority' }}</button>
+      </div>
+    </section>
+  </div>
+}

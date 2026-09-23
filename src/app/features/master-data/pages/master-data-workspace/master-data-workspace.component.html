@@ -3,12 +3,20 @@
     <div>
       <p class="page-kicker">Management / Master Data</p>
       <h1 id="master-data-title">{{ resource }}</h1>
-      <p>Master Data workspace</p>
+      <p>{{ resource === 'Seniority' ? 'Experience range configuration' : 'Master Data workspace' }}</p>
     </div>
   </div>
 
   @if (isSkillsResource) {
     <app-skill-management />
+  } @else {
+    <div class="master-data-notice">
+      <strong>{{ resource }}</strong>
+      <span>Configuration tools for this resource will appear here when supported.</span>
+    </div>
+  }
+  @if (resource === 'Seniority') {
+    <app-seniority-management />
   } @else {
     <div class="master-data-notice">
       <strong>{{ resource }}</strong>
