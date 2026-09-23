@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { ProfileDetail, ProfileSummary } from '../models/profile.models';
@@ -9,13 +9,15 @@ import { ProfileContextService } from './profile-context.service';
 describe('ProfileContextService', () => {
   let service: ProfileContextService;
   let sessionEnded: Subject<void>;
-  let profiles: { list: jasmine.Spy; get: jasmine.Spy; create: jasmine.Spy };
+  let profiles: { list: jasmine.Spy; listForMember: jasmine.Spy; get: jasmine.Spy; create: jasmine.Spy };
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: null, technicalSummary: null, hasPreviewed: false, version: 1, createdAt: '2026-01-01', lastExportedAt: null, preferredFileNameFormatId: null };
+  const managedSummary: ProfileSummary = { ...summary, id: 2, profileName: 'Managed CV' };
+  const managedDetail: ProfileDetail = { ...detail, id: 2, profileName: 'Managed CV' };
 
   beforeEach(() => {
     sessionEnded = new Subject<void>();
-    profiles = { list: jasmine.createSpy('list'), get: jasmine.createSpy('get'), create: jasmine.createSpy('create') };
+    profiles = { list: jasmine.createSpy('list'), listForMember: jasmine.createSpy('listForMember'), get: jasmine.createSpy('get'), create: jasmine.createSpy('create') };
     TestBed.configureTestingModule({
       providers: [
         ProfileContextService,
@@ -45,6 +47,88 @@ describe('ProfileContextService', () => {
     expect(service.detail()).toBeNull();
     expect(service.detailError()).toBeNull();
     expect(service.detailLoading()).toBeFalse();
+  });
+
+  it('keeps own and managed summaries and selections isolated', () => {
+    const ownSummaries = new Subject<ProfileSummary[]>();
+    const managedSummaries = new Subject<ProfileSummary[]>();
+    profiles.list.and.returnValue(ownSummaries);
+    profiles.listForMember.and.returnValue(managedSummaries);
+    profiles.get.and.returnValue(of(managedDetail));
+
+    service.loadSummaries();
+    ownSummaries.next([summary]);
+    service.beginSelection('1');
+    service.loadManagedMember({ id: 'member-1', username: 'managed-user' });
+    managedSummaries.next([managedSummary]);
+
+    expect(service.summaries()).toEqual([summary]);
+    expect(service.selectedId()).toBe('1');
+    expect(service.managedMember()?.id).toBe('member-1');
+    expect(service.managedSummaries()).toEqual([managedSummary]);
+    expect(service.managedSelectedId()).toBe('2');
+    expect(profiles.list).toHaveBeenCalledTimes(1);
+    expect(profiles.listForMember).toHaveBeenCalledWith('member-1');
+  });
+
+  it('loads the authoritative managed list before selecting, replaces Member context, and clears stale detail on Profile switch', () => {
+    const firstList = new Subject<ProfileSummary[]>();
+    const firstDetail = new Subject<ProfileDetail>();
+    const secondDetail = new Subject<ProfileDetail>();
+    profiles.listForMember.and.returnValue(firstList);
+    profiles.get.and.returnValues(firstDetail, secondDetail);
+
+    service.loadManagedMember({ id: 10, username: 'first-member' }, '2');
+    firstList.next([{ ...managedSummary, id: 2 }, { ...managedSummary, id: 3, profileName: 'Second Managed CV' }]);
+    expect(profiles.get).toHaveBeenCalledWith('2');
+    firstDetail.next({ ...managedDetail, id: 2 });
+    expect(service.managedDetail()?.id).toBe(2);
+
+    service.selectManagedProfile('3');
+    expect(service.managedSelectedId()).toBe('3');
+    expect(service.managedDetail()).toBeNull();
+    expect(service.managedMember()?.username).toBe('first-member');
+    expect(profiles.get).toHaveBeenCalledWith('3');
+    secondDetail.next({ ...managedDetail, id: 3, profileName: 'Second Managed CV' });
+    expect(service.managedDetail()?.id).toBe(3);
+
+    const replacementList = new Subject<ProfileSummary[]>();
+    profiles.listForMember.and.returnValue(replacementList);
+    service.loadManagedMember({ id: 11, username: 'second-member' });
+    expect(service.managedMember()?.id).toBe('11');
+    expect(service.managedSummaries()).toEqual([]);
+    expect(service.managedDetail()).toBeNull();
+    replacementList.next([]);
+    expect(service.managedSelectedId()).toBeNull();
+  });
+
+  it('keeps zero managed Profiles unselected and marks an unavailable route Profile without falling back to own context', () => {
+    profiles.list.and.returnValue(of([summary]));
+    profiles.listForMember.and.returnValue(of([managedSummary]));
+    profiles.get.and.returnValue(of(managedDetail));
+    service.loadSummaries();
+    service.beginSelection('1');
+
+    service.loadManagedMember({ id: 10 }, 'missing');
+
+    expect(service.managedSelectedId()).toBe('missing');
+    expect(service.managedProfileMissing()).toBeTrue();
+    expect(service.managedDetail()).toBeNull();
+    expect(service.selectedId()).toBe('1');
+    expect(profiles.get).not.toHaveBeenCalled();
+  });
+
+  it('clears managed context when the authenticated session ends', () => {
+    profiles.listForMember.and.returnValue(of([managedSummary]));
+    profiles.get.and.returnValue(of(managedDetail));
+    service.loadManagedMember({ id: 10, username: 'managed-user' });
+
+    sessionEnded.next();
+
+    expect(service.managedMember()).toBeNull();
+    expect(service.managedSummaries()).toEqual([]);
+    expect(service.managedSelectedId()).toBeNull();
+    expect(service.managedDetail()).toBeNull();
   });
 
   it('retries summary loading after a failed request', () => {

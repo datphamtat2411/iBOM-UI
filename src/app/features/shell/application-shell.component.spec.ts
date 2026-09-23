@@ -12,7 +12,7 @@ import { ApplicationShellComponent } from './application-shell.component';
 describe('ApplicationShellComponent', () => {
   let fixture: ComponentFixture<ApplicationShellComponent>;
   let auth: { user: ReturnType<typeof signal>; logoutError: ReturnType<typeof signal>; logout: jasmine.Spy };
-  let profileContext: { summaries: ReturnType<typeof signal>; summariesLoading: ReturnType<typeof signal>; summariesError: ReturnType<typeof signal>; selectedId: ReturnType<typeof signal>; detail: ReturnType<typeof signal>; detailLoading: ReturnType<typeof signal>; loadSummaries: jasmine.Spy; refreshSummariesAndSelect: jasmine.Spy };
+  let profileContext: { summaries: ReturnType<typeof signal>; summariesLoading: ReturnType<typeof signal>; summariesError: ReturnType<typeof signal>; selectedId: ReturnType<typeof signal>; detail: ReturnType<typeof signal>; detailLoading: ReturnType<typeof signal>; managedMember: ReturnType<typeof signal>; managedSummaries: ReturnType<typeof signal>; managedSummariesLoading: ReturnType<typeof signal>; managedSummariesError: ReturnType<typeof signal>; managedSelectedId: ReturnType<typeof signal>; managedDetail: ReturnType<typeof signal>; clearManagedContext: jasmine.Spy; loadSummaries: jasmine.Spy; refreshSummariesAndSelect: jasmine.Spy };
   let editSession: ProfileEditSessionService;
 
   beforeEach(async () => {
@@ -22,7 +22,7 @@ describe('ApplicationShellComponent', () => {
       logout: jasmine.createSpy('logout').and.returnValue(of(undefined)),
     };
     profileContext = {
-      summaries: signal([]), summariesLoading: signal(false), summariesError: signal(null), selectedId: signal(null), detail: signal(null), detailLoading: signal(false), loadSummaries: jasmine.createSpy('loadSummaries'), refreshSummariesAndSelect: jasmine.createSpy('refreshSummariesAndSelect').and.returnValue(of(undefined)),
+      summaries: signal([]), summariesLoading: signal(false), summariesError: signal(null), selectedId: signal(null), detail: signal(null), detailLoading: signal(false), managedMember: signal(null), managedSummaries: signal([]), managedSummariesLoading: signal(false), managedSummariesError: signal(null), managedSelectedId: signal(null), managedDetail: signal(null), clearManagedContext: jasmine.createSpy('clearManagedContext'), loadSummaries: jasmine.createSpy('loadSummaries'), refreshSummariesAndSelect: jasmine.createSpy('refreshSummariesAndSelect').and.returnValue(of(undefined)),
     };
     await TestBed.configureTestingModule({
       imports: [ApplicationShellComponent],
@@ -280,6 +280,43 @@ describe('ApplicationShellComponent', () => {
     (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
 
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+  });
+
+  it('renders managed Member context, switches within that Member, and omits own-profile actions', () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles/2');
+    profileContext.managedMember.set({ id: '10', username: 'managed-user' });
+    profileContext.managedSummaries.set([
+      { id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+      { id: 3, profileName: 'Managed Frontend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-02' },
+    ]);
+    profileContext.managedSelectedId.set('2');
+    profileContext.managedDetail.set({ id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-01', yearsOfExperience: 5, personality: null, technicalSummary: null, hasPreviewed: false, version: 1, createdAt: '2026-01-01', lastExportedAt: null, preferredFileNameFormatId: null });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.member-context')?.textContent).toContain('managed-user');
+    expect(fixture.nativeElement.querySelector('.profile-menu-actions')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Create Profile');
+    expect(fixture.nativeElement.textContent).not.toContain('Copy Profile');
+
+    (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', 3]);
+  });
+
+  it('keeps zero managed Profiles valid without exposing a Create action', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles');
+    profileContext.managedMember.set({ id: '10', username: 'managed-user' });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.profile-trigger')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('No active Profiles');
+    expect(fixture.nativeElement.textContent).not.toContain('Create Profile');
+    expect(fixture.nativeElement.textContent).not.toContain('Copy Profile');
   });
 
   it('renders the remaining Profile as static context after summaries refresh', () => {

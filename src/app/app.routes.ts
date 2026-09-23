@@ -68,6 +68,7 @@ export const routes: Routes = [
   {
     path: 'members',
     canActivate: [authGuard, managementGuard],
+    canDeactivate: [profileDirtyDeactivationGuard],
     loadComponent: () =>
       import('./features/shell/application-shell.component').then(
         (component) => component.ApplicationShellComponent,

@@ -1,21 +1,27 @@
 <section class="profile-page" aria-labelledby="workspace-title">
-  @if (context.summariesLoading() && !context.summaries().length) {
-    <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profiles</h1><p>Loading your Profile workspace.</p></div>
-  } @else if (context.summariesError()) {
-    <div class="workspace-state error" role="alert"><h1>Unable to load Profiles</h1><p>We could not load your Profile list. Please try again later.</p></div>
-  } @else if (!context.summaries().length) {
-    <div class="workspace-state"><h1 id="workspace-title">Profile Workspace</h1><p>You do not have any active Profiles yet. Use the Profile menu above to create one.</p></div>
-  } @else if (context.detailError()) {
+  @if (workspaceSummariesLoading() && !workspaceSummaries().length) {
+    <div class="workspace-state" role="status" aria-live="polite"><h1>{{ isManagedContext ? 'Loading Member Profiles' : 'Loading Profiles' }}</h1><p>{{ isManagedContext ? 'Loading the managed Member Profile list.' : 'Loading your Profile workspace.' }}</p></div>
+  } @else if (workspaceSummariesError()) {
     <div class="workspace-state error" role="alert">
-      @if (context.isNotFound(context.detailError())) { <h1>Profile not found</h1><p>This Profile is not available to your account.</p> }
-      @else { <h1>Unable to load Profile</h1><p>We could not load this Profile. Please try again later.</p> }
+      @if (isManagedContext && context.isNotFound(workspaceSummariesError())) { <h1>Member unavailable</h1><p>This Member is not available for managed Profile access.</p> }
+      @else { <h1>Unable to load Profiles</h1><p>{{ isManagedContext ? 'We could not load the managed Member Profile list.' : 'We could not load your Profile list.' }} Please try again.</p> }
+      <button class="btn text" type="button" (click)="retryWorkspace()" [disabled]="workspaceSummariesLoading()">Retry</button>
     </div>
-  } @else if (context.detailLoading() || !context.detail()) {
+  } @else if (!workspaceSummaries().length && !(isManagedContext && context.managedProfileMissing())) {
+    <div class="workspace-state"><h1 id="workspace-title">{{ isManagedContext ? 'No active Profiles' : 'Profile Workspace' }}</h1><p>{{ isManagedContext ? 'This Member has no active Profiles available to manage.' : 'You do not have any active Profiles yet. Use the Profile menu above to create one.' }}</p></div>
+  } @else if (workspaceDetailError() || (isManagedContext && context.managedProfileMissing())) {
+    <div class="workspace-state error" role="alert">
+      @if (context.isNotFound(workspaceDetailError()) || (isManagedContext && context.managedProfileMissing())) { <h1>Profile not found</h1><p>{{ isManagedContext ? 'This Member Profile is not available or is no longer active.' : 'This Profile is not available to your account.' }}</p> }
+      @else { <h1>Unable to load Profile</h1><p>We could not load this Profile. Please try again later.</p> }
+      @if (isManagedContext) { <button class="btn text" type="button" (click)="retryWorkspace()" [disabled]="workspaceDetailLoading()">Retry</button> }
+    </div>
+  } @else if (workspaceDetailLoading() || !workspaceDetail()) {
     <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading {{ profileName() }}.</p></div>
   } @else {
-    @if (context.detail(); as profile) {
-       <div class="page-heading"><div><h1 id="workspace-title">Profile Workspace</h1><p>{{ profile.profileName }} · About Me and Profile-specific content</p></div><div class="heading-actions"><button class="btn" type="button" (click)="openPreview()">Preview CV</button><button class="btn danger delete-profile-button" type="button" title="Available while more than one active Profile exists" [disabled]="context.summaries().length <= 1 || !canStartWorkspaceMutation()" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></div>
-      <div class="workspace-grid">
+    @if (workspaceDetail(); as profile) {
+       <div class="page-heading"><div><h1 id="workspace-title">{{ isManagedContext ? 'Managed Profile Workspace' : 'Profile Workspace' }}</h1><p>{{ isManagedContext ? managedMemberLabel() + ' · ' + profile.profileName + ' · Managed Member Profile' : profile.profileName + ' · About Me and Profile-specific content' }}</p></div><div class="heading-actions">@if (!isManagedContext) { <button class="btn" type="button" (click)="openPreview()">Preview CV</button><button class="btn danger delete-profile-button" type="button" title="Available while more than one active Profile exists" [disabled]="workspaceSummaries().length <= 1 || !canStartWorkspaceMutation()" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button> }</div></div>
+       @if (isManagedContext) { <div class="notice info" role="status"><strong>Managed Member Profile:</strong> Viewing {{ managedMemberLabel() }}. Profile management actions are limited to the selected Member context.</div> }
+       <div class="workspace-grid">
         <nav class="section-nav" aria-label="Profile sections">
           @for (section of sections; track section[0]) {
             <button type="button" [class.active]="activeSection === section[0]" [attr.aria-current]="activeSection === section[0] ? 'true' : null" (click)="scrollToSection(section[0])">{{ section[1] }}</button>

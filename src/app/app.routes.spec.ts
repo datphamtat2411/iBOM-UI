@@ -42,6 +42,7 @@ describe('application routes', () => {
     const members = routes.find((route) => route.path === 'members');
 
     expect(members?.canActivate).toEqual([authGuard, managementGuard]);
+    expect(members?.canDeactivate).toBeTruthy();
     expect(members?.loadComponent).toEqual(jasmine.any(Function));
     expect(members?.children).toBe(memberManagementRoutes);
   });

@@ -41,7 +41,6 @@ export class ApplicationShellComponent {
   private activeCopyWorkflow: { generation: number; sourceId: string; routeUrl: string } | null = null;
 
   constructor() {
-    this.profileContext.loadSummaries();
     let previousUrl = this.router.url;
     effect(() => {
       const currentSource = this.currentCopySource();
@@ -76,6 +75,11 @@ export class ApplicationShellComponent {
     return path === '/members' || path.startsWith('/members/');
   }
 
+  isManagedProfileRoute(url = this.router.url): boolean {
+    const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    return /^\/members\/[^/]+\/profiles(?:\/[^/]+)?$/.test(path);
+  }
+
   toggleAccountMenu(): void { this.accountMenuOpen = !this.accountMenuOpen; }
   closeAccountMenu(): void { this.accountMenuOpen = false; }
   signOut(): void {
@@ -102,6 +106,7 @@ export class ApplicationShellComponent {
     });
   }
   get contextTitle(): string {
+    if (this.isManagedProfileRoute()) return 'Profile Workspace';
     if (this.isMemberManagementRoute()) return 'Member Management';
     if (this.isMasterDataRoute()) return 'Master Data';
     if (this.router.url.startsWith('/profiles')) return 'Profile Workspace';
@@ -109,6 +114,13 @@ export class ApplicationShellComponent {
   }
 
   get selectedProfileName(): string {
+    if (this.isManagedProfileRoute()) {
+      const detail = this.profileContext.managedDetail();
+      if (detail) return detail.profileName;
+      const selected = this.profileContext.managedSummaries().find((summary) => String(summary.id) === this.profileContext.managedSelectedId());
+      return selected?.profileName ?? 'No Profile selected';
+    }
+
     const detail = this.profileContext.detail();
     if (detail) return detail.profileName;
     const selected = this.profileContext.summaries().find((summary) => String(summary.id) === this.profileContext.selectedId());
@@ -120,13 +132,24 @@ export class ApplicationShellComponent {
   profileMenuOpen = false;
   selectProfile(id: number | string): void {
     this.closeProfileMenu();
-    void this.router.navigate(['/profiles', id]);
+    const commands = this.isManagedProfileRoute() && this.managedMemberId()
+      ? ['/members', this.managedMemberId()!, 'profiles', id]
+      : ['/profiles', id];
+    if (!this.profileEditSession.dirty()) {
+      void this.router.navigate(commands);
+      return;
+    }
+    this.profileEditSession.requestNavigation(this.routeUrl(commands)).then((allow) => {
+      if (allow) void this.router.navigate(commands);
+    });
   }
   createProfile(): void {
+    if (this.isManagedProfileRoute()) return;
     this.closeProfileMenu();
     void this.router.navigate(['/profiles/new']);
   }
   openCopyProfile(): void {
+    if (this.isManagedProfileRoute()) return;
     this.closeProfileMenu();
     const source = this.currentCopySource();
     if (!source) return;
@@ -180,9 +203,39 @@ export class ApplicationShellComponent {
       },
     });
   }
-  isSelectedProfile(id: number | string): boolean { return String(id) === this.profileContext.selectedId(); }
+  isSelectedProfile(id: number | string): boolean {
+    return String(id) === (this.isManagedProfileRoute() ? this.profileContext.managedSelectedId() : this.profileContext.selectedId());
+  }
+
+  managedMemberLabel(): string {
+    const member = this.profileContext.managedMember();
+    if (member?.username?.trim()) return member.username;
+    if (member?.email?.trim()) return member.email;
+    return member ? `Member ${member.id}` : `Member ${this.managedMemberId() ?? '—'}`;
+  }
+
+  managedProfilesLoading(): boolean { return this.profileContext.managedSummariesLoading(); }
+  managedProfilesError(): unknown | null { return this.profileContext.managedSummariesError(); }
+  managedProfiles() { return this.profileContext.managedSummaries(); }
+
+  exitManagedMember(): void {
+    const ownerProfileId = this.profileContext.selectedId()
+      && this.profileContext.summaries().some((summary) => String(summary.id) === this.profileContext.selectedId())
+      ? this.profileContext.selectedId()
+      : null;
+    const navigate = (): void => {
+      this.profileContext.clearManagedContext();
+      void this.router.navigate(ownerProfileId ? ['/profiles', ownerProfileId] : ['/profiles']);
+    };
+    if (!this.profileEditSession.dirty()) {
+      navigate();
+      return;
+    }
+    this.profileEditSession.requestNavigation('/profiles').then((allow) => { if (allow) navigate(); });
+  }
 
   private currentCopySource(): { id: string; name: string } | null {
+    if (this.isManagedProfileRoute()) return null;
     const selectedId = this.profileContext.selectedId();
     const summary = this.profileContext.summaries().find((profile) => String(profile.id) === selectedId);
     const detail = this.profileContext.detail();
@@ -204,6 +257,17 @@ export class ApplicationShellComponent {
   private isCurrentProfileRoute(profileId: string, routeUrl: string): boolean {
     const path = routeUrl.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
     return path === `/profiles/${profileId}`;
+  }
+
+  private managedMemberId(url = this.router.url): string | null {
+    const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    const match = path.match(/^\/members\/([^/]+)\/profiles(?:\/[^/]+)?$/);
+    if (!match) return null;
+    return decodeURIComponent(match[1]);
+  }
+
+  private routeUrl(commands: (number | string)[]): string {
+    return `/${commands.map((command) => encodeURIComponent(String(command))).join('/')}`;
   }
 
   @HostListener('document:click', ['$event'])

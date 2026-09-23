@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 
 import {
@@ -22,6 +23,7 @@ describe('MemberManagementComponent', () => {
     listLanguages: jasmine.Spy;
     listSeniorities: jasmine.Spy;
   };
+  let router: { navigate: jasmine.Spy };
 
   const inactive: MemberSummary = {
     id: 2,
@@ -57,9 +59,10 @@ describe('MemberManagementComponent', () => {
       listLanguages: jasmine.createSpy('listLanguages').and.returnValue(of(choicePage([{ id: 2, name: 'English' }]))),
       listSeniorities: jasmine.createSpy('listSeniorities').and.returnValue(of([{ id: 3, name: 'Senior' }])),
     };
+    router = { navigate: jasmine.createSpy('navigate').and.resolveTo(true) };
     await TestBed.configureTestingModule({
       imports: [MemberManagementComponent],
-      providers: [{ provide: MemberManagementService, useValue: members }],
+      providers: [{ provide: MemberManagementService, useValue: members }, { provide: Router, useValue: router }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(MemberManagementComponent);
@@ -303,7 +306,7 @@ describe('MemberManagementComponent', () => {
     expect(members.list).toHaveBeenCalledWith(0, 10, '', undefined);
   });
 
-  it('keeps the row action at the workspace boundary without entering Member Profile context', () => {
+  it('opens the managed Member Profile route with known Member identity state', () => {
     const component = initialize();
     const action = fixture.nativeElement.querySelector('.row-actions button') as HTMLButtonElement;
 
@@ -311,7 +314,8 @@ describe('MemberManagementComponent', () => {
     fixture.detectChanges();
 
     expect(component.currentPage).toBe(0);
-    expect(fixture.nativeElement.textContent).toContain('Managed Member Profile context is not available');
-    expect(fixture.nativeElement.querySelector('app-profile-copy')).toBeNull();
+    expect(router.navigate).toHaveBeenCalledWith(['/members', 1, 'profiles'], {
+      state: { managedMember: { id: '1', username: 'alice', email: 'alice@example.com' } },
+    });
   });
 });

@@ -70,10 +70,32 @@
     </div>
   </aside>
 
-  <main class="main">
-    <header class="topbar">
-      <div class="context-line">
-        @if (contextTitle === 'Profile Workspace') {
+    <main class="main">
+      <header class="topbar">
+        <div class="context-line">
+        @if (isManagedProfileRoute()) {
+          <span class="member-context">Viewing Member: {{ managedMemberLabel() }}</span>
+          @if (managedProfiles().length > 1) {
+            <div class="profile-switcher">
+              <button class="profile-trigger" type="button" aria-haspopup="menu" [attr.aria-expanded]="profileMenuOpen" aria-controls="managed-profile-menu" [disabled]="managedProfilesLoading() || !!managedProfilesError()" (click)="toggleProfileMenu()">
+                <span><small>Managed Member Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span><span aria-hidden="true">⌄</span>
+              </button>
+              @if (profileMenuOpen) {
+                <div class="profile-menu" id="managed-profile-menu" role="menu" aria-label="Select managed Member Profile">
+                  <div class="profile-menu-head"><strong>Managed Member Profiles</strong><span>Switch Profiles for {{ managedMemberLabel() }}. Member context stays fixed.</span></div>
+                  @for (profile of managedProfiles(); track profile.id) {
+                    <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small></span><span class="mono"></span></button>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="profile-static-context managed-profile-static" aria-label="Managed Member Profile context">
+              <span><small>Managed Member Profiles</small><strong>{{ managedProfilesLoading() ? 'Loading Profiles...' : managedProfilesError() ? 'Profiles unavailable' : selectedProfileName === 'No Profile selected' ? 'No active Profiles' : selectedProfileName }}</strong></span>
+            </div>
+          }
+          <button class="btn text managed-context-exit" type="button" (click)="exitManagedMember()">Back to My Profiles</button>
+        } @else if (contextTitle === 'Profile Workspace') {
           @if (profileContext.summaries().length > 1) {
             <div class="profile-switcher">
               <button class="profile-trigger" type="button" aria-haspopup="menu" [attr.aria-expanded]="profileMenuOpen" aria-controls="profile-menu" (click)="toggleProfileMenu()">

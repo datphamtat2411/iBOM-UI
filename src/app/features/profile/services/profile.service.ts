@@ -43,6 +43,12 @@ export class ProfileService {
     );
   }
 
+  listForMember(memberId: number | string): Observable<ProfileSummary[]> {
+    return this.http.get<ApiResponse<ProfileSummary[]>>(`${API_BASE_URL}/members/${encodeURIComponent(String(memberId))}/profiles`).pipe(
+      map((response) => response.data),
+    );
+  }
+
   get(profileId: string): Observable<ProfileDetail> {
     return this.http.get<ApiResponse<ProfileDetail>>(`${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}`).pipe(
       map((response) => response.data),

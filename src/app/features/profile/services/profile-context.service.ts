@@ -3,7 +3,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { filter, map, Observable, shareReplay, Subject, takeUntil, tap } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
-import { ProfileDetail, ProfileSummary } from '../models/profile.models';
+import { ManagedMemberContext, ProfileDetail, ProfileSummary } from '../models/profile.models';
 import { ProfileService } from './profile.service';
 
 @Injectable({ providedIn: 'root' })
@@ -11,9 +11,14 @@ export class ProfileContextService {
   private readonly profileService = inject(ProfileService);
   private readonly authService = inject(AuthService);
   private readonly detailRequestCancel = new Subject<void>();
+  private readonly managedDetailRequestCancel = new Subject<void>();
   private summariesRequest?: Observable<ProfileSummary[]>;
+  private managedSummariesRequest?: Observable<ProfileSummary[]>;
   private summariesGeneration = 0;
   private detailGeneration = 0;
+  private managedSummariesGeneration = 0;
+  private managedDetailGeneration = 0;
+  private managedRequestedProfileId: string | null = null;
 
   readonly summaries = signal<ProfileSummary[]>([]);
   readonly summariesLoading = signal(false);
@@ -22,6 +27,17 @@ export class ProfileContextService {
   readonly detail = signal<ProfileDetail | null>(null);
   readonly detailLoading = signal(false);
   readonly detailError = signal<unknown | null>(null);
+
+  readonly managedMember = signal<ManagedMemberContext | null>(null);
+  readonly managedSummaries = signal<ProfileSummary[]>([]);
+  readonly managedSummariesLoading = signal(false);
+  readonly managedSummariesLoaded = signal(false);
+  readonly managedSummariesError = signal<unknown | null>(null);
+  readonly managedSelectedId = signal<string | null>(null);
+  readonly managedDetail = signal<ProfileDetail | null>(null);
+  readonly managedDetailLoading = signal(false);
+  readonly managedDetailError = signal<unknown | null>(null);
+  readonly managedProfileMissing = signal(false);
 
   constructor() {
     this.authService.sessionEnded$().subscribe(() => this.reset());
@@ -59,6 +75,63 @@ export class ProfileContextService {
     this.summariesError.set(null);
   }
 
+  loadManagedMember(member: ManagedMemberContext, profileId: string | null = null): void {
+    const normalizedMember: ManagedMemberContext = { ...member, id: String(member.id) };
+    const currentMember = this.managedMember();
+    const sameMember = currentMember !== null && String(currentMember.id) === normalizedMember.id;
+    this.managedRequestedProfileId = profileId === null ? null : String(profileId);
+
+    if (sameMember) {
+      this.managedMember.set({ ...currentMember, ...normalizedMember });
+      if (this.managedSummariesLoaded()) {
+        const selectedId = this.managedRequestedProfileId ?? (this.managedSummaries()[0] ? String(this.managedSummaries()[0].id) : null);
+        const selectionAlreadyActive = this.managedSelectedId() === selectedId
+          && (selectedId === null || this.managedDetailLoading() || this.managedDetail() !== null || this.managedDetailError() !== null || this.managedProfileMissing());
+        if (!selectionAlreadyActive) this.selectManagedProfile(selectedId);
+      } else if (this.managedSummariesError()) {
+        this.requestManagedSummaries(normalizedMember);
+      }
+      return;
+    }
+
+    this.managedMember.set(normalizedMember);
+    this.clearManagedSelection();
+    this.requestManagedSummaries(normalizedMember);
+  }
+
+  retryManagedMember(): void {
+    const member = this.managedMember();
+    if (!member || this.managedSummariesLoading()) return;
+    this.clearManagedSelection();
+    this.requestManagedSummaries(member);
+  }
+
+  selectManagedProfile(profileId: number | string | null): void {
+    const normalizedProfileId = profileId === null ? null : String(profileId);
+    this.beginManagedSelection(normalizedProfileId);
+    if (!normalizedProfileId) return;
+
+    const summary = this.managedSummaries().find((item) => String(item.id) === normalizedProfileId);
+    if (!summary) {
+      this.managedProfileMissing.set(true);
+      return;
+    }
+
+    this.requestManagedDetail(normalizedProfileId);
+  }
+
+  clearManagedContext(): void {
+    this.managedSummariesGeneration++;
+    this.managedSummariesRequest = undefined;
+    this.managedRequestedProfileId = null;
+    this.managedMember.set(null);
+    this.managedSummaries.set([]);
+    this.managedSummariesLoading.set(false);
+    this.managedSummariesLoaded.set(false);
+    this.managedSummariesError.set(null);
+    this.clearManagedSelection();
+  }
+
   beginSelection(profileId: string | null): void {
     this.detailRequestCancel.next();
     this.detailGeneration++;
@@ -69,14 +142,29 @@ export class ProfileContextService {
   }
 
   loadDetail(profileId: string): void {
+    if (this.managedMember()) {
+      this.selectManagedProfile(profileId);
+      return;
+    }
     this.requestDetail(profileId);
   }
 
   reloadDetail(profileId: string): Observable<ProfileDetail> {
+    if (this.managedMember()) return this.reloadManagedDetail(profileId);
     return this.requestDetail(profileId);
   }
 
   replaceDetail(updated: ProfileDetail): void {
+    if (this.managedMember() && this.managedSelectedId() === String(updated.id)) {
+      this.managedDetail.set(updated);
+      this.managedSummaries.update((summaries) => summaries.map((summary) => {
+        if (String(summary.id) !== String(updated.id)) return summary;
+        const next = { ...summary, profileName: updated.profileName, firstName: updated.firstName, lastName: updated.lastName, jobTitle: updated.jobTitle, updatedAt: updated.updatedAt };
+        return updated.completeness === undefined ? next : { ...next, completeness: updated.completeness };
+      }));
+      return;
+    }
+
     if (this.selectedId() !== String(updated.id)) return;
     this.detail.set(updated);
     this.summaries.update((summaries) => summaries.map((summary) => {
@@ -87,6 +175,12 @@ export class ProfileContextService {
   }
 
   applyMutationVersion(profileId: string, profileVersion: number): boolean {
+    const managedCurrent = this.managedDetail();
+    if (this.managedMember() && this.managedSelectedId() === String(profileId) && managedCurrent && String(managedCurrent.id) === String(profileId)) {
+      this.managedDetail.set({ ...managedCurrent, version: profileVersion, hasPreviewed: false });
+      return true;
+    }
+
     const current = this.detail();
     if (this.selectedId() !== String(profileId) || !current || String(current.id) !== String(profileId)) return false;
     this.detail.set({ ...current, version: profileVersion, hasPreviewed: false });
@@ -110,6 +204,85 @@ export class ProfileContextService {
       },
     });
     return request;
+  }
+
+  private requestManagedSummaries(member: ManagedMemberContext): void {
+    const generation = ++this.managedSummariesGeneration;
+    this.managedSummariesRequest = undefined;
+    this.managedSummaries.set([]);
+    this.managedSummariesLoading.set(true);
+    this.managedSummariesLoaded.set(false);
+    this.managedSummariesError.set(null);
+
+    const request = this.profileService.listForMember(String(member.id)).pipe(shareReplay(1));
+    this.managedSummariesRequest = request;
+    request.subscribe({
+      next: (summaries) => {
+        if (generation !== this.managedSummariesGeneration || this.managedSummariesRequest !== request) return;
+
+        this.managedSummaries.set(summaries);
+        this.managedSummariesLoading.set(false);
+        this.managedSummariesLoaded.set(true);
+        this.selectManagedProfile(this.managedRequestedProfileId ?? (summaries[0] ? String(summaries[0].id) : null));
+      },
+      error: (error) => {
+        if (generation !== this.managedSummariesGeneration || this.managedSummariesRequest !== request) return;
+
+        this.managedSummariesLoading.set(false);
+        this.managedSummariesLoaded.set(false);
+        this.managedSummariesError.set(error);
+        this.managedSummariesRequest = undefined;
+      },
+    });
+  }
+
+  private beginManagedSelection(profileId: string | null): void {
+    this.managedDetailRequestCancel.next();
+    this.managedDetailGeneration++;
+    this.managedSelectedId.set(profileId);
+    this.managedDetail.set(null);
+    this.managedDetailError.set(null);
+    this.managedDetailLoading.set(false);
+    this.managedProfileMissing.set(false);
+  }
+
+  private requestManagedDetail(profileId: string): Observable<ProfileDetail> {
+    const generation = this.managedDetailGeneration;
+    this.managedDetailLoading.set(true);
+    const request = this.profileService.get(profileId).pipe(
+      takeUntil(this.managedDetailRequestCancel),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    );
+    request.subscribe({
+      next: (detail) => {
+        if (this.managedDetailGeneration === generation && this.managedSelectedId() === profileId) {
+          this.managedDetail.set(detail);
+          this.managedDetailLoading.set(false);
+        }
+      },
+      error: (error) => {
+        if (this.managedDetailGeneration === generation && this.managedSelectedId() === profileId) {
+          this.managedDetailError.set(error);
+          this.managedDetailLoading.set(false);
+        }
+      },
+    });
+    return request;
+  }
+
+  private reloadManagedDetail(profileId: string): Observable<ProfileDetail> {
+    this.beginManagedSelection(profileId);
+    return this.requestManagedDetail(profileId);
+  }
+
+  private clearManagedSelection(): void {
+    this.managedDetailRequestCancel.next();
+    this.managedDetailGeneration++;
+    this.managedSelectedId.set(null);
+    this.managedDetail.set(null);
+    this.managedDetailLoading.set(false);
+    this.managedDetailError.set(null);
+    this.managedProfileMissing.set(false);
   }
 
   refreshSummariesAndSelect(profileId: number | string): Observable<void> {
@@ -169,6 +342,7 @@ export class ProfileContextService {
   private reset(): void {
     this.invalidateSummaries();
     this.beginSelection(null);
+    this.clearManagedContext();
   }
 
   isNotFound(error: unknown): boolean {

@@ -8,6 +8,12 @@ export interface ProfileSummary {
   completeness?: number;
 }
 
+export interface ManagedMemberContext {
+  id: number | string;
+  username?: string;
+  email?: string;
+}
+
 export interface ProfileDetail extends ProfileSummary {
   yearsOfExperience: number;
   personality: string | null;

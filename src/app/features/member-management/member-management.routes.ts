@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 
+import { profileDirtyNavigationGuard } from '../profile/guards/profile-unsaved-changes.guard';
+
 export const memberManagementRoutes: Routes = [
   {
     path: '',
@@ -7,6 +9,22 @@ export const memberManagementRoutes: Routes = [
     loadComponent: () =>
       import('./pages/member-management/member-management.component').then(
         (component) => component.MemberManagementComponent,
+      ),
+  },
+  {
+    path: ':memberId/profiles',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('../profile/pages/profile-workspace/profile-workspace.component').then(
+        (component) => component.ProfileWorkspaceComponent,
+      ),
+  },
+  {
+    path: ':memberId/profiles/:profileId',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('../profile/pages/profile-workspace/profile-workspace.component').then(
+        (component) => component.ProfileWorkspaceComponent,
       ),
   },
 ];

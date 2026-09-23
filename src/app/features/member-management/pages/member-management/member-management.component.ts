@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { forkJoin, Observable, of, switchMap } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
@@ -36,6 +37,7 @@ interface DraftLanguageCondition {
 })
 export class MemberManagementComponent implements OnInit {
   private readonly memberService = inject(MemberManagementService);
+  private readonly router = inject(Router);
 
   readonly pageSize = 10;
   readonly masterDataPageSize = 100;
@@ -334,8 +336,20 @@ export class MemberManagementComponent implements OnInit {
     return profile.updatedAt ?? profile.lastUpdatedAt;
   }
 
+  openMember(member: MemberSummary): void {
+    void this.router.navigate(['/members', member.id, 'profiles'], {
+      state: {
+        managedMember: {
+          id: String(member.id),
+          username: member.username,
+          email: member.email,
+        },
+      },
+    });
+  }
+
   showMemberActionBoundary(member: MemberSummary): void {
-    this.pageMessage = `Managed Member Profile context is not available for ${member.username} from this workspace.`;
+    this.openMember(member);
   }
 
   private loadAppliedSearch(page: number): void {

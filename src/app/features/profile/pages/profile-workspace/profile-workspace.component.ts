@@ -3,6 +3,7 @@ import { Component, effect, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { ManagedMemberContext, ProfileDetail, ProfileSummary } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
 import { ProfileService } from '../../services/profile.service';
@@ -47,10 +48,11 @@ export class ProfileWorkspaceComponent {
   private notFoundRecoveryInProgress = false;
   private lastNotFoundProfileId: string | null = null;
   private activeProfileId: string | null = null;
+  private activeMemberId: string | null = null;
   private profileDeleteGeneration = 0;
+  isManagedContext = false;
 
   constructor() {
-    this.context.loadSummaries();
     this.route.paramMap.subscribe((params) => {
       this.profileDeleteGeneration++;
       this.isDeleting = false;
@@ -58,11 +60,30 @@ export class ProfileWorkspaceComponent {
       this.closeDeleteConfirmation();
       this.activeSection = 'about';
       const profileId = params.get('profileId');
+      const memberId = params.get('memberId');
+      this.activeMemberId = memberId;
       this.activeProfileId = profileId;
-      if (profileId) this.context.loadDetail(profileId);
-      else this.context.beginSelection(null);
+      this.isManagedContext = memberId !== null;
+      if (memberId) {
+        this.context.loadManagedMember(this.managedMemberState(memberId), profileId);
+      } else {
+        this.context.clearManagedContext();
+        this.context.loadSummaries();
+        if (profileId) this.context.loadDetail(profileId);
+        else this.context.beginSelection(null);
+      }
     });
     effect(() => {
+      if (this.isManagedContext) {
+        const member = this.context.managedMember();
+        const summaries = this.context.managedSummaries();
+        if (!member || String(member.id) !== String(this.activeMemberId) || this.context.managedSummariesLoading() || this.context.managedSummariesError()) return;
+        if (!this.activeProfileId && summaries.length && this.context.managedSelectedId()) {
+          void this.router.navigate(['/members', member.id, 'profiles', this.context.managedSelectedId()]);
+        }
+        return;
+      }
+
       const summaries = this.context.summaries();
       if (!this.context.summariesLoading() && !this.context.summariesError() && !this.context.selectedId() && summaries.length) {
         void this.router.navigate(['/profiles', summaries[0].id]);
@@ -72,6 +93,8 @@ export class ProfileWorkspaceComponent {
       const selectedId = this.context.selectedId();
       const detail = this.context.detail();
       if (detail && String(detail.id) === selectedId) this.lastNotFoundProfileId = null;
+
+      if (this.isManagedContext) return;
 
       const error = this.context.detailError();
       if (!error || !this.context.isNotFound(error) || this.notFoundRecoveryInProgress) return;
@@ -93,10 +116,18 @@ export class ProfileWorkspaceComponent {
   }
 
   selectProfile(profileId: number | string): void {
-    void this.router.navigate(['/profiles', profileId]);
+    const commands = this.profileRoute(profileId);
+    if (!this.editSession.dirty()) {
+      void this.router.navigate(commands);
+      return;
+    }
+    this.editSession.requestNavigation(this.profileRouteUrl(commands)).then((allow) => {
+      if (allow) void this.router.navigate(commands);
+    });
   }
 
   openPreview(): void {
+    if (this.isManagedContext) return;
     const profileId = this.context.selectedId();
     const profile = this.context.detail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
@@ -104,9 +135,10 @@ export class ProfileWorkspaceComponent {
   }
 
   openDeleteConfirmation(): void {
+    if (this.isManagedContext) return;
     if (!this.canStartWorkspaceMutation() || this.context.summaries().length <= 1) return;
     const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profile = this.workspaceDetail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
 
     this.deleteTarget = { id: profileId, name: profile.profileName };
@@ -153,11 +185,56 @@ export class ProfileWorkspaceComponent {
   }
 
   profileName(): string {
-    return this.context.detail()?.profileName ?? this.selectedSummary()?.profileName ?? 'Profile Workspace';
+    return this.workspaceDetail()?.profileName ?? this.selectedSummary()?.profileName ?? 'Profile Workspace';
   }
 
-  selectedSummary() {
-    return this.context.summaries().find((summary) => String(summary.id) === this.context.selectedId()) ?? null;
+  workspaceSummaries(): ProfileSummary[] {
+    return this.isManagedContext ? this.context.managedSummaries() : this.context.summaries();
+  }
+
+  workspaceSummariesLoading(): boolean {
+    return this.isManagedContext ? this.context.managedSummariesLoading() : this.context.summariesLoading();
+  }
+
+  workspaceSummariesError(): unknown | null {
+    return this.isManagedContext ? this.context.managedSummariesError() : this.context.summariesError();
+  }
+
+  workspaceSelectedId(): string | null {
+    return this.isManagedContext ? this.context.managedSelectedId() : this.context.selectedId();
+  }
+
+  workspaceDetail(): ProfileDetail | null {
+    return this.isManagedContext ? this.context.managedDetail() : this.context.detail();
+  }
+
+  workspaceDetailLoading(): boolean {
+    return this.isManagedContext ? this.context.managedDetailLoading() : this.context.detailLoading();
+  }
+
+  workspaceDetailError(): unknown | null {
+    return this.isManagedContext ? this.context.managedDetailError() : this.context.detailError();
+  }
+
+  managedMemberLabel(): string {
+    const member = this.context.managedMember();
+    return member?.username?.trim() || member?.email?.trim() || (member ? `Member ${member.id}` : 'Managed Member');
+  }
+
+  retryWorkspace(): void {
+    if (this.isManagedContext) {
+      if (this.context.managedDetailError() && this.activeProfileId && !this.context.managedProfileMissing()) {
+        this.context.selectManagedProfile(this.activeProfileId);
+      } else {
+        this.context.retryManagedMember();
+      }
+      return;
+    }
+    this.context.loadSummaries();
+  }
+
+  selectedSummary(): ProfileSummary | null {
+    return this.workspaceSummaries().find((summary) => String(summary.id) === this.workspaceSelectedId()) ?? null;
   }
 
   workspaceMutationLocked(): boolean {
@@ -169,7 +246,8 @@ export class ProfileWorkspaceComponent {
   }
 
   mutationBlockedFor(section: ProfileWorkspaceSection): boolean {
-    return this.isDeleteWorkflowActive()
+    return this.isManagedContext
+      || this.isDeleteWorkflowActive()
       || (this.mutationOwner !== null && this.mutationOwner !== section)
       || (this.editSession.dirty() && this.mutationOwner !== section);
   }
@@ -183,8 +261,9 @@ export class ProfileWorkspaceComponent {
   }
 
   projectNavigationRequested(event: ProjectNavigationRequest): void {
+    if (this.isManagedContext) return;
     const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profile = this.workspaceDetail();
     if (!profileId || !profile || String(profile.id) !== profileId || !this.canStartWorkspaceMutation()) return;
     void this.router.navigate(event.projectId === null
       ? ['/profiles', profileId, 'projects', 'new']
@@ -233,6 +312,22 @@ export class ProfileWorkspaceComponent {
 
   private isDeleteWorkflowActive(): boolean {
     return this.isDeleting || this.deleteConfirmation;
+  }
+
+  private profileRoute(profileId: number | string): (number | string)[] {
+    return this.isManagedContext && this.activeMemberId
+      ? ['/members', this.activeMemberId, 'profiles', profileId]
+      : ['/profiles', profileId];
+  }
+
+  private profileRouteUrl(commands: (number | string)[]): string {
+    return `/${commands.map((command) => encodeURIComponent(String(command))).join('/')}`;
+  }
+
+  private managedMemberState(memberId: string): ManagedMemberContext {
+    const state = typeof history !== 'undefined' ? history.state?.managedMember : null;
+    if (!state || String(state.id) !== memberId) return { id: memberId };
+    return { id: memberId, username: state.username, email: state.email };
   }
 
   private apiError(error: unknown): ApiErrorResponse | undefined {

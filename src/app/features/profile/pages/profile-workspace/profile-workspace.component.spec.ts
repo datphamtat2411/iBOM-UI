@@ -28,7 +28,19 @@ describe('ProfileWorkspaceComponent', () => {
     detail: ReturnType<typeof signal>;
     detailLoading: ReturnType<typeof signal>;
     detailError: ReturnType<typeof signal>;
+    managedMember: ReturnType<typeof signal>;
+    managedSummaries: ReturnType<typeof signal>;
+    managedSummariesLoading: ReturnType<typeof signal>;
+    managedSummariesError: ReturnType<typeof signal>;
+    managedSelectedId: ReturnType<typeof signal>;
+    managedDetail: ReturnType<typeof signal>;
+    managedDetailLoading: ReturnType<typeof signal>;
+    managedDetailError: ReturnType<typeof signal>;
+    managedProfileMissing: ReturnType<typeof signal>;
     loadSummaries: jasmine.Spy;
+    clearManagedContext: jasmine.Spy;
+    loadManagedMember: jasmine.Spy;
+    retryManagedMember: jasmine.Spy;
     loadDetail: jasmine.Spy;
     reloadDetail: jasmine.Spy;
     beginSelection: jasmine.Spy;
@@ -61,7 +73,19 @@ describe('ProfileWorkspaceComponent', () => {
       detail: signal<ProfileDetail | null>(detail),
       detailLoading: signal(false),
       detailError: signal(null),
+      managedMember: signal(null),
+      managedSummaries: signal<ProfileSummary[]>([]),
+      managedSummariesLoading: signal(false),
+      managedSummariesError: signal(null),
+      managedSelectedId: signal(null),
+      managedDetail: signal<ProfileDetail | null>(null),
+      managedDetailLoading: signal(false),
+      managedDetailError: signal(null),
+      managedProfileMissing: signal(false),
       loadSummaries: jasmine.createSpy('loadSummaries'),
+      clearManagedContext: jasmine.createSpy('clearManagedContext'),
+      loadManagedMember: jasmine.createSpy('loadManagedMember'),
+      retryManagedMember: jasmine.createSpy('retryManagedMember'),
       loadDetail: jasmine.createSpy('loadDetail'),
       reloadDetail: jasmine.createSpy('reloadDetail'),
       beginSelection: jasmine.createSpy('beginSelection'),
@@ -121,6 +145,54 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.nativeElement.querySelector('#workspace-section-certificates')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-projects')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-skills')).toBeTruthy();
+  });
+
+  it('loads a managed Member route separately and renders managed context without Profile CRUD actions', () => {
+    const managedProfile = { ...detail, id: 2, profileName: 'Managed CV' };
+    context.loadManagedMember.and.callFake((member: { id: string }, profileId: string | null) => {
+      context.managedMember.set(member);
+      context.managedSummaries.set([{ ...summary, id: 2, profileName: 'Managed CV' }]);
+      context.managedSummariesLoading.set(false);
+      context.managedSummariesError.set(null);
+      context.managedSelectedId.set(profileId);
+      context.managedDetail.set(managedProfile);
+      context.managedDetailLoading.set(false);
+      context.managedDetailError.set(null);
+    });
+
+    params.next(convertToParamMap({ memberId: '10', profileId: '2' }));
+    fixture.detectChanges();
+
+    expect(context.loadManagedMember).toHaveBeenCalledWith({ id: '10' }, '2');
+    expect(context.loadDetail).toHaveBeenCalledWith('1');
+    expect(fixture.nativeElement.querySelector('#workspace-title')?.textContent).toContain('Managed Profile Workspace');
+    expect(fixture.nativeElement.textContent).toContain('Managed Member Profile');
+    expect(fixture.nativeElement.querySelector('.delete-profile-button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('button[type="submit"]')).toBeNull();
+  });
+
+  it('keeps a zero-Profile managed route unselected and reports a missing deep-linked Profile in managed context', () => {
+    context.loadManagedMember.and.callFake((member: { id: string }, profileId: string | null) => {
+      context.managedMember.set(member);
+      context.managedSummaries.set(profileId ? [{ ...summary, id: 2 }] : []);
+      context.managedSummariesLoading.set(false);
+      context.managedSummariesError.set(null);
+      context.managedSelectedId.set(profileId);
+      context.managedProfileMissing.set(Boolean(profileId));
+      context.managedDetail.set(null);
+      context.managedDetailLoading.set(false);
+      context.managedDetailError.set(null);
+    });
+
+    params.next(convertToParamMap({ memberId: '10' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No active Profiles');
+    expect(context.managedSelectedId()).toBeNull();
+
+    params.next(convertToParamMap({ memberId: '10', profileId: 'missing' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Profile not found');
+    expect(fixture.nativeElement.textContent).not.toContain('My Profile');
   });
 
   it('keeps section navigation anchors and selected Profile switching in Workspace', () => {

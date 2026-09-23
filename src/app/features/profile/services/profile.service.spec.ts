@@ -22,6 +22,14 @@ describe('ProfileService', () => {
     request.flush({ data: [{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }] });
   });
 
+  it('loads authoritative summaries for a managed Member without using the own-Profile endpoint', () => {
+    service.listForMember('member/1').subscribe((profiles) => expect(profiles[0].profileName).toBe('Managed CV'));
+    const request = http.expectOne('/api/members/member%2F1/profiles');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.url).not.toContain('/profiles/me');
+    request.flush({ data: [{ id: 9, profileName: 'Managed CV', firstName: 'M', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-02' }] });
+  });
+
   it('loads detail from the selected Profile endpoint and unwraps data', () => {
     service.get('profile-1').subscribe((profile) => expect(profile.profileName).toBe('Backend CV'));
     const request = http.expectOne('/api/profiles/profile-1');
