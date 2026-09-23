@@ -38,6 +38,9 @@ describe('FileNameFormatsComponent', () => {
     expect(headers).toEqual(['Format Name', 'Format Pattern', 'Created Date', 'Updated Date', 'Actions']);
     expect(fixture.nativeElement.textContent).toContain('System default');
     expect(fixture.nativeElement.querySelector('input[type="search"]')).toBeNull();
+    fixture.componentInstance.openDelete(standardFormat);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Formats referenced by Profiles cannot be deleted.');
     const deleteButtons = fixture.nativeElement.querySelectorAll('.record-actions .danger') as NodeListOf<HTMLButtonElement>;
     expect(deleteButtons[1].disabled).toBeTrue();
   });
@@ -62,6 +65,16 @@ describe('FileNameFormatsComponent', () => {
     expect(notifications.showSuccess).toHaveBeenCalledWith('File Name Format deleted successfully.');
     expect(formats.list).toHaveBeenCalledTimes(2);
     expect(fixture.componentInstance.deleteConfirmation).toBeFalse();
+  });
+
+  it('closes a stale editor before refreshing the current page', () => {
+    fixture.componentInstance.editorOpen = true;
+    fixture.componentInstance.editingFormat = standardFormat;
+    fixture.componentInstance.editorStale();
+    expect(fixture.componentInstance.editorOpen).toBeFalse();
+    expect(fixture.componentInstance.editingFormat).toBeNull();
+    expect(fixture.componentInstance.pageMessage).toContain('no longer available');
+    expect(formats.list).toHaveBeenCalledTimes(2);
   });
 
   it('shows loading and request failure states with retry', () => {

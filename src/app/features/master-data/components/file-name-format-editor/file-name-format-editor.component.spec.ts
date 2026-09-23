@@ -12,7 +12,7 @@ describe('FileNameFormatEditorComponent', () => {
   const savedFormat = {
     id: 4,
     name: 'Last first date',
-    pattern: '{LastName}__{FirstName}-{Date}',
+    pattern: '{LastName}_{FirstName}_{Date}',
     isDefault: false,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-02T00:00:00Z',
@@ -28,37 +28,68 @@ describe('FileNameFormatEditorComponent', () => {
     fixture.detectChanges();
   });
 
-  it('parses and serializes only supported placeholders and separator runs', () => {
-    const segments = parseFileNamePattern('{LastName}__{Role}-{Date}');
-    expect(segments).toEqual([
-      { kind: 'placeholder', value: 'LastName' },
-      { kind: 'separator', value: '__' },
-      { kind: 'placeholder', value: 'Role' },
-      { kind: 'separator', value: '-' },
-      { kind: 'placeholder', value: 'Date' },
-    ]);
-    expect(serializeFileNamePattern(segments!)).toBe('{LastName}__{Role}-{Date}');
-    expect(parseFileNamePattern('{Unknown}')).toBeNull();
-    expect(parseFileNamePattern('plain-text')).toBeNull();
+  it('reconstructs and serializes None, underscore, and hyphen patterns exactly', () => {
+    expect(parseFileNamePattern('{LastName}{Role}{Date}')).toEqual({
+      placeholders: ['LastName', 'Role', 'Date'],
+      separator: 'none',
+    });
+    expect(parseFileNamePattern('{LastName}_{Role}_{Date}')).toEqual({
+      placeholders: ['LastName', 'Role', 'Date'],
+      separator: '_',
+    });
+    expect(parseFileNamePattern('{LastName}-{Role}-{Date}')).toEqual({
+      placeholders: ['LastName', 'Role', 'Date'],
+      separator: '-',
+    });
+    expect(serializeFileNamePattern({ placeholders: ['LastName', 'Role'], separator: 'none' })).toBe('{LastName}{Role}');
+    expect(serializeFileNamePattern({ placeholders: ['LastName', 'Role'], separator: '_' })).toBe('{LastName}_{Role}');
+    expect(serializeFileNamePattern({ placeholders: ['LastName', 'Role'], separator: '-' })).toBe('{LastName}-{Role}');
   });
 
-  it('supports controlled add, duplicate prevention, separator changes, removal, and placeholder reordering', () => {
+  it('keeps placeholders unique, exposes only unused choices, and updates preview immediately', () => {
     const editor = fixture.componentInstance;
     editor.addPlaceholder('LastName');
-    editor.addSeparator('-');
     editor.addPlaceholder('FirstName');
     editor.addPlaceholder('FirstName');
-    expect(editor.patternSegments.length).toBe(3);
+    expect(editor.patternState.placeholders).toEqual(['LastName', 'FirstName']);
+    expect(editor.availablePlaceholders().map((option) => option.value)).toEqual(['Role', 'Date']);
 
-    editor.movePlaceholder(2, -1);
-    expect(editor.serializedPattern()).toBe('{FirstName}-{LastName}');
-    editor.changeSeparator(1, { target: { value: '_' } } as unknown as Event);
-    expect(editor.serializedPattern()).toBe('{FirstName}_{LastName}');
-    editor.removeSegment(1);
-    expect(editor.serializedPattern()).toBe('{FirstName}{LastName}');
+    editor.setSeparator('_');
+    expect(editor.serializedPattern()).toBe('{LastName}_{FirstName}');
+    editor.removePlaceholder(0);
+    expect(editor.patternState.placeholders).toEqual(['FirstName']);
+    expect(editor.availablePlaceholders().map((option) => option.value)).toEqual(['LastName', 'Role', 'Date']);
   });
 
-  it('requires a placeholder and sends a trimmed name with the serialized builder pattern', () => {
+  it('allows replacement only with an unused placeholder and hides replacement when all are selected', () => {
+    const editor = fixture.componentInstance;
+    editor.addPlaceholder('LastName');
+    editor.addPlaceholder('FirstName');
+    editor.addPlaceholder('Role');
+    expect(editor.availablePlaceholdersFor(1).map((option) => option.value)).toEqual(['Date']);
+    editor.replacePlaceholder(1, 'Date');
+    expect(editor.patternState.placeholders).toEqual(['LastName', 'Date', 'Role']);
+    editor.addPlaceholder('FirstName');
+    expect(editor.availablePlaceholdersFor(0).length).toBe(0);
+
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.replacement-control').length).toBe(0);
+    expect(fixture.nativeElement.querySelectorAll('.placeholder-value').length).toBe(4);
+
+    editor.removePlaceholder(3);
+    fixture.detectChanges();
+    const replacementSelects = Array.from(fixture.nativeElement.querySelectorAll('.replacement-control select')) as HTMLSelectElement[];
+    expect(replacementSelects.map((select) => select.value)).toEqual(['LastName', 'Date', 'Role']);
+    expect((replacementSelects[0].options[0] as HTMLOptionElement).disabled).toBeFalse();
+    const replacementSelect = replacementSelects[0];
+    replacementSelect.value = 'FirstName';
+    replacementSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    fixture.detectChanges();
+    expect(editor.patternState.placeholders).toEqual(['FirstName', 'Date', 'Role']);
+    expect(editor.availablePlaceholders().map((option) => option.value)).toEqual(['LastName']);
+  });
+
+  it('requires at least one placeholder and sends a trimmed name with the builder pattern', () => {
     const editor = fixture.componentInstance;
     formats.create.and.returnValue(of(savedFormat));
     editor.formatForm.controls.name.setValue('  Export format  ');
@@ -71,31 +102,70 @@ describe('FileNameFormatEditorComponent', () => {
     expect(formats.create).toHaveBeenCalledWith({ name: 'Export format', pattern: '{Role}' });
   });
 
-  it('reconstructs an existing pattern and disables unsafe edit patterns', () => {
-    fixture.componentInstance.format = savedFormat;
-    fixture.detectChanges();
-    expect(fixture.componentInstance.serializedPattern()).toBe(savedFormat.pattern);
-    expect(fixture.componentInstance.isBuilderValid()).toBeTrue();
-
-    fixture.componentInstance.format = { ...savedFormat, id: 5, pattern: '{LastName}/bad' };
-    fixture.detectChanges();
-    expect(fixture.componentInstance.invalidExistingPattern).toBeTrue();
-    expect(fixture.componentInstance.canSubmit()).toBeFalse();
+  it('accepts Format Names through 255 characters', () => {
+    const editor = fixture.componentInstance;
+    formats.create.and.returnValue(of(savedFormat));
+    editor.formatForm.controls.name.setValue('a'.repeat(255));
+    editor.addPlaceholder('Date');
+    editor.submit();
+    expect(formats.create).toHaveBeenCalledWith({ name: 'a'.repeat(255), pattern: '{Date}' });
   });
 
-  it('keeps the dialog values after duplicate and validation failures', () => {
+  it('preserves incompatible patterns read-only and blocks save', () => {
+    const incompatiblePatterns = [
+      '{LastName}_{FirstName}-{Date}',
+      '{LastName}__{FirstName}',
+      '_{LastName}_{FirstName}',
+      '{LastName}_{FirstName}_',
+      '{LastName}_{LastName}',
+    ];
+
+    for (const [index, pattern] of incompatiblePatterns.entries()) {
+      fixture.componentInstance.format = { ...savedFormat, id: index + 5, pattern };
+      fixture.detectChanges();
+      expect(parseFileNamePattern(pattern)).toBeNull();
+      expect(fixture.componentInstance.invalidExistingPattern).toBeTrue();
+      expect(fixture.componentInstance.serializedPattern()).toBe(pattern);
+      expect(fixture.componentInstance.canSubmit()).toBeFalse();
+    }
+  });
+
+  it('reorders with native drop and keyboard arrows without visible Up or Down controls', () => {
+    const editor = fixture.componentInstance;
+    editor.addPlaceholder('LastName');
+    editor.addPlaceholder('Role');
+    editor.addPlaceholder('Date');
+    editor.dropPlaceholder(0, {
+      preventDefault: jasmine.createSpy('preventDefault'),
+      dataTransfer: { getData: () => '2' },
+    } as unknown as DragEvent);
+    expect(editor.patternState.placeholders).toEqual(['Date', 'LastName', 'Role']);
+
+    editor.handleReorderKeydown(2, { key: 'ArrowUp', preventDefault: jasmine.createSpy('preventDefault') } as unknown as KeyboardEvent);
+    expect(editor.patternState.placeholders).toEqual(['Date', 'Role', 'LastName']);
+    expect(editor.reorderAnnouncement).toContain('position 2 of 3');
+    fixture.detectChanges();
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    expect(buttons.some((button) => button.textContent?.trim() === 'Up' || button.textContent?.trim() === 'Down')).toBeFalse();
+  });
+
+  it('keeps values after duplicate and validation failures and emits stale on not found', () => {
     const editor = fixture.componentInstance;
     editor.formatForm.controls.name.setValue('Existing');
     editor.addPlaceholder('LastName');
     formats.create.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'FILE_NAME_FORMAT_NAME_ALREADY_EXISTS' } })));
     editor.submit();
     expect(editor.formatForm.controls.name.value).toBe('Existing');
-    expect(editor.patternSegments).toEqual([{ kind: 'placeholder', value: 'LastName' }]);
     expect(editor.errorMessage).toContain('different Format Name');
 
     formats.create.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { errorCode: 'VALIDATION_ERROR', data: { errors: [{ field: 'pattern', message: 'Pattern invalid' }] } } })));
     editor.submit();
-    expect(editor.patternSegments).toEqual([{ kind: 'placeholder', value: 'LastName' }]);
     expect(editor.patternError).toBe('Pattern invalid');
+
+    const stale = jasmine.createSpy('stale');
+    editor.stale.subscribe(stale);
+    formats.create.and.returnValue(throwError(() => new HttpErrorResponse({ status: 404, error: { errorCode: 'FILE_NAME_FORMAT_NOT_FOUND' } })));
+    editor.submit();
+    expect(stale).toHaveBeenCalled();
   });
 });

@@ -1,5 +1,10 @@
 export type FileNamePlaceholder = 'LastName' | 'FirstName' | 'Role' | 'Date';
-export type FileNameSeparator = '-' | '_';
+export type FileNameSeparator = 'none' | '-' | '_';
+
+export interface FileNamePatternBuilderState {
+  placeholders: FileNamePlaceholder[];
+  separator: FileNameSeparator;
+}
 
 export interface FileNameFormat {
   id: number | string;

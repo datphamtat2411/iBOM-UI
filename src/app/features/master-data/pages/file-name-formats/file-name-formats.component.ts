@@ -107,6 +107,7 @@ export class FileNameFormatsComponent implements OnInit {
   }
 
   editorStale(): void {
+    this.closeEditor();
     this.pageMessage = 'This File Name Format is no longer available. The list was refreshed.';
     this.loadFormats(this.currentPage);
   }

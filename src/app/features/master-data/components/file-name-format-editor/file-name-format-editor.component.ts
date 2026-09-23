@@ -6,14 +6,11 @@ import { ApiErrorResponse } from '../../../../core/http/api.models';
 import {
   FileNameFormat,
   FileNameFormatRequest,
+  FileNamePatternBuilderState,
   FileNamePlaceholder,
   FileNameSeparator,
 } from '../../models/file-name-format.models';
 import { FileNameFormatService } from '../../services/file-name-format.service';
-
-export type FileNamePatternSegment =
-  | { kind: 'placeholder'; value: FileNamePlaceholder }
-  | { kind: 'separator'; value: string };
 
 export const FILE_NAME_PLACEHOLDERS: ReadonlyArray<{ value: FileNamePlaceholder; label: string }> = [
   { value: 'LastName', label: 'LastName' },
@@ -24,36 +21,44 @@ export const FILE_NAME_PLACEHOLDERS: ReadonlyArray<{ value: FileNamePlaceholder;
 
 const FILE_NAME_PLACEHOLDER_VALUES = new Set<FileNamePlaceholder>(FILE_NAME_PLACEHOLDERS.map((option) => option.value));
 
-export function parseFileNamePattern(pattern: string): FileNamePatternSegment[] | null {
-  const segments: FileNamePatternSegment[] = [];
+export function parseFileNamePattern(pattern: string): FileNamePatternBuilderState | null {
+  if (!pattern) return null;
+
+  const placeholders: FileNamePlaceholder[] = [];
+  let separator: FileNameSeparator | undefined;
   let cursor = 0;
 
   while (cursor < pattern.length) {
-    if (pattern[cursor] === '{') {
-      const close = pattern.indexOf('}', cursor + 1);
-      if (close < 0) return null;
-      const value = pattern.slice(cursor + 1, close);
-      if (!isFileNamePlaceholder(value)) return null;
-      segments.push({ kind: 'placeholder', value });
-      cursor = close + 1;
+    if (pattern[cursor] !== '{') return null;
+    const close = pattern.indexOf('}', cursor + 1);
+    if (close < 0) return null;
+
+    const value = pattern.slice(cursor + 1, close);
+    if (!isFileNamePlaceholder(value) || placeholders.includes(value)) return null;
+    placeholders.push(value);
+    cursor = close + 1;
+    if (cursor === pattern.length) break;
+
+    const nextSeparator = pattern[cursor];
+    if (nextSeparator === '{') {
+      if (separator !== undefined && separator !== 'none') return null;
+      separator = 'none';
       continue;
     }
-
-    if (pattern[cursor] === '-' || pattern[cursor] === '_') {
-      const start = cursor;
-      while (cursor < pattern.length && (pattern[cursor] === '-' || pattern[cursor] === '_')) cursor++;
-      segments.push({ kind: 'separator', value: pattern.slice(start, cursor) });
-      continue;
-    }
-
-    return null;
+    if (!isFileNameSeparator(nextSeparator) || nextSeparator === 'none') return null;
+    if (pattern[cursor + 1] === nextSeparator) return null;
+    if (separator !== undefined && separator !== nextSeparator) return null;
+    separator = nextSeparator;
+    cursor += 1;
+    if (cursor === pattern.length || pattern[cursor] !== '{') return null;
   }
 
-  return segments;
+  return { placeholders, separator: separator ?? 'none' };
 }
 
-export function serializeFileNamePattern(segments: readonly FileNamePatternSegment[]): string {
-  return segments.map((segment) => segment.kind === 'placeholder' ? `{${segment.value}}` : segment.value).join('');
+export function serializeFileNamePattern(state: Readonly<FileNamePatternBuilderState>): string {
+  const separator = state.separator === 'none' ? '' : state.separator;
+  return state.placeholders.map((placeholder) => `{${placeholder}}`).join(separator);
 }
 
 function isFileNamePlaceholder(value: string): value is FileNamePlaceholder {
@@ -61,7 +66,7 @@ function isFileNamePlaceholder(value: string): value is FileNamePlaceholder {
 }
 
 function isFileNameSeparator(value: string): value is FileNameSeparator {
-  return value === '-' || value === '_';
+  return value === 'none' || value === '-' || value === '_';
 }
 
 @Component({
@@ -87,24 +92,29 @@ export class FileNameFormatEditorComponent {
   get format(): FileNameFormat | null {
     return this.currentFormat;
   }
+
   @Output() readonly closed = new EventEmitter<void>();
   @Output() readonly saved = new EventEmitter<FileNameFormat>();
   @Output() readonly stale = new EventEmitter<void>();
 
   readonly formatForm = this.formBuilder.nonNullable.group({
-    name: ['', [Validators.required, Validators.maxLength(100)]],
+    name: ['', [Validators.required, Validators.maxLength(255)]],
   });
   readonly placeholderOptions = FILE_NAME_PLACEHOLDERS;
   readonly separatorOptions: ReadonlyArray<{ value: FileNameSeparator; label: string }> = [
-    { value: '-', label: 'Hyphen (-)' },
+    { value: 'none', label: 'None' },
     { value: '_', label: 'Underscore (_)' },
+    { value: '-', label: 'Hyphen (-)' },
   ];
 
-  patternSegments: FileNamePatternSegment[] = [];
+  patternState: FileNamePatternBuilderState = { placeholders: [], separator: 'none' };
   patternError = '';
   errorMessage = '';
   isSubmitting = false;
   invalidExistingPattern = false;
+  reorderAnnouncement = '';
+  originalPattern = '';
+  private draggedPlaceholderIndex: number | null = null;
   private initializedFormatId: string | null | undefined;
 
   get isEditMode(): boolean {
@@ -121,13 +131,14 @@ export class FileNameFormatEditorComponent {
   }
 
   serializedPattern(): string {
-    return serializeFileNamePattern(this.patternSegments);
+    return this.invalidExistingPattern ? this.originalPattern : serializeFileNamePattern(this.patternState);
   }
 
   isBuilderValid(): boolean {
+    const placeholders = this.patternState.placeholders;
     return !this.invalidExistingPattern
-      && this.patternSegments.some((segment) => segment.kind === 'placeholder')
-      && this.patternSegments.every((segment) => segment.kind === 'placeholder' || /^[\-_]+$/.test(segment.value));
+      && placeholders.length > 0
+      && new Set(placeholders).size === placeholders.length;
   }
 
   canSubmit(): boolean {
@@ -153,83 +164,99 @@ export class FileNameFormatEditorComponent {
   }
 
   availablePlaceholders(): ReadonlyArray<{ value: FileNamePlaceholder; label: string }> {
-    return this.placeholderOptions.filter((option) => !this.patternSegments.some(
-      (segment) => segment.kind === 'placeholder' && segment.value === option.value,
-    ));
+    return this.placeholderOptions.filter((option) => !this.patternState.placeholders.includes(option.value));
+  }
+
+  availablePlaceholdersFor(index: number): ReadonlyArray<{ value: FileNamePlaceholder; label: string }> {
+    const current = this.patternState.placeholders[index];
+    return this.availablePlaceholders().filter((option) => option.value !== current);
   }
 
   canAddPlaceholder(value: FileNamePlaceholder): boolean {
-    return !this.patternSegments.some((segment) => segment.kind === 'placeholder' && segment.value === value);
+    return !this.patternState.placeholders.includes(value);
   }
 
   addPlaceholder(value: FileNamePlaceholder): void {
     if (this.isSubmitting || !isFileNamePlaceholder(value) || !this.canAddPlaceholder(value)) return;
-    this.patternSegments = [...this.patternSegments, { kind: 'placeholder', value }];
+    this.patternState = { ...this.patternState, placeholders: [...this.patternState.placeholders, value] };
     this.clearPatternError();
   }
 
-  addSeparator(value: FileNameSeparator): void {
+  setSeparator(value: string): void {
     if (this.isSubmitting || !isFileNameSeparator(value)) return;
-    this.patternSegments = [...this.patternSegments, { kind: 'separator', value }];
+    this.patternState = { ...this.patternState, separator: value };
     this.clearPatternError();
   }
 
   changePlaceholder(index: number, event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    if (!isFileNamePlaceholder(value) || this.isSubmitting) return;
-    const segment = this.patternSegments[index];
-    if (!segment || segment.kind !== 'placeholder') return;
-    if (!this.canAddPlaceholderAt(value, index)) {
+    this.replacePlaceholder(index, (event.target as HTMLSelectElement).value);
+  }
+
+  replacePlaceholder(index: number, value: string): void {
+    if (this.isSubmitting || !isFileNamePlaceholder(value)) return;
+    const current = this.patternState.placeholders[index];
+    if (current === undefined || !this.canAddPlaceholderAt(value, index)) {
       this.patternError = 'Each placeholder can be used only once.';
       return;
     }
-    this.patternSegments = this.patternSegments.map((item, itemIndex) => itemIndex === index ? { kind: 'placeholder', value } : item);
+    const placeholders = [...this.patternState.placeholders];
+    placeholders[index] = value;
+    this.patternState = { ...this.patternState, placeholders };
     this.clearPatternError();
   }
 
-  changeSeparator(index: number, event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    if (!isFileNameSeparator(value) || this.isSubmitting) return;
-    const segment = this.patternSegments[index];
-    if (!segment || segment.kind !== 'separator') return;
-    const replacement = value.repeat(segment.value.length);
-    this.patternSegments = this.patternSegments.map((item, itemIndex) => itemIndex === index ? { kind: 'separator', value: replacement } : item);
-    this.clearPatternError();
-  }
-
-  removeSegment(index: number): void {
-    if (this.isSubmitting || !this.patternSegments[index]) return;
-    this.patternSegments = this.patternSegments.filter((_, itemIndex) => itemIndex !== index);
+  removePlaceholder(index: number): void {
+    if (this.isSubmitting || this.patternState.placeholders[index] === undefined) return;
+    this.patternState = {
+      ...this.patternState,
+      placeholders: this.patternState.placeholders.filter((_, itemIndex) => itemIndex !== index),
+    };
     this.clearPatternError();
   }
 
   movePlaceholder(index: number, direction: -1 | 1): void {
-    if (this.isSubmitting || this.patternSegments[index]?.kind !== 'placeholder') return;
-    const placeholderIndexes = this.patternSegments
-      .map((segment, itemIndex) => segment.kind === 'placeholder' ? itemIndex : -1)
-      .filter((itemIndex) => itemIndex >= 0);
-    const placeholderPosition = placeholderIndexes.indexOf(index);
-    const targetIndex = placeholderIndexes[placeholderPosition + direction];
-    if (targetIndex === undefined) return;
-
-    const current = this.patternSegments[index];
-    const target = this.patternSegments[targetIndex];
-    if (current.kind !== 'placeholder' || target.kind !== 'placeholder') return;
-    this.patternSegments = this.patternSegments.map((segment, itemIndex) => {
-      if (itemIndex === index) return { ...segment, value: target.value };
-      if (itemIndex === targetIndex) return { ...segment, value: current.value };
-      return segment;
-    });
-    this.clearPatternError();
+    if (this.isSubmitting) return;
+    const targetIndex = index + direction;
+    if (!this.canMovePlaceholder(index, direction)) return;
+    this.reorderPlaceholder(index, targetIndex);
+    this.focusReorderHandle(targetIndex);
   }
 
   canMovePlaceholder(index: number, direction: -1 | 1): boolean {
-    if (this.patternSegments[index]?.kind !== 'placeholder') return false;
-    const placeholderIndexes = this.patternSegments
-      .map((segment, itemIndex) => segment.kind === 'placeholder' ? itemIndex : -1)
-      .filter((itemIndex) => itemIndex >= 0);
-    const position = placeholderIndexes.indexOf(index);
-    return position >= 0 && placeholderIndexes[position + direction] !== undefined;
+    return this.patternState.placeholders[index] !== undefined
+      && index + direction >= 0
+      && index + direction < this.patternState.placeholders.length;
+  }
+
+  handleReorderKeydown(index: number, event: KeyboardEvent): void {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    const direction = event.key === 'ArrowUp' ? -1 : 1;
+    this.movePlaceholder(index, direction);
+  }
+
+  startPlaceholderDrag(index: number, event: DragEvent): void {
+    if (this.isSubmitting) return;
+    this.draggedPlaceholderIndex = index;
+    event.dataTransfer?.setData('text/plain', String(index));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  allowPlaceholderDrop(event: DragEvent): void {
+    if (this.draggedPlaceholderIndex !== null) event.preventDefault();
+  }
+
+  dropPlaceholder(index: number, event: DragEvent): void {
+    event.preventDefault();
+    const transferredIndex = event.dataTransfer?.getData('text/plain');
+    const sourceIndex = this.draggedPlaceholderIndex ?? (transferredIndex ? Number(transferredIndex) : NaN);
+    this.draggedPlaceholderIndex = null;
+    if (!Number.isInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= this.patternState.placeholders.length) return;
+    if (sourceIndex !== index && !this.isSubmitting) this.reorderPlaceholder(sourceIndex, index);
+  }
+
+  endPlaceholderDrag(): void {
+    this.draggedPlaceholderIndex = null;
   }
 
   submit(): void {
@@ -269,20 +296,35 @@ export class FileNameFormatEditorComponent {
     this.patternError = '';
     this.invalidExistingPattern = false;
     this.isSubmitting = false;
-    const parsed = this.format ? parseFileNamePattern(this.format.pattern) : [];
-    this.patternSegments = parsed ?? [];
+    this.reorderAnnouncement = '';
+    this.originalPattern = this.format?.pattern ?? '';
+    const parsed = this.format ? parseFileNamePattern(this.format.pattern) : null;
+    this.patternState = parsed ?? { placeholders: [], separator: 'none' };
     this.formatForm.reset({ name: this.format?.name ?? '' });
     this.formatForm.markAsPristine();
     this.formatForm.markAsUntouched();
     this.initializedFormatId = this.format ? String(this.format.id) : null;
-    if (this.format && (parsed === null || !this.isBuilderValid())) {
+    if (this.format && parsed === null) {
       this.invalidExistingPattern = true;
       this.patternError = 'This saved Pattern cannot be reconstructed safely with the supported placeholders.';
     }
   }
 
   canAddPlaceholderAt(value: FileNamePlaceholder, index: number): boolean {
-    return !this.patternSegments.some((segment, itemIndex) => itemIndex !== index && segment.kind === 'placeholder' && segment.value === value);
+    return this.patternState.placeholders.every((placeholder, itemIndex) => itemIndex === index || placeholder !== value);
+  }
+
+  private reorderPlaceholder(sourceIndex: number, targetIndex: number): void {
+    const placeholders = [...this.patternState.placeholders];
+    const [placeholder] = placeholders.splice(sourceIndex, 1);
+    placeholders.splice(targetIndex, 0, placeholder);
+    this.patternState = { ...this.patternState, placeholders };
+    this.reorderAnnouncement = `${this.placeholderLabel(placeholder)} moved to position ${targetIndex + 1} of ${placeholders.length}.`;
+    this.clearPatternError();
+  }
+
+  private focusReorderHandle(index: number): void {
+    setTimeout(() => document.getElementById(`placeholder-handle-${index}`)?.focus());
   }
 
   private clearPatternError(): void {
@@ -309,7 +351,7 @@ export class FileNameFormatEditorComponent {
       return;
     }
 
-    if (errorCode === 'FILE_NAME_FORMAT_INVALID' || errorCode === 'VALIDATION_ERROR') {
+    if (errorCode === 'FILE_NAME_FORMAT_INVALID' || errorCode === 'VALIDATION_ERROR' || response?.status === 400 || response?.status === 422) {
       const applied = this.applyValidationErrors(response?.data);
       if (!applied) this.patternError = 'Use at least one supported placeholder and only hyphen or underscore separators.';
       this.errorMessage = 'Please correct the highlighted fields.';
@@ -354,6 +396,7 @@ export class FileNameFormatEditorComponent {
 
   private apiError(error: unknown): (ApiErrorResponse & { status?: number }) | undefined {
     if (!(error instanceof HttpErrorResponse)) return undefined;
-    return { ...(error.error as ApiErrorResponse), status: error.status };
+    const body = error.error && typeof error.error === 'object' ? error.error as ApiErrorResponse : {};
+    return { ...body, status: error.status };
   }
 }

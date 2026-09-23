@@ -50,7 +50,7 @@
   <div class="modal-backdrop" role="presentation">
     <section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-format-title" aria-describedby="delete-format-copy">
       <h2 id="delete-format-title">Delete {{ target.name }}?</h2>
-      <p id="delete-format-copy">This removes the File Name Format from Master Data. Profiles that reference it cannot use it after deletion.</p>
+       <p id="delete-format-copy">This removes the File Name Format from Master Data. Formats referenced by Profiles cannot be deleted.</p>
       @if (deleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ deleteErrorMessage }}</div> }
       <div class="modal-actions"><button class="btn" type="button" (click)="cancelDelete()" [disabled]="isDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmDelete()" [disabled]="isDeleting" [attr.aria-busy]="isDeleting">{{ isDeleting ? 'Deleting...' : 'Delete Format' }}</button></div>
     </section>
