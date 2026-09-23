@@ -1,21 +1,33 @@
-<section class="member-management-page" aria-labelledby="member-management-title" [attr.aria-busy]="loading">
+<section class="member-management-page" aria-labelledby="member-management-title" [attr.aria-busy]="loading || choicesLoading">
   <header class="page-heading">
     <div>
       <p class="page-kicker">Management / Members</p>
       <h1 id="member-management-title">Member Management</h1>
-      <p>Search Members by username or email and review account status and Profile counts.</p>
+      <p>Find Members by account fields or by conditions that match within the same Profile.</p>
     </div>
   </header>
 
-  <section class="query-panel" aria-labelledby="member-search-title">
-    <div>
-      <h2 id="member-search-title">Find Members</h2>
-      <p>Search and status filters are applied by the server. The returned Member order is preserved.</p>
+  <section class="query-panel query-builder" aria-labelledby="member-search-title">
+    <div class="query-head">
+      <div>
+        <h2 id="member-search-title">Find Members</h2>
+        <p>Advanced conditions use one pair family at a time. All pairs must match within the same Profile.</p>
+      </div>
+      <span class="metadata">AND · SAME PROFILE</span>
     </div>
+
     <div class="query-controls">
       <div class="field-control">
-        <label for="member-search">Username or email</label>
-        <input id="member-search" type="search" autocomplete="off" [value]="searchDraft" (input)="setSearchDraft($any($event.target).value)" (keydown.enter)="applyFilters()" [disabled]="loading" />
+        <label for="member-search-mode">Search mode</label>
+        <select id="member-search-mode" [value]="searchModeDraft" (change)="setSearchMode($any($event.target).value)" [disabled]="loading">
+          @for (mode of searchModeOptions; track mode.value) {
+            <option [value]="mode.value">{{ mode.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="field-control">
+        <label for="member-search">Username or email <span class="field-note">(base list)</span></label>
+        <input id="member-search" type="search" autocomplete="off" [value]="searchDraft" (input)="setSearchDraft($any($event.target).value)" (keydown.enter)="applySearch()" [disabled]="loading || advancedModeSelected" />
       </div>
       <div class="field-control">
         <label for="member-status">Account status</label>
@@ -25,19 +37,95 @@
           <option value="INACTIVE">INACTIVE</option>
         </select>
       </div>
-      <div class="search-actions">
-        <button class="btn primary" type="button" (click)="applyFilters()" [disabled]="loading">Search Members</button>
-        @if (filtersApplied || searchDraft || statusDraft !== 'ALL') {
-          <button class="btn text" type="button" (click)="clearFilters()" [disabled]="loading">Clear</button>
+    </div>
+
+    @if (advancedModeSelected) {
+      <div class="condition-list" aria-label="Advanced search conditions">
+        @if (searchModeDraft === 'SKILL') {
+          @for (condition of skillConditions; track $index) {
+            <div class="condition">
+              <strong>Skill + Seniority</strong>
+              <select [value]="condition.skillId ?? ''" (change)="setSkillConditionValue($index, 'skillId', $any($event.target).value)" [disabled]="loading || choicesLoading || !choicesLoaded">
+                <option value="">Select Skill</option>
+                @for (skill of skills; track skill.id) {
+                  <option [value]="skill.id">{{ skill.name }}</option>
+                }
+              </select>
+              <span class="and">+</span>
+              <select [value]="condition.seniorityId ?? ''" (change)="setSkillConditionValue($index, 'seniorityId', $any($event.target).value)" [disabled]="loading || choicesLoading || !choicesLoaded">
+                <option value="">Select Seniority</option>
+                @for (seniority of seniorities; track seniority.id) {
+                  <option [value]="seniority.id">{{ seniority.name }}</option>
+                }
+              </select>
+              <button class="remove-condition" type="button" [attr.aria-label]="'Remove Skill condition ' + ($index + 1)" (click)="removeCondition('SKILL', $index)" [disabled]="loading">×</button>
+            </div>
+          }
+        } @else {
+          @for (condition of languageConditions; track $index) {
+            <div class="condition">
+              <strong>Language + Level</strong>
+              <select [value]="condition.languageId ?? ''" (change)="setLanguageConditionValue($index, 'languageId', $any($event.target).value)" [disabled]="loading || choicesLoading || !choicesLoaded">
+                <option value="">Select Language</option>
+                @for (language of languages; track language.id) {
+                  <option [value]="language.id">{{ language.name }}</option>
+                }
+              </select>
+              <span class="and">+</span>
+              <select [value]="condition.level ?? ''" (change)="setLanguageConditionValue($index, 'level', $any($event.target).value)" [disabled]="loading || choicesLoading || !choicesLoaded">
+                <option value="">Select Level</option>
+                @for (level of languageLevels; track level.value) {
+                  <option [value]="level.value">{{ level.label }}</option>
+                }
+              </select>
+              <button class="remove-condition" type="button" [attr.aria-label]="'Remove Language condition ' + ($index + 1)" (click)="removeCondition('LANGUAGE', $index)" [disabled]="loading">×</button>
+            </div>
+          }
         }
+        @if (!skillConditions.length && searchModeDraft === 'SKILL' || !languageConditions.length && searchModeDraft === 'LANGUAGE') {
+          <p class="metadata">No conditions added. Add one pair before searching.</p>
+        }
+      </div>
+      <div class="condition-actions">
+        <button class="btn" type="button" (click)="addCondition()" [disabled]="loading || choicesLoading || !choicesLoaded">Add condition</button>
+      </div>
+    }
+
+    @if (choicesLoading) {
+      <p class="metadata" role="status" aria-live="polite">Loading authoritative search choices...</p>
+    } @else if (choicesErrorMessage) {
+      <div class="notice error choice-notice" role="alert">
+        <span>{{ choicesErrorMessage }}</span>
+        <button class="btn text" type="button" (click)="retryChoices()" [disabled]="choicesLoading">Retry choices</button>
+      </div>
+    }
+
+    @if (validationMessage) {
+      <div class="notice error validation-notice" role="alert">{{ validationMessage }}</div>
+    }
+
+    <div class="query-actions">
+      <span class="metadata">Base username/email search and advanced pair search are separate operations.</span>
+      <div>
+        @if (canResetSearch) {
+          <button class="btn text" type="button" (click)="clearFilters()" [disabled]="loading">Reset to base list</button>
+        }
+        <button class="btn primary" type="button" (click)="applySearch()" [disabled]="loading || (advancedModeSelected && (choicesLoading || !choicesLoaded))">Search Members</button>
       </div>
     </div>
   </section>
 
+  @if (appliedQuery) {
+    <div class="applied-query" role="status" aria-live="polite">
+      <span><strong>Applied search:</strong> {{ appliedSearchDescription }}</span>
+      <button class="btn text" type="button" (click)="clearFilters()" [disabled]="loading">Reset</button>
+    </div>
+  }
+
   @if (pageMessage) { <div class="notice info" role="status" aria-live="polite">{{ pageMessage }}</div> }
 
   @if (loading) {
-    <div class="state-panel" role="status" aria-live="polite">{{ filtering ? 'Filtering Members...' : 'Loading Members...' }}</div>
+    <div class="state-panel" role="status" aria-live="polite">{{ appliedQuery ? 'Searching Members...' : (filtering ? 'Filtering Members...' : 'Loading Members...') }}</div>
   } @else if (loadErrorMessage) {
     <div class="notice error" role="alert">
       <span>{{ loadErrorMessage }}</span>
@@ -45,14 +133,14 @@
     </div>
   } @else if (!members.length) {
     <div class="empty-state" role="status">
-      <h2>{{ filtersApplied ? 'No Members match these filters' : 'No Members yet' }}</h2>
-      <p>{{ filtersApplied ? 'Try a different username, email, or account status.' : 'No Member records are available.' }}</p>
-      @if (filtersApplied) { <button class="btn" type="button" (click)="clearFilters()" [disabled]="loading">Clear filters</button> }
+      <h2>{{ appliedQuery ? 'No Members match these conditions' : (filtersApplied ? 'No Members match these filters' : 'No Members yet') }}</h2>
+      <p>{{ appliedQuery ? 'Try different Profile conditions or reset to the base Member list.' : (filtersApplied ? 'Try a different username, email, or account status.' : 'No Member records are available.') }}</p>
+      @if (filtersApplied) { <button class="btn" type="button" (click)="clearFilters()" [disabled]="loading">Reset search</button> }
     </div>
   } @else {
     <div class="results-heading">
       <h2 id="member-results-title">{{ totalElements }} {{ totalElements === 1 ? 'Member' : 'Members' }}</h2>
-      <span class="metadata">Backend-ordered Member list</span>
+      <span class="metadata">{{ appliedQuery ? 'One row per Member · matching Profile evidence' : 'Backend-ordered Member list' }}</span>
     </div>
     <div class="table-wrap">
       <table class="member-table" aria-labelledby="member-results-title">
@@ -64,6 +152,7 @@
             <th scope="col">Account status</th>
             <th scope="col">Active Profiles</th>
             <th scope="col">Last updated</th>
+            <th scope="col">Matching Profile evidence</th>
             <th scope="col" class="actions-column">Actions</th>
           </tr>
         </thead>
@@ -75,6 +164,26 @@
               <td><span class="status" [class.active]="member.status === 'ACTIVE'" [class.inactive]="member.status === 'INACTIVE'">{{ member.status }}</span></td>
               <td class="metadata">{{ member.activeProfileCount }}</td>
               <td class="metadata"><time [attr.datetime]="member.lastUpdatedAt">{{ formatTimestamp(member.lastUpdatedAt) }}</time></td>
+              <td class="profile-evidence-cell">
+                @if (matchingProfiles(member).length) {
+                  @for (profile of matchingProfiles(member); track profile.id) {
+                    <div class="profile-evidence">
+                      <strong>{{ matchingProfileName(profile) }}</strong>
+                      @if (profile.firstName || profile.lastName) {
+                        <span>{{ profile.firstName }} {{ profile.lastName }}</span>
+                      }
+                      @if (profile.jobTitle) {
+                        <span>{{ profile.jobTitle }}</span>
+                      }
+                      @if (matchingProfileUpdatedAt(profile)) {
+                        <time class="metadata" [attr.datetime]="matchingProfileUpdatedAt(profile)">{{ formatTimestamp(matchingProfileUpdatedAt(profile)) }}</time>
+                      }
+                    </div>
+                  }
+                } @else {
+                  <span class="metadata">—</span>
+                }
+              </td>
               <td class="row-actions"><button class="btn text" type="button" (click)="showMemberActionBoundary(member)" [attr.aria-label]="'Manage Profiles for ' + member.username">Manage Profiles</button></td>
             </tr>
           }

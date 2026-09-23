@@ -1,14 +1,27 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Subject, of } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 
-import { MemberPage, MemberSummary } from '../../models/member-management.models';
+import {
+  LanguageLevel,
+  MemberPage,
+  MemberSummary,
+  SearchChoice,
+  SearchChoicePage,
+} from '../../models/member-management.models';
 import { MemberManagementService } from '../../services/member-management.service';
 import { MemberManagementComponent } from './member-management.component';
 
 describe('MemberManagementComponent', () => {
   let fixture: ComponentFixture<MemberManagementComponent>;
-  let members: { list: jasmine.Spy };
+  let members: {
+    list: jasmine.Spy;
+    searchBySkill: jasmine.Spy;
+    searchByLanguage: jasmine.Spy;
+    listSkills: jasmine.Spy;
+    listLanguages: jasmine.Spy;
+    listSeniorities: jasmine.Spy;
+  };
 
   const inactive: MemberSummary = {
     id: 2,
@@ -31,8 +44,19 @@ describe('MemberManagementComponent', () => {
     return { content, page: currentPage, size: 10, totalElements, totalPages };
   }
 
+  function choicePage(content: SearchChoice[], currentPage = 0, totalPages = 1): SearchChoicePage {
+    return { content, page: currentPage, size: 100, totalElements: content.length, totalPages };
+  }
+
   beforeEach(async () => {
-    members = { list: jasmine.createSpy('list').and.returnValue(of(page())) };
+    members = {
+      list: jasmine.createSpy('list').and.returnValue(of(page())),
+      searchBySkill: jasmine.createSpy('searchBySkill').and.returnValue(of(page())),
+      searchByLanguage: jasmine.createSpy('searchByLanguage').and.returnValue(of(page())),
+      listSkills: jasmine.createSpy('listSkills').and.returnValue(of(choicePage([{ id: 1, name: 'Java' }]))),
+      listLanguages: jasmine.createSpy('listLanguages').and.returnValue(of(choicePage([{ id: 2, name: 'English' }]))),
+      listSeniorities: jasmine.createSpy('listSeniorities').and.returnValue(of([{ id: 3, name: 'Senior' }])),
+    };
     await TestBed.configureTestingModule({
       imports: [MemberManagementComponent],
       providers: [{ provide: MemberManagementService, useValue: members }],
@@ -46,7 +70,7 @@ describe('MemberManagementComponent', () => {
     return fixture.componentInstance;
   }
 
-  it('loads inactive Members by default and preserves backend ordering without Profile-derived fields', () => {
+  it('loads inactive Members by default and preserves backend ordering without Profile-derived identity fields', () => {
     members.list.and.returnValue(of(page([inactive, active])));
     const component = initialize();
 
@@ -59,7 +83,7 @@ describe('MemberManagementComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('INACTIVE');
   });
 
-  it('resets applied search and status filters to page zero and clears them', () => {
+  it('resets applied base search and status filters to page zero and clears them', () => {
     const component = initialize();
     members.list.calls.reset();
 
@@ -73,6 +97,7 @@ describe('MemberManagementComponent', () => {
     expect(members.list).toHaveBeenCalledWith(0, 10, '', undefined);
     expect(component.searchTerm).toBe('');
     expect(component.statusFilter).toBe('ALL');
+    expect(component.appliedQuery).toBeNull();
   });
 
   it('shows total count, page boundaries, and the backend-recovered page', () => {
@@ -133,6 +158,149 @@ describe('MemberManagementComponent', () => {
     fixture.detectChanges();
     expect(members.list).toHaveBeenCalledWith(0, 10, 'missing', undefined);
     expect(component.loading).toBeFalse();
+  });
+
+  it('keeps Skill + Seniority and Language + Level as isolated pair modes with ordered applied snapshots', () => {
+    const component = initialize();
+    members.searchBySkill.calls.reset();
+    members.searchByLanguage.calls.reset();
+
+    component.setSearchMode('SKILL');
+    component.setSkillConditionValue(0, 'skillId', '11');
+    component.setSkillConditionValue(0, 'seniorityId', '21');
+    component.addCondition();
+    component.setSkillConditionValue(1, 'skillId', '12');
+    component.setSkillConditionValue(1, 'seniorityId', '22');
+    members.searchBySkill.and.returnValue(of(page([inactive], 0, 2, 2)));
+    component.applySearch();
+
+    expect(members.searchBySkill).toHaveBeenCalledWith(0, 10, ['11', '12'], ['21', '22'], undefined);
+    expect(members.searchByLanguage).not.toHaveBeenCalled();
+    expect(component.appliedQuery).toEqual({
+      mode: 'SKILL',
+      pairs: [{ skillId: '11', seniorityId: '21' }, { skillId: '12', seniorityId: '22' }],
+      status: 'ALL',
+    });
+
+    component.skillConditions[0].skillId = '999';
+    members.searchBySkill.and.returnValue(of(page([active], 1, 2, 2)));
+    component.goToPage(1);
+    expect(members.searchBySkill).toHaveBeenCalledWith(1, 10, ['11', '12'], ['21', '22'], undefined);
+    expect(members.searchByLanguage).not.toHaveBeenCalled();
+    expect(component.members).toEqual([active]);
+  });
+
+  it('blocks incomplete and duplicate draft pairs without issuing a request', () => {
+    const component = initialize();
+    members.searchBySkill.calls.reset();
+    component.setSearchMode('SKILL');
+
+    component.applySearch();
+    expect(component.validationMessage).toContain('Complete every Skill + Seniority condition');
+    expect(members.searchBySkill).not.toHaveBeenCalled();
+
+    component.setSkillConditionValue(0, 'skillId', '11');
+    component.applySearch();
+    expect(members.searchBySkill).not.toHaveBeenCalled();
+
+    component.setSkillConditionValue(0, 'seniorityId', '21');
+    component.addCondition();
+    component.setSkillConditionValue(1, 'skillId', '11');
+    component.setSkillConditionValue(1, 'seniorityId', '22');
+    component.applySearch();
+    expect(component.validationMessage).toContain('Each Skill can appear only once');
+    expect(members.searchBySkill).not.toHaveBeenCalled();
+  });
+
+  it('loads every Skill and Language page and the complete Seniority read', () => {
+    members.listSkills.and.returnValues(
+      of(choicePage([{ id: 1, name: 'Java' }], 0, 2)),
+      of(choicePage([{ id: 4, name: 'Angular' }], 1, 2)),
+    );
+    members.listLanguages.and.returnValues(
+      of(choicePage([{ id: 2, name: 'English' }], 0, 2)),
+      of(choicePage([{ id: 5, name: 'Japanese' }], 1, 2)),
+    );
+    members.listSeniorities.and.returnValue(of([{ id: 3, name: 'Senior' }, { id: 6, name: 'Junior' }]));
+
+    const component = initialize();
+
+    expect(members.listSkills).toHaveBeenCalledWith(0, 100);
+    expect(members.listSkills).toHaveBeenCalledWith(1, 100);
+    expect(members.listLanguages).toHaveBeenCalledWith(0, 100);
+    expect(members.listLanguages).toHaveBeenCalledWith(1, 100);
+    expect(component.skills.map((choice) => choice.name)).toEqual(['Java', 'Angular']);
+    expect(component.languages.map((choice) => choice.name)).toEqual(['English', 'Japanese']);
+    expect(component.seniorities.map((choice) => choice.name)).toEqual(['Senior', 'Junior']);
+    expect(component.choicesLoaded).toBeTrue();
+  });
+
+  it('shows and retries search-choice load errors', () => {
+    members.listSkills.and.returnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Master data unavailable' } })));
+    const component = initialize();
+
+    expect(component.choicesErrorMessage).toBe('Master data unavailable');
+    expect(component.choicesLoaded).toBeFalse();
+    members.listSkills.and.returnValue(of(choicePage([{ id: 1, name: 'Java' }])));
+    component.retryChoices();
+
+    expect(component.choicesErrorMessage).toBe('');
+    expect(component.choicesLoaded).toBeTrue();
+  });
+
+  it('renders multiple matching Profiles as evidence on one Member row and keeps inactive Members eligible', () => {
+    const matchingMember: MemberSummary = {
+      ...inactive,
+      matchingProfiles: [
+        { id: 101, name: 'Backend CV', firstName: 'Zara', lastName: 'Nguyen', jobTitle: 'Engineer', updatedAt: '2026-02-01T00:00:00Z' },
+        { id: 102, name: 'Platform CV', firstName: 'Zara', lastName: 'Nguyen', jobTitle: 'Lead Engineer', updatedAt: '2026-02-02T00:00:00Z' },
+      ],
+    };
+    const component = initialize();
+    component.setSearchMode('LANGUAGE');
+    component.setLanguageConditionValue(0, 'languageId', '2');
+    component.setLanguageConditionValue(0, 'level', 'ADVANCED');
+    members.searchByLanguage.and.returnValue(of(page([matchingMember])));
+    component.applySearch();
+    fixture.detectChanges();
+
+    const rows = fixture.nativeElement.querySelectorAll('tbody tr');
+    expect(rows.length).toBe(1);
+    expect(rows[0].cells[0].textContent.trim()).toBe('zara');
+    expect(rows[0].textContent).toContain('Backend CV');
+    expect(rows[0].textContent).toContain('Platform CV');
+    expect(rows[0].textContent).toContain('Lead Engineer');
+    expect(fixture.nativeElement.textContent).toContain('INACTIVE');
+    expect(members.searchBySkill).not.toHaveBeenCalled();
+  });
+
+  it('retains applied conditions through no-result and error states, then resets to the base operation', () => {
+    const component = initialize();
+    component.setSearchMode('SKILL');
+    component.setSkillConditionValue(0, 'skillId', '1');
+    component.setSkillConditionValue(0, 'seniorityId', '3');
+    members.searchBySkill.and.returnValue(of(page([], 0, 0, 0)));
+    component.applySearch();
+    fixture.detectChanges();
+
+    expect(component.appliedQuery).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Applied search:');
+    expect(fixture.nativeElement.textContent).toContain('No Members match these conditions');
+
+    const failedSearch = new Subject<MemberPage>();
+    members.searchBySkill.and.returnValue(failedSearch);
+    component.applySearch();
+    failedSearch.error(new HttpErrorResponse({ status: 503, error: { message: 'Search unavailable' } }));
+    fixture.detectChanges();
+    expect(component.appliedQuery).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Applied search:');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('Search unavailable');
+
+    members.list.and.returnValue(of(page([active])));
+    component.clearFilters();
+    expect(component.appliedQuery).toBeNull();
+    expect(component.searchModeDraft).toBe('BASE');
+    expect(members.list).toHaveBeenCalledWith(0, 10, '', undefined);
   });
 
   it('keeps the row action at the workspace boundary without entering Member Profile context', () => {
