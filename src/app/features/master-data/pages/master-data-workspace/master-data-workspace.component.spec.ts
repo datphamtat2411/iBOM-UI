@@ -4,6 +4,8 @@ import { of } from 'rxjs';
 
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { MasterDataService } from '../../services/master-data.service';
+import { SeniorityService } from '../../services/seniority.service';
+import { SeniorityManagementComponent } from '../seniority-management/seniority-management.component';
 import { SkillManagementComponent } from '../skill-management/skill-management.component';
 import { MasterDataWorkspaceComponent } from './master-data-workspace.component';
 
@@ -14,6 +16,7 @@ describe('MasterDataWorkspaceComponent', () => {
       providers: [
         { provide: ActivatedRoute, useValue: { snapshot: { data: { resource } } } },
         { provide: MasterDataService, useValue: { listSkills: () => of({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 }), listSkillCategories: () => of([]) } },
+        { provide: SeniorityService, useValue: { list: () => of([]) } },
         { provide: NotificationService, useValue: { showSuccess: jasmine.createSpy('showSuccess') } },
       ],
     }).compileComponents().then(() => undefined);
@@ -35,6 +38,16 @@ describe('MasterDataWorkspaceComponent', () => {
 
     expect(fixture.debugElement.query((element) => element.componentInstance instanceof SkillManagementComponent)).toBeNull();
     expect(fixture.nativeElement.querySelector('.master-data-notice').textContent).toContain('Languages');
+    fixture.destroy();
+  });
+
+  it('renders Seniority management only for the Seniority resource', async () => {
+    await configure('Seniority');
+    const fixture: ComponentFixture<MasterDataWorkspaceComponent> = TestBed.createComponent(MasterDataWorkspaceComponent);
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query((element) => element.componentInstance instanceof SeniorityManagementComponent)).toBeTruthy();
+    expect(fixture.debugElement.query((element) => element.componentInstance instanceof SkillManagementComponent)).toBeNull();
     fixture.destroy();
   });
 });

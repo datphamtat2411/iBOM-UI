@@ -8,8 +8,7 @@ import { SeniorityManagementComponent } from '../seniority-management/seniority-
 @Component({
   selector: 'app-master-data-workspace',
   standalone: true,
-  imports: [SeniorityManagementComponent],
-  imports: [SkillManagementComponent],
+  imports: [SkillManagementComponent, SeniorityManagementComponent],
   templateUrl: './master-data-workspace.component.html',
   styleUrl: './master-data-workspace.component.scss',
 })
