@@ -71,6 +71,11 @@ export class ApplicationShellComponent {
     return path === '/master-data' || path.startsWith('/master-data/');
   }
 
+  isMemberManagementRoute(url = this.router.url): boolean {
+    const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    return path === '/members' || path.startsWith('/members/');
+  }
+
   toggleAccountMenu(): void { this.accountMenuOpen = !this.accountMenuOpen; }
   closeAccountMenu(): void { this.accountMenuOpen = false; }
   signOut(): void {
@@ -97,6 +102,7 @@ export class ApplicationShellComponent {
     });
   }
   get contextTitle(): string {
+    if (this.isMemberManagementRoute()) return 'Member Management';
     if (this.isMasterDataRoute()) return 'Master Data';
     if (this.router.url.startsWith('/profiles')) return 'Profile Workspace';
     return this.router.url.includes('/account-settings') ? 'Account Settings' : 'Dashboard';

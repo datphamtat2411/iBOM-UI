@@ -1,0 +1,89 @@
+Read `AGENTS.md`.
+
+Plan Member Management Workspace, Access & Member List.
+
+Inspect first:
+
+Frontend:
+
+* current application routing and `managementGuard`;
+* current application shell and Management navigation;
+* an existing management list/pagination flow as the nearest UI/integration precedent;
+* existing page/HTTP and error-handling patterns.
+
+Read:
+
+* `docs/ARCHITECTURE.md`;
+* `docs/INTEGRATION.md`;
+* `docs/TESTING.md`;
+* `docs/DESIGN.md`;
+* `docs/design-reference/member-management.md`;
+* `docs/design-reference/application-shell.md`.
+
+Do not inspect existing `*.spec.ts` files during PLAN.
+Do not inspect advanced search or managed Profile implementation unless required above.
+
+Backend:
+Use gh CLI to inspect `datphamtat2411/iBOM-API` on branch `develop`.
+
+Inspect first:
+
+* `MemberController` behavior for `GET /api/members`;
+* `MemberService.list`;
+* `MemberSummaryResponse`;
+* Member summary query/order behavior in `UserAccountRepository`;
+* relevant Member Management authorization behavior.
+
+Do not inspect backend tests or User Management flows.
+
+Plan these capabilities:
+
+* add the Manager/Admin-only Member Management route, navigation entry, and workspace;
+* load the paginated Member list from `GET /api/members`;
+* support backend `search` and `status` filters for the base list;
+* show username, email, account status, active Profile count, last updated, and the row action boundary for later managed-profile flow;
+* keep inactive Members visible unless explicitly filtered;
+* use page size 10 with page navigation and total count;
+* handle loading, empty, error, filtering, and valid-page recovery;
+* focused tests for access, list integration, filters, pagination, and states.
+
+Task-specific constraints:
+
+* `GET /api/members` is authoritative for Member-level list data;
+* do not invent Member-level Full Name or Job Title from any Profile;
+* preserve backend ordering: ACTIVE first, then case-insensitive username, then id;
+* do not add client-side sorting semantics that conflict with backend ordering;
+* do not implement Skill/Seniority or Language/Level search here;
+* do not enter managed Member Profile context in this task.
+
+Prototype routing:
+
+* use `docs/design-reference/member-management.md` and `application-shell.md`;
+* inspect only Member Management list/workspace styling and Management navigation;
+* prototype display-name/job-title labels are not production data contracts.
+
+Out of scope:
+
+* advanced Member Search Builder;
+* managed Member Profile list/selection/context;
+* Member Profile editing/deletion;
+* Member CV Preview/Export;
+* backend changes.
+
+Return `plan.md` with exactly:
+
+* Task Plan
+* Repository Findings
+* Proposed Changes
+* Backend API Route
+* Prototype Route
+* File Delta
+* Focused Tests
+* Out of Scope
+
+Organize Proposed Changes by capability or concern, not by file.
+Keep File Delta to Modify / Add / Remove inventory only.
+Do not describe how each file should be edited.
+
+Do not modify repository files.
+

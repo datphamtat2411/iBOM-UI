@@ -1,0 +1,92 @@
+<section class="member-management-page" aria-labelledby="member-management-title" [attr.aria-busy]="loading">
+  <header class="page-heading">
+    <div>
+      <p class="page-kicker">Management / Members</p>
+      <h1 id="member-management-title">Member Management</h1>
+      <p>Search Members by username or email and review account status and Profile counts.</p>
+    </div>
+  </header>
+
+  <section class="query-panel" aria-labelledby="member-search-title">
+    <div>
+      <h2 id="member-search-title">Find Members</h2>
+      <p>Search and status filters are applied by the server. The returned Member order is preserved.</p>
+    </div>
+    <div class="query-controls">
+      <div class="field-control">
+        <label for="member-search">Username or email</label>
+        <input id="member-search" type="search" autocomplete="off" [value]="searchDraft" (input)="setSearchDraft($any($event.target).value)" (keydown.enter)="applyFilters()" [disabled]="loading" />
+      </div>
+      <div class="field-control">
+        <label for="member-status">Account status</label>
+        <select id="member-status" [value]="statusDraft" (change)="setStatusDraft($any($event.target).value)" [disabled]="loading">
+          <option value="ALL">All statuses</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+      </div>
+      <div class="search-actions">
+        <button class="btn primary" type="button" (click)="applyFilters()" [disabled]="loading">Search Members</button>
+        @if (filtersApplied || searchDraft || statusDraft !== 'ALL') {
+          <button class="btn text" type="button" (click)="clearFilters()" [disabled]="loading">Clear</button>
+        }
+      </div>
+    </div>
+  </section>
+
+  @if (pageMessage) { <div class="notice info" role="status" aria-live="polite">{{ pageMessage }}</div> }
+
+  @if (loading) {
+    <div class="state-panel" role="status" aria-live="polite">{{ filtering ? 'Filtering Members...' : 'Loading Members...' }}</div>
+  } @else if (loadErrorMessage) {
+    <div class="notice error" role="alert">
+      <span>{{ loadErrorMessage }}</span>
+      <button class="btn text" type="button" (click)="retryMembers()" [disabled]="loading">Retry</button>
+    </div>
+  } @else if (!members.length) {
+    <div class="empty-state" role="status">
+      <h2>{{ filtersApplied ? 'No Members match these filters' : 'No Members yet' }}</h2>
+      <p>{{ filtersApplied ? 'Try a different username, email, or account status.' : 'No Member records are available.' }}</p>
+      @if (filtersApplied) { <button class="btn" type="button" (click)="clearFilters()" [disabled]="loading">Clear filters</button> }
+    </div>
+  } @else {
+    <div class="results-heading">
+      <h2 id="member-results-title">{{ totalElements }} {{ totalElements === 1 ? 'Member' : 'Members' }}</h2>
+      <span class="metadata">Backend-ordered Member list</span>
+    </div>
+    <div class="table-wrap">
+      <table class="member-table" aria-labelledby="member-results-title">
+        <caption class="visually-hidden">Member records</caption>
+        <thead>
+          <tr>
+            <th scope="col">Username</th>
+            <th scope="col">Email</th>
+            <th scope="col">Account status</th>
+            <th scope="col">Active Profiles</th>
+            <th scope="col">Last updated</th>
+            <th scope="col" class="actions-column">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (member of members; track member.id) {
+            <tr>
+              <td><strong>{{ member.username }}</strong></td>
+              <td>{{ member.email }}</td>
+              <td><span class="status" [class.active]="member.status === 'ACTIVE'" [class.inactive]="member.status === 'INACTIVE'">{{ member.status }}</span></td>
+              <td class="metadata">{{ member.activeProfileCount }}</td>
+              <td class="metadata"><time [attr.datetime]="member.lastUpdatedAt">{{ formatTimestamp(member.lastUpdatedAt) }}</time></td>
+              <td class="row-actions"><button class="btn text" type="button" (click)="showMemberActionBoundary(member)" [attr.aria-label]="'Manage Profiles for ' + member.username">Manage Profiles</button></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (totalPages > 1) {
+      <nav class="pagination" aria-label="Members pagination">
+        <button class="btn text" type="button" aria-label="Previous page" (click)="previousPage()" [disabled]="loading || currentPage === 0">Previous</button>
+        <span class="metadata" aria-live="polite">Page {{ currentPage + 1 }} of {{ totalPages }}</span>
+        <button class="btn text" type="button" aria-label="Next page" (click)="nextPage()" [disabled]="loading || currentPage + 1 >= totalPages">Next</button>
+      </nav>
+    }
+  }
+</section>
