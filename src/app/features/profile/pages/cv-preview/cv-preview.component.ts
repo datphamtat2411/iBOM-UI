@@ -59,6 +59,15 @@ export class CvPreviewComponent implements OnDestroy {
   exportError = '';
   exportSuccess = '';
 
+  private readonly lastExportedAtFormatter = new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
+
   private readonly routeSubscription: Subscription;
   private fileNameFormatsSubscription: Subscription | null = null;
   private previewSubscription: Subscription | null = null;
@@ -128,6 +137,13 @@ export class CvPreviewComponent implements OnDestroy {
   selectFileNameFormat(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.selectedFileNameFormatId = value || null;
+  }
+
+  formatLastExportedAt(value: string | null | undefined): string | null {
+    if (!value) return null;
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : this.lastExportedAtFormatter.format(date);
   }
 
   exportDocument(format: CvExportFormat): void {

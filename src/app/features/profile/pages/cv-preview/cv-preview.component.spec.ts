@@ -112,6 +112,33 @@ describe('CvPreviewComponent', () => {
     expect(fixture?.nativeElement.textContent).toContain('Preview required');
   });
 
+  it('renders lastExportedAt in Ho Chi Minh time without mutating the backend value', () => {
+    const rawLastExportedAt = '2026-01-02T12:00:00Z';
+    const currentDetail = { ...detail, lastExportedAt: rawLastExportedAt };
+
+    render(currentDetail);
+
+    const lastExported = fixture?.nativeElement.querySelector('.last-exported') as HTMLElement;
+    expect(lastExported.textContent?.trim()).toBe('Last exported: Jan 2, 2026, 7:00 PM');
+    expect(lastExported.textContent).not.toContain(rawLastExportedAt);
+    expect(currentDetail.lastExportedAt).toBe(rawLastExportedAt);
+    expect(context.detail()?.lastExportedAt).toBe(rawLastExportedAt);
+  });
+
+  it('does not render a timestamp when lastExportedAt is null or absent', () => {
+    render({ ...detail, lastExportedAt: null });
+    expect(fixture?.nativeElement.querySelector('.last-exported')).toBeNull();
+
+    fixture?.destroy();
+    fixture = undefined;
+    const absentDetail = { ...detail } as Partial<ProfileDetail>;
+    delete absentDetail.lastExportedAt;
+
+    render(absentDetail as ProfileDetail);
+
+    expect(fixture!.nativeElement.querySelector('.last-exported')).toBeNull();
+  });
+
   it('loads every File Name Format page in backend order while keeping Automatic available', () => {
     profiles.listFileNameFormats.and.callFake((page: number) => of(page === 0
       ? { content: [{ id: 7, name: 'Name - Title' }, { id: 8, name: 'Name - Role' }], page: 0, size: 10, totalElements: 3, totalPages: 2 }
