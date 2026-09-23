@@ -79,6 +79,7 @@ export class CvPreviewComponent implements OnDestroy {
   private activeExportGeneration: number | null = null;
   private previewGeneration = 0;
   private exportGeneration = 0;
+  private fileNameFormatsGeneration = 0;
   private observedProfileVersion: number | null = null;
   private fileNameFormatsLoaded = false;
   private documentObjectUrl: string | null = null;
@@ -101,8 +102,7 @@ export class CvPreviewComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.routeSubscription.unsubscribe();
-    this.fileNameFormatsSubscription?.unsubscribe();
-    this.fileNameFormatsSubscription = null;
+    this.invalidateFileNameFormatsLoad();
     this.invalidatePreview('loading');
   }
 
@@ -114,6 +114,11 @@ export class CvPreviewComponent implements OnDestroy {
 
   retryPreview(): void {
     this.generatePreview();
+  }
+
+  retryFileNameFormats(): void {
+    if (this.fileNameFormatsLoading || this.fileNameFormatsSubscription || this.fileNameFormatsLoaded) return;
+    this.loadFileNameFormats();
   }
 
   get canExport(): boolean {
@@ -180,6 +185,8 @@ export class CvPreviewComponent implements OnDestroy {
   }
 
   private activateProfile(profileId: string | null): void {
+    const reloadFileNameFormats = this.fileNameFormatsLoading;
+    this.invalidateFileNameFormatsLoad();
     this.invalidatePreview('loading');
     this.activeProfileId = profileId;
     this.observedProfileVersion = null;
@@ -189,6 +196,7 @@ export class CvPreviewComponent implements OnDestroy {
 
     if (profileId) this.context.loadDetail(profileId);
     else this.context.beginSelection(null);
+    if (reloadFileNameFormats) this.loadFileNameFormats();
   }
 
   private observeProfileContext(): void {
@@ -410,6 +418,8 @@ export class CvPreviewComponent implements OnDestroy {
   private loadFileNameFormats(): void {
     if (this.fileNameFormatsLoading || this.fileNameFormatsSubscription || this.fileNameFormatsLoaded) return;
 
+    const generation = ++this.fileNameFormatsGeneration;
+    const profileId = this.activeProfileId;
     this.fileNameFormatsLoading = true;
     this.fileNameFormatsError = '';
     this.fileNameFormats = [];
@@ -425,21 +435,40 @@ export class CvPreviewComponent implements OnDestroy {
     );
     const subscription = request.subscribe({
       next: (formats) => {
+        if (!this.isCurrentFileNameFormatsLoad(profileId, generation)) return;
         this.fileNameFormats = formats;
         this.fileNameFormatsLoaded = true;
       },
       error: (error: unknown) => {
+        if (!this.isCurrentFileNameFormatsLoad(profileId, generation)) return;
         this.fileNameFormats = [];
+        this.fileNameFormatsLoaded = false;
         this.fileNameFormatsLoading = false;
         this.fileNameFormatsError = this.backendMessage(error) || 'File Name Formats could not be loaded.';
         this.fileNameFormatsSubscription = null;
       },
       complete: () => {
+        if (!this.isCurrentFileNameFormatsLoad(profileId, generation)) return;
         this.fileNameFormatsLoading = false;
         this.fileNameFormatsSubscription = null;
       },
     });
     this.fileNameFormatsSubscription = subscription.closed ? null : subscription;
+  }
+
+  private invalidateFileNameFormatsLoad(): boolean {
+    const wasLoading = this.fileNameFormatsLoading;
+    this.fileNameFormatsGeneration++;
+    this.fileNameFormatsSubscription?.unsubscribe();
+    this.fileNameFormatsSubscription = null;
+    this.fileNameFormatsLoading = false;
+    return wasLoading;
+  }
+
+  private isCurrentFileNameFormatsLoad(profileId: string | null, generation: number): boolean {
+    return this.fileNameFormatsGeneration === generation
+      && this.activeProfileId === profileId
+      && this.context.selectedId() === profileId;
   }
 
   private exportSucceeded(response: HttpResponse<Blob>, pending: PendingExport): void {

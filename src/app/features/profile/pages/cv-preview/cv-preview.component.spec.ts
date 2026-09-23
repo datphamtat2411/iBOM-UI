@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, NEVER, of, Subject } from 'rxjs';
 
-import { ProfileDetail } from '../../models/profile.models';
+import { FileNameFormatPage, ProfileDetail } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
 import { CvPreviewComponent } from './cv-preview.component';
@@ -42,6 +42,10 @@ describe('CvPreviewComponent', () => {
     lastExportedAt: null,
     preferredFileNameFormatId: null,
   };
+
+  function formatPage(page: number, content: { id: number; name: string }[], totalPages: number, totalElements: number): FileNameFormatPage {
+    return { content, page, size: 10, totalElements, totalPages };
+  }
 
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
@@ -85,6 +89,11 @@ describe('CvPreviewComponent', () => {
     fixture.detectChanges();
     fixture.detectChanges();
     return fixture.componentInstance;
+  }
+
+  function retryButton(): HTMLButtonElement | null {
+    const buttons = fixture?.nativeElement.querySelectorAll('.export-controls button') as NodeListOf<HTMLButtonElement> | undefined;
+    return buttons ? Array.from(buttons).find((button) => button.textContent?.trim() === 'Retry') ?? null : null;
   }
 
   function reloadWith(reloaded: ProfileDetail): void {
@@ -152,6 +161,20 @@ describe('CvPreviewComponent', () => {
     expect(fixture!.nativeElement.querySelector('.last-exported')).toBeNull();
   });
 
+  it('exposes Retry when the initial File Name Format load fails', () => {
+    const request = new Subject<FileNameFormatPage>();
+    profiles.listFileNameFormats.and.returnValue(request);
+
+    const component = render();
+    request.error(new HttpErrorResponse({ status: 503, error: { message: 'Formats unavailable.' } }));
+    fixture?.detectChanges();
+
+    expect(component.fileNameFormatsLoading).toBeFalse();
+    expect(component.fileNameFormatsError).toBe('Formats unavailable.');
+    expect(retryButton()).not.toBeNull();
+    expect(retryButton()?.disabled).toBeFalse();
+  });
+
   it('loads every File Name Format page in backend order while keeping Automatic available', () => {
     profiles.listFileNameFormats.and.callFake((page: number) => of(page === 0
       ? { content: [{ id: 7, name: 'Name - Title' }, { id: 8, name: 'Name - Role' }], page: 0, size: 10, totalElements: 3, totalPages: 2 }
@@ -171,19 +194,125 @@ describe('CvPreviewComponent', () => {
   });
 
   it('does not present partial File Name Formats when a later page fails', () => {
-    const secondPage = new Subject<{ content: { id: number; name: string }[]; page: number; size: number; totalElements: number; totalPages: number }>();
+    const secondPage = new Subject<FileNameFormatPage>();
     profiles.listFileNameFormats.and.returnValues(
-      of({ content: [{ id: 7, name: 'Name - Title' }], page: 0, size: 10, totalElements: 2, totalPages: 2 }),
+      of(formatPage(0, [{ id: 7, name: 'Name - Title' }], 2, 2)),
       secondPage,
     );
 
     const component = render();
     expect(component.fileNameFormatsLoading).toBeTrue();
     secondPage.error(new HttpErrorResponse({ status: 503, error: { message: 'Formats unavailable.' } }));
+    fixture?.detectChanges();
 
     expect(component.fileNameFormats).toEqual([]);
     expect(component.fileNameFormatsLoading).toBeFalse();
     expect(component.fileNameFormatsError).toBe('Formats unavailable.');
+    expect(retryButton()).not.toBeNull();
+  });
+
+  it('retries from page 0 and loads the complete multi-page list while clearing the previous error', () => {
+    const initial = new Subject<FileNameFormatPage>();
+    const retryPage = new Subject<FileNameFormatPage>();
+    profiles.listFileNameFormats.and.returnValues(
+      initial,
+      of(formatPage(0, [{ id: 8, name: 'Name - Role' }], 2, 2)),
+      retryPage,
+    );
+
+    const component = render();
+    initial.error(new HttpErrorResponse({ status: 503, error: { message: 'Initial failure.' } }));
+    component.retryFileNameFormats();
+
+    expect(profiles.listFileNameFormats.calls.argsFor(1)).toEqual([0, 10]);
+    expect(profiles.listFileNameFormats.calls.argsFor(2)).toEqual([1, 10]);
+    expect(component.fileNameFormatsLoading).toBeTrue();
+    expect(component.fileNameFormatsError).toBe('');
+
+    retryPage.next(formatPage(1, [{ id: 9, name: 'Name - Date' }], 2, 2));
+    retryPage.complete();
+
+    expect(component.fileNameFormats).toEqual([
+      { id: 8, name: 'Name - Role' },
+      { id: 9, name: 'Name - Date' },
+    ]);
+    expect(component.fileNameFormatsLoading).toBeFalse();
+    expect(component.fileNameFormatsError).toBe('');
+  });
+
+  it('does not retain partial data from a failed retry attempt', () => {
+    const initial = new Subject<FileNameFormatPage>();
+    const retryPage = new Subject<FileNameFormatPage>();
+    profiles.listFileNameFormats.and.returnValues(
+      initial,
+      of(formatPage(0, [{ id: 8, name: 'Name - Role' }], 2, 2)),
+      retryPage,
+    );
+
+    const component = render();
+    initial.error(new HttpErrorResponse({ status: 503, error: { message: 'Initial failure.' } }));
+    component.retryFileNameFormats();
+    retryPage.error(new HttpErrorResponse({ status: 503, error: { message: 'Retry failure.' } }));
+    fixture?.detectChanges();
+
+    expect(component.fileNameFormats).toEqual([]);
+    expect(component.fileNameFormatsLoading).toBeFalse();
+    expect(component.fileNameFormatsError).toBe('Retry failure.');
+    expect(retryButton()).not.toBeNull();
+  });
+
+  it('prevents duplicate retries while loading and keeps a repeated failure retryable', () => {
+    const initial = new Subject<FileNameFormatPage>();
+    const firstRetry = new Subject<FileNameFormatPage>();
+    const secondRetry = new Subject<FileNameFormatPage>();
+    profiles.listFileNameFormats.and.returnValues(initial, firstRetry, secondRetry);
+
+    const component = render();
+    initial.error(new HttpErrorResponse({ status: 503, error: { message: 'Initial failure.' } }));
+    component.retryFileNameFormats();
+    component.retryFileNameFormats();
+
+    expect(profiles.listFileNameFormats).toHaveBeenCalledTimes(2);
+    expect(component.fileNameFormatsLoading).toBeTrue();
+    firstRetry.error(new HttpErrorResponse({ status: 503, error: { message: 'Retry failed again.' } }));
+    fixture?.detectChanges();
+
+    expect(component.fileNameFormatsLoading).toBeFalse();
+    expect(component.fileNameFormatsError).toBe('Retry failed again.');
+    expect(retryButton()).not.toBeNull();
+    retryButton()?.click();
+
+    expect(profiles.listFileNameFormats).toHaveBeenCalledTimes(3);
+    expect(profiles.listFileNameFormats.calls.argsFor(2)).toEqual([0, 10]);
+    expect(component.fileNameFormatsLoading).toBeTrue();
+  });
+
+  it('ignores stale retry responses after the Profile context changes', () => {
+    const initial = new Subject<FileNameFormatPage>();
+    const staleRetry = new Subject<FileNameFormatPage>();
+    const activeProfileRetry = new Subject<FileNameFormatPage>();
+    profiles.listFileNameFormats.and.returnValues(initial, staleRetry, activeProfileRetry);
+
+    const component = render();
+    initial.error(new HttpErrorResponse({ status: 503, error: { message: 'Initial failure.' } }));
+    component.retryFileNameFormats();
+
+    context.selectedId.set('2');
+    context.detail.set(null);
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture?.detectChanges();
+
+    staleRetry.next(formatPage(0, [{ id: 7, name: 'Stale format' }], 1, 1));
+    expect(component.fileNameFormats).toEqual([]);
+    expect(component.fileNameFormatsLoading).toBeTrue();
+
+    activeProfileRetry.next(formatPage(0, [{ id: 9, name: 'Current format' }], 1, 1));
+    activeProfileRetry.complete();
+
+    expect(component.fileNameFormats).toEqual([{ id: 9, name: 'Current format' }]);
+    expect(component.fileNameFormats).not.toContain({ id: 7, name: 'Stale format' } as never);
+    expect(component.fileNameFormatsError).toBe('');
+    expect(component.fileNameFormatsLoading).toBeFalse();
   });
 
   it('prevents duplicate Preview generation while the backend request is active', () => {
