@@ -119,6 +119,49 @@ describe('SeniorityManagementComponent', () => {
     expect(component.seniorityForm.controls.toExperience.disabled).toBeTrue();
   });
 
+  it('requires a finite maximum and clears it when switching Unlimited back on', () => {
+    openCreate();
+    const component = fixture.componentInstance;
+    component.seniorityForm.controls.name.setValue('Mid');
+    component.seniorityForm.controls.fromExperience.setValue(3);
+    component.setUnlimited(false);
+
+    expect(component.seniorityForm.controls.toExperience.enabled).toBeTrue();
+    expect(component.seniorityForm.controls.toExperience.hasError('required')).toBeTrue();
+    component.submit();
+    expect(seniorityService.create).not.toHaveBeenCalled();
+    expect(component.editorMode).toBe('create');
+
+    component.seniorityForm.controls.toExperience.setValue(5);
+    component.setUnlimited(true);
+    expect(component.seniorityForm.controls.toExperience.disabled).toBeTrue();
+    expect(component.seniorityForm.controls.toExperience.value).toBeNull();
+    component.setUnlimited(false);
+    expect(component.seniorityForm.controls.toExperience.enabled).toBeTrue();
+    expect(component.seniorityForm.controls.toExperience.value).toBeNull();
+    expect(component.seniorityForm.controls.toExperience.hasError('required')).toBeTrue();
+  });
+
+  it('accepts the backend precision boundaries and rejects excess digits', () => {
+    seniorityService.create.and.returnValue(of(response({ id: 3, name: 'Mid', fromExperience: 999, toExperience: 999.99 })));
+    openCreate();
+    fillFinite('Mid', 999, 999.99);
+    fixture.componentInstance.submit();
+
+    expect(seniorityService.create).toHaveBeenCalledWith({ name: 'Mid', fromExperience: 999, toExperience: 999.99 });
+
+    openCreate();
+    fillFinite('TooWide', 0, 1000);
+    fixture.componentInstance.submit();
+    expect(seniorityService.create).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.fieldError('toExperience')).toContain('3 integer digits');
+
+    fixture.componentInstance.seniorityForm.controls.toExperience.setValue(1.234);
+    fixture.componentInstance.submit();
+    expect(seniorityService.create).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.fieldError('toExperience')).toContain('2 decimal places');
+  });
+
   it('rejects a negative minimum and a maximum that is not greater than the minimum', () => {
     openCreate();
     const component = fixture.componentInstance;

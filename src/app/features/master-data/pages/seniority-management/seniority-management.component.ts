@@ -27,11 +27,16 @@ export class SeniorityManagementComponent implements OnInit, OnDestroy {
     fromExperience: this.formBuilder.control<number | null>(null, [
       Validators.required,
       Validators.min(0),
+      Validators.max(999.99),
       this.finiteNumberValidator(),
+      this.precisionValidator(),
     ]),
     toExperience: this.formBuilder.control<number | null>(null, [
+      Validators.required,
       Validators.min(0),
+      Validators.max(999.99),
       this.finiteNumberValidator(),
+      this.precisionValidator(),
     ]),
     unlimited: this.formBuilder.nonNullable.control(true),
   }, { validators: this.rangeValidator() });
@@ -132,11 +137,17 @@ export class SeniorityManagementComponent implements OnInit, OnDestroy {
       this.editorErrorMessage = 'Please correct the highlighted fields.';
       return;
     }
+    const toExperience = values.unlimited ? null : this.numericValue(values.toExperience);
+    if (!values.unlimited && toExperience === null) {
+      this.seniorityForm.controls.toExperience.markAsTouched();
+      this.editorErrorMessage = 'Please correct the highlighted fields.';
+      return;
+    }
 
     const request: SeniorityRequest = {
       name: values.name,
       fromExperience,
-      toExperience: values.unlimited ? null : this.numericValue(values.toExperience),
+      toExperience,
     };
     const editingId = this.editingSeniorityId;
     this.isSubmitting = true;
@@ -202,6 +213,8 @@ export class SeniorityManagementComponent implements OnInit, OnDestroy {
     if (errors?.['required']) return 'This field is required.';
     if (errors?.['min']) return 'Enter a non-negative number.';
     if (errors?.['finite']) return 'Enter a finite number.';
+    if (errors?.['precision']) return 'Use up to 3 integer digits and 2 decimal places.';
+    if (errors?.['max']) return 'Enter a number no greater than 999.99.';
     if (field === 'toExperience' && this.seniorityForm.hasError('range')) return 'Maximum Experience must be greater than Minimum Experience.';
     return errors ? 'This value is not valid.' : '';
   }
@@ -370,6 +383,20 @@ export class SeniorityManagementComponent implements OnInit, OnDestroy {
     return (control: AbstractControl): ValidationErrors | null => {
       if (control.value === null || control.value === '') return null;
       return Number.isFinite(Number(control.value)) ? null : { finite: true };
+    };
+  }
+
+  private precisionValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (control.value === null || control.value === '') return null;
+
+      const rawValue = String(control.value).trim();
+      const decimal = /^(?:(\d+)(?:\.(\d*))?|\.(\d+))$/.exec(rawValue);
+      if (!decimal) return { precision: true };
+
+      const integerDigits = (decimal[1] ?? '').replace(/^0+/, '').length;
+      const fractionDigits = (decimal[2] ?? decimal[3] ?? '').length;
+      return integerDigits > 3 || fractionDigits > 2 ? { precision: true } : null;
     };
   }
 

@@ -78,13 +78,14 @@
         <div class="range-grid">
           <div class="field">
             <label for="seniority-from">Minimum Experience</label>
-            <input id="seniority-from" type="number" min="0" step="any" formControlName="fromExperience" [attr.aria-invalid]="fieldInvalid('fromExperience')">
+            <input id="seniority-from" type="number" min="0" max="999.99" step="0.01" formControlName="fromExperience" [attr.aria-invalid]="fieldInvalid('fromExperience')">
             @if (fieldInvalid('fromExperience')) { <span class="field-error">{{ fieldError('fromExperience') }}</span> }
           </div>
 
           <div class="field">
-            <label for="seniority-to">Maximum Experience <span class="optional">(optional)</span></label>
-            <input id="seniority-to" type="number" min="0" step="any" formControlName="toExperience" [attr.aria-invalid]="fieldInvalid('toExperience')">
+            <label for="seniority-to">Maximum Experience <span class="optional">(required for finite ranges)</span></label>
+            <input id="seniority-to" type="number" min="0" max="999.99" step="0.01" formControlName="toExperience" aria-describedby="seniority-to-guidance" [attr.aria-invalid]="fieldInvalid('toExperience')">
+            <span id="seniority-to-guidance" class="optional">Required when Unlimited is off; cleared and unused when Unlimited is on.</span>
             @if (fieldInvalid('toExperience')) { <span class="field-error">{{ fieldError('toExperience') }}</span> }
           </div>
         </div>
