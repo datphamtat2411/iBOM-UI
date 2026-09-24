@@ -136,9 +136,9 @@ export class ProfileWorkspaceComponent {
   }
 
   openDeleteConfirmation(): void {
-    if (this.isManagedContext) return;
-    if (!this.canStartWorkspaceMutation() || this.context.summaries().length <= 1) return;
-    const profileId = this.context.selectedId();
+    if (!this.canStartWorkspaceMutation()) return;
+    if (!this.isManagedContext && this.context.summaries().length <= 1) return;
+    const profileId = this.workspaceSelectedId();
     const profile = this.workspaceDetail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
 
@@ -155,7 +155,7 @@ export class ProfileWorkspaceComponent {
   confirmDelete(): void {
     const target = this.deleteTarget;
     if (!this.deleteConfirmation || !target || this.isDeleting || this.mutationOwner !== null || this.editSession.dirty()) return;
-    if (this.context.selectedId() !== target.id || String(this.context.detail()?.id) !== target.id) {
+    if (this.workspaceSelectedId() !== target.id || String(this.workspaceDetail()?.id) !== target.id) {
       this.closeDeleteConfirmation();
       return;
     }
@@ -247,8 +247,7 @@ export class ProfileWorkspaceComponent {
   }
 
   mutationBlockedFor(section: ProfileWorkspaceSection): boolean {
-    return this.isManagedContext
-      || this.isDeleteWorkflowActive()
+    return this.isDeleteWorkflowActive()
       || (this.mutationOwner !== null && this.mutationOwner !== section)
       || (this.editSession.dirty() && this.mutationOwner !== section);
   }
@@ -262,13 +261,13 @@ export class ProfileWorkspaceComponent {
   }
 
   projectNavigationRequested(event: ProjectNavigationRequest): void {
-    if (this.isManagedContext) return;
-    const profileId = this.context.selectedId();
+    const profileId = this.workspaceSelectedId();
     const profile = this.workspaceDetail();
     if (!profileId || !profile || String(profile.id) !== profileId || !this.canStartWorkspaceMutation()) return;
-    void this.router.navigate(event.projectId === null
-      ? ['/profiles', profileId, 'projects', 'new']
-      : ['/profiles', profileId, 'projects', event.projectId]);
+    const base = this.isManagedContext && this.activeMemberId
+      ? ['/members', this.activeMemberId, 'profiles', profileId, 'projects']
+      : ['/profiles', profileId, 'projects'];
+    void this.router.navigate(event.projectId === null ? [...base, 'new'] : [...base, event.projectId]);
   }
 
   discardPendingNavigation(): void {
@@ -289,22 +288,31 @@ export class ProfileWorkspaceComponent {
     this.closeDeleteConfirmation();
     this.isDeleting = false;
 
-    this.context.refreshSummariesAndSelectFirst().subscribe({
+    const refresh$ = this.isManagedContext
+      ? this.context.refreshManagedSummariesAndSelectFirst()
+      : this.context.refreshSummariesAndSelectFirst();
+    refresh$.subscribe({
       next: (first) => {
         if (!this.isCurrentProfileDeleteFlow(profileId, operationGeneration)) return;
-        void this.router.navigate(first ? ['/profiles', first.id] : ['/profiles']);
+        void this.router.navigate(this.isManagedContext && this.activeMemberId
+          ? first
+            ? ['/members', this.activeMemberId, 'profiles', first.id]
+            : ['/members', this.activeMemberId, 'profiles']
+          : first ? ['/profiles', first.id] : ['/profiles']);
       },
       error: () => {
         if (!this.isCurrentProfileDeleteFlow(profileId, operationGeneration)) return;
-        void this.router.navigate(['/profiles']);
+        void this.router.navigate(this.isManagedContext && this.activeMemberId
+          ? ['/members', this.activeMemberId, 'profiles']
+          : ['/profiles']);
       },
     });
   }
 
   private isCurrentProfileDeleteResponse(profileId: string, generation: number): boolean {
     return this.isCurrentProfileDeleteFlow(profileId, generation)
-      && this.context.selectedId() === profileId
-      && String(this.context.detail()?.id) === profileId;
+      && this.workspaceSelectedId() === profileId
+      && String(this.workspaceDetail()?.id) === profileId;
   }
 
   private isCurrentProfileDeleteFlow(profileId: string, generation: number): boolean {

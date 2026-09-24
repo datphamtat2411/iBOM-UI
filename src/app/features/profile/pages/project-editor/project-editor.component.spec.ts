@@ -19,9 +19,15 @@ describe('ProjectEditorComponent', () => {
     summaries: ReturnType<typeof signal>;
     selectedId: ReturnType<typeof signal>;
     detail: ReturnType<typeof signal>;
+    managedMember: ReturnType<typeof signal>;
+    managedSelectedId: ReturnType<typeof signal>;
+    managedDetail: ReturnType<typeof signal>;
     loadSummaries: jasmine.Spy;
+    loadManagedMember: jasmine.Spy;
+    clearManagedContext: jasmine.Spy;
     reloadDetail: jasmine.Spy;
     applyMutationVersion: jasmine.Spy;
+    refreshManagedProfile: jasmine.Spy;
   };
   let notifications: { showSuccess: jasmine.Spy };
   let profiles: { listProjects: jasmine.Spy; createProject: jasmine.Spy; updateProject: jasmine.Spy };
@@ -69,9 +75,15 @@ describe('ProjectEditorComponent', () => {
       summaries: signal([]),
       selectedId: signal('1'),
       detail: signal<ProfileDetail | null>(detail),
+      managedMember: signal(null),
+      managedSelectedId: signal(null),
+      managedDetail: signal<ProfileDetail | null>(null),
       loadSummaries: jasmine.createSpy('loadSummaries'),
+      loadManagedMember: jasmine.createSpy('loadManagedMember'),
+      clearManagedContext: jasmine.createSpy('clearManagedContext'),
       reloadDetail: jasmine.createSpy('reloadDetail').and.returnValue(of(detail)),
       applyMutationVersion: jasmine.createSpy('applyMutationVersion').and.returnValue(true),
+      refreshManagedProfile: jasmine.createSpy('refreshManagedProfile').and.returnValue(of(detail)),
     };
 
     await TestBed.configureTestingModule({
@@ -437,5 +449,27 @@ describe('ProjectEditorComponent', () => {
     pending.next({ project: other, profileVersion: 4 });
 
     expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 4);
+  });
+
+  it('uses managed Member/Profile context for Project list and mutations and returns to managed Workspace', () => {
+    const managedProfile = { ...detail, id: 2, profileName: 'Managed CV' };
+    const managedProject = { ...project, id: 7, name: 'Managed Project' };
+    context.managedMember.set({ id: '10', username: 'managed-user' });
+    context.managedSelectedId.set('2');
+    context.managedDetail.set(managedProfile);
+    profiles.listProjects.and.returnValue(of([managedProject]));
+    profiles.updateProject.and.returnValue(of({ project: { ...managedProject, name: 'Updated Managed Project' }, profileVersion: 4 }));
+    context.refreshManagedProfile.and.returnValue(of({ ...managedProfile, version: 4, hasPreviewed: false }));
+
+    params.next(convertToParamMap({ memberId: '10', profileId: '2', projectId: '7' }));
+    fixture.detectChanges();
+    fillProjectDraft({ name: 'Updated Managed Project' });
+    fixture.componentInstance.submit();
+
+    expect(context.loadManagedMember).toHaveBeenCalledWith({ id: '10' }, '2');
+    expect(profiles.listProjects).toHaveBeenCalledWith('2');
+    expect(profiles.updateProject).toHaveBeenCalledWith('2', '7', jasmine.objectContaining({ version: 3 }));
+    expect(context.refreshManagedProfile).toHaveBeenCalledWith('2');
+    expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', '2']);
   });
 });

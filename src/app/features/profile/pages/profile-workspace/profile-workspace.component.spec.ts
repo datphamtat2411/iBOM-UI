@@ -1,8 +1,9 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { BehaviorSubject, Subject, of } from 'rxjs';
+import { BehaviorSubject, Subject, of, throwError } from 'rxjs';
 
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { ProfileDetail, ProfileSummary } from '../../models/profile.models';
@@ -46,6 +47,7 @@ describe('ProfileWorkspaceComponent', () => {
     beginSelection: jasmine.Spy;
     replaceDetail: jasmine.Spy;
     refreshSummariesAndSelectFirst: jasmine.Spy;
+    refreshManagedSummariesAndSelectFirst: jasmine.Spy;
     applyMutationVersion: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
@@ -91,6 +93,7 @@ describe('ProfileWorkspaceComponent', () => {
       beginSelection: jasmine.createSpy('beginSelection'),
       replaceDetail: jasmine.createSpy('replaceDetail'),
       refreshSummariesAndSelectFirst: jasmine.createSpy('refreshSummariesAndSelectFirst'),
+      refreshManagedSummariesAndSelectFirst: jasmine.createSpy('refreshManagedSummariesAndSelectFirst'),
       applyMutationVersion: jasmine.createSpy('applyMutationVersion').and.returnValue(true),
       isNotFound: jasmine.createSpy('isNotFound').and.returnValue(false),
     };
@@ -147,7 +150,7 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.nativeElement.querySelector('#workspace-section-skills')).toBeTruthy();
   });
 
-  it('loads a managed Member route separately and renders managed context without Profile CRUD actions', () => {
+  it('loads a managed Member route separately and reuses shared Profile CRUD sections without owner actions', () => {
     const managedProfile = { ...detail, id: 2, profileName: 'Managed CV' };
     context.loadManagedMember.and.callFake((member: { id: string }, profileId: string | null) => {
       context.managedMember.set(member);
@@ -167,7 +170,8 @@ describe('ProfileWorkspaceComponent', () => {
     expect(context.loadDetail).toHaveBeenCalledWith('1');
     expect(fixture.nativeElement.querySelector('#workspace-title')?.textContent).toContain('Managed Profile Workspace');
     expect(fixture.nativeElement.textContent).toContain('Managed Member Profile');
-    expect(fixture.nativeElement.querySelector('.delete-profile-button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.delete-profile-button')).not.toBeNull();
+    expect((fixture.nativeElement.querySelector('.edit-about-button') as HTMLButtonElement).disabled).toBeFalse();
     expect(fixture.nativeElement.querySelector('button[type="submit"]')).toBeNull();
 
     fixture.componentInstance.openPreview();
@@ -302,5 +306,55 @@ describe('ProfileWorkspaceComponent', () => {
     pendingDelete.next();
 
     expect(router.navigate).not.toHaveBeenCalledWith(['/profiles', 2]);
+  });
+
+  it('deletes the selected managed Profile and recovers selection inside the Member context', () => {
+    const managedProfile = { ...detail, id: 2, profileName: 'Managed CV' };
+    const remaining = { ...summary, id: 3, profileName: 'Remaining Managed CV' };
+    context.loadManagedMember.and.callFake((member: { id: string }, profileId: string | null) => {
+      context.managedMember.set(member);
+      context.managedSummaries.set([managedProfile, remaining]);
+      context.managedSummariesLoading.set(false);
+      context.managedSummariesError.set(null);
+      context.managedSelectedId.set(profileId);
+      context.managedDetail.set(managedProfile);
+      context.managedDetailLoading.set(false);
+      context.managedDetailError.set(null);
+    });
+    context.refreshManagedSummariesAndSelectFirst.and.returnValue(of(remaining));
+    profiles['delete'].and.returnValue(of(undefined));
+
+    params.next(convertToParamMap({ memberId: '10', profileId: '2' }));
+    fixture.detectChanges();
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.componentInstance.confirmDelete();
+
+    expect(profiles['delete']).toHaveBeenCalledWith('2');
+    expect(context.refreshManagedSummariesAndSelectFirst).toHaveBeenCalled();
+    expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', 3]);
+  });
+
+  it('keeps managed context and displays the backend last-Profile rejection', () => {
+    const managedProfile = { ...detail, id: 2, profileName: 'Managed CV' };
+    context.loadManagedMember.and.callFake((member: { id: string }, profileId: string | null) => {
+      context.managedMember.set(member);
+      context.managedSummaries.set([managedProfile]);
+      context.managedSummariesLoading.set(false);
+      context.managedSummariesError.set(null);
+      context.managedSelectedId.set(profileId);
+      context.managedDetail.set(managedProfile);
+      context.managedDetailLoading.set(false);
+      context.managedDetailError.set(null);
+    });
+    profiles['delete'].and.returnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'The last active Profile cannot be deleted.' } })));
+
+    params.next(convertToParamMap({ memberId: '10', profileId: '2' }));
+    fixture.detectChanges();
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.componentInstance.confirmDelete();
+
+    expect(fixture.componentInstance.deleteErrorMessage).toBe('The last active Profile cannot be deleted.');
+    expect(context.managedMember()).toEqual(jasmine.objectContaining({ id: '10' }));
+    expect(router.navigate).not.toHaveBeenCalledWith(['/profiles']);
   });
 });

@@ -78,6 +78,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
   selectedSkillMasterOption: SkillMasterOption | null = null;
 
   private activeProfileId: string | null = null;
+  private activeMemberId: string | null = null;
   private editingProfileSkillId: number | string | null = null;
   private originalSkillValues: EditableSkillValues | null = null;
   private originalSkillInputValue = '';
@@ -101,7 +102,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
     const profileChange = changes['profile'];
     if (!profileChange || !this.profile) return;
     const nextProfileId = String(this.profile.id);
-    if (profileChange.firstChange || this.activeProfileId !== nextProfileId) this.resetForProfile();
+    if (profileChange.firstChange || this.activeProfileId !== nextProfileId || this.activeMemberId !== this.currentMemberId()) this.resetForProfile();
   }
 
   ngOnDestroy(): void {
@@ -124,6 +125,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
     this.skillMasterGeneration++;
     this.deleteRecoveryGeneration++;
     this.activeProfileId = this.profile ? String(this.profile.id) : null;
+    this.activeMemberId = this.currentMemberId();
     this.skills = [];
     this.skillLoading = false;
     this.skillError = null;
@@ -186,8 +188,8 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    const profile = this.context.detail();
-    const profileId = this.context.selectedId();
+    const profile = this.selectedProfile();
+    const profileId = this.selectedProfileId();
     if (!profile || !profileId || String(profile.id) !== profileId) return;
 
     const value = this.skillForm.getRawValue();
@@ -229,6 +231,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
           this.syncDirtyState();
           return;
         }
+        this.refreshManagedProfile(profileId);
 
         this.skills = this.sortProfileSkills(mode === 'edit' && profileSkillId !== null
           ? this.skills.map((skill) => String(skill.profileSkillId) === String(profileSkillId) ? result.profileSkill : skill)
@@ -249,8 +252,8 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
 
   openSkillDeleteConfirmation(skill: ProfileSkill): void {
     if (this.mutationBlocked || !this.isCurrentSkillRecord(skill)) return;
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profileId = this.selectedProfileId();
+    const profile = this.selectedProfile();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
 
     this.skillDeleteTarget = skill;
@@ -266,8 +269,8 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
 
   confirmSkillDelete(): void {
     const target = this.skillDeleteTarget;
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profileId = this.selectedProfileId();
+    const profile = this.selectedProfile();
     if (!this.skillDeleteConfirmation || !target || this.isSkillDeleting || this.hasDeleteConflict() || !profileId || !profile) return;
     if (String(profile.id) !== profileId || !this.isCurrentSkillRecord(target)) {
       this.closeSkillDeleteConfirmation();
@@ -286,6 +289,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
           this.syncDirtyState();
           return;
         }
+        this.refreshManagedProfile(profileId);
 
         this.skills = this.sortProfileSkills(this.skills.filter((skill) => String(skill.profileSkillId) !== String(target.profileSkillId)));
         this.isSkillDeleting = false;
@@ -579,7 +583,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
   }
 
   private fetchLatestSkill(): void {
-    const profileId = this.context.selectedId();
+    const profileId = this.selectedProfileId();
     if (!profileId) return;
 
     this.closeSkillEditor();
@@ -603,7 +607,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
   }
 
   private fetchLatestDeleteConflict(): void {
-    const profileId = this.context.selectedId();
+    const profileId = this.selectedProfileId();
     if (!profileId || !this.hasDeleteConflict()) return;
 
     const recoveryGeneration = ++this.deleteRecoveryGeneration;
@@ -886,8 +890,9 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
 
   private isCurrentProfileContext(profileId: string): boolean {
     return this.activeProfileId === profileId
-      && this.context.selectedId() === profileId
-      && String(this.context.detail()?.id) === profileId;
+      && this.activeMemberId === this.currentMemberId()
+      && this.selectedProfileId() === profileId
+      && String(this.selectedProfile()?.id) === profileId;
   }
 
   private isCurrentSkillOperation(profileId: string, generation: number, requiresEditor = true): boolean {
@@ -961,5 +966,23 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
 
   private apiError(error: unknown): ApiErrorResponse | undefined {
     return error instanceof HttpErrorResponse ? error.error as ApiErrorResponse : undefined;
+  }
+
+  private currentMemberId(): string | null {
+    const member = this.context.managedMember?.();
+    return member ? String(member.id) : null;
+  }
+
+  private selectedProfileId(): string | null {
+    return this.context.managedMember?.() ? this.context.managedSelectedId() : this.context.selectedId();
+  }
+
+  private selectedProfile(): ProfileDetail | null {
+    return this.context.managedMember?.() ? this.context.managedDetail() : this.context.detail();
+  }
+
+  private refreshManagedProfile(profileId: string): void {
+    const refresh$ = this.context.refreshManagedProfile?.(profileId);
+    refresh$?.subscribe({ error: () => undefined });
   }
 }

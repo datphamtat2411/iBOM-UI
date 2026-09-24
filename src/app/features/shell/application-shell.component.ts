@@ -77,7 +77,7 @@ export class ApplicationShellComponent {
 
   isManagedProfileRoute(url = this.router.url): boolean {
     const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
-    return /^\/members\/[^/]+\/profiles(?:\/[^/]+(?:\/preview)?)?$/.test(path);
+    return /^\/members\/[^/]+\/profiles(?:\/[^/]+(?:\/preview|\/projects(?:\/[^/]+)?)?)?$/.test(path);
   }
 
   toggleAccountMenu(): void { this.accountMenuOpen = !this.accountMenuOpen; }
@@ -261,7 +261,7 @@ export class ApplicationShellComponent {
 
   private managedMemberId(url = this.router.url): string | null {
     const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
-    const match = path.match(/^\/members\/([^/]+)\/profiles(?:\/[^/]+(?:\/preview)?)?$/);
+    const match = path.match(/^\/members\/([^/]+)\/profiles(?:\/[^/]+(?:\/preview|\/projects(?:\/[^/]+)?)?)?$/);
     if (!match) return null;
     return decodeURIComponent(match[1]);
   }

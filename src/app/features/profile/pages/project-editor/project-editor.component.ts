@@ -6,7 +6,7 @@ import { Subject, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
 import { NotificationService } from '../../../../core/notifications/notification.service';
-import { Project, ProjectRequest, ProjectStatus } from '../../models/profile.models';
+import { ProfileDetail, Project, ProjectRequest, ProjectStatus } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
 import { ProfileService } from '../../services/profile.service';
@@ -63,6 +63,7 @@ export class ProjectEditorComponent {
   ];
 
   profileId: string | null = null;
+  memberId: string | null = null;
   projectId: string | null = null;
   editorMode: ProjectEditorMode = 'create';
   project: Project | null = null;
@@ -86,11 +87,11 @@ export class ProjectEditorComponent {
   constructor() {
     this.projectForm.valueChanges.subscribe(() => this.syncDirtyState());
     this.projectForm.controls.status.valueChanges.subscribe(() => this.updateEndDateState());
-    this.route.paramMap.subscribe((params) => this.openRoute(params.get('profileId'), params.get('projectId')));
+    this.route.paramMap.subscribe((params) => this.openRoute(params.get('memberId'), params.get('profileId'), params.get('projectId')));
   }
 
   profileName(): string {
-    return this.context.detail()?.profileName ?? 'Profile';
+    return this.selectedProfile()?.profileName ?? 'Profile';
   }
 
   editorTitle(): string {
@@ -102,7 +103,8 @@ export class ProjectEditorComponent {
   }
 
   returnToWorkspace(): void {
-    if (this.profileId) void this.router.navigate(['/profiles', this.profileId]);
+    if (!this.profileId) return;
+    void this.router.navigate(this.workspaceRoute());
   }
 
   projectFieldError(field: EditableProjectField): string {
@@ -167,8 +169,8 @@ export class ProjectEditorComponent {
     }
 
     const profileId = this.profileId;
-    const profile = this.context.detail();
-    if (!profileId || !profile || this.context.selectedId() !== profileId || String(profile.id) !== profileId) {
+    const profile = this.selectedProfile();
+    if (!profileId || !profile || !this.isCurrentProfile(profileId)) {
       this.errorMessage = 'The selected Profile is no longer available. Return to the Profile Workspace and try again.';
       this.saveState = 'failure';
       return;
@@ -203,6 +205,7 @@ export class ProjectEditorComponent {
           this.isSubmitting = false;
           return;
         }
+        this.refreshManagedProfile(profileId);
 
         this.isSubmitting = false;
         this.conflict = false;
@@ -223,7 +226,7 @@ export class ProjectEditorComponent {
         this.projectForm.markAsUntouched();
         this.updateEndDateState();
         this.editSession.setDirty(false);
-        void this.router.navigate(['/profiles', profileId]);
+        void this.router.navigate(this.workspaceRoute(profileId));
       },
       error: (error: unknown) => {
         if (!this.isCurrentOperation(profileId, operationGeneration)) return;
@@ -249,7 +252,7 @@ export class ProjectEditorComponent {
   discardEditing(): void {
     this.cancelConfirmation = false;
     this.editSession.setDirty(false);
-    if (this.profileId) void this.router.navigate(['/profiles', this.profileId]);
+    if (this.profileId) void this.router.navigate(this.workspaceRoute());
   }
 
   reloadLatest(): void {
@@ -275,10 +278,11 @@ export class ProjectEditorComponent {
     this.editSession.resolveNavigation(true);
   }
 
-  private openRoute(profileId: string | null, projectId: string | null): void {
+  private openRoute(memberId: string | null, profileId: string | null, projectId: string | null): void {
     this.projectListCancel.next();
     this.listGeneration++;
     this.requestGeneration++;
+    this.memberId = memberId;
     this.profileId = profileId;
     this.projectId = projectId;
     this.editorMode = projectId ? 'edit' : 'create';
@@ -307,9 +311,30 @@ export class ProjectEditorComponent {
       return;
     }
 
-    this.context.loadSummaries();
-    const currentProfile = this.context.detail();
-    if (this.context.selectedId() === profileId && currentProfile && String(currentProfile.id) === profileId) {
+    if (memberId) {
+      const managedLoad$ = this.context.loadManagedProfile?.(this.managedMemberState(memberId), profileId);
+      if (managedLoad$) {
+        const generation = this.listGeneration;
+        managedLoad$.subscribe({
+          next: () => {
+            if (this.memberId !== memberId || this.profileId !== profileId || this.listGeneration !== generation) return;
+            this.loadProjects(profileId);
+          },
+          error: (error: unknown) => {
+            if (this.memberId !== memberId || this.profileId !== profileId || this.listGeneration !== generation) return;
+            this.isLoading = false;
+            this.loadErrorMessage = this.apiError(error)?.message?.trim() || 'Unable to load this Profile right now. Please try again.';
+          },
+        });
+        return;
+      }
+      this.context.loadManagedMember?.(this.managedMemberState(memberId), profileId);
+    } else {
+      this.context.clearManagedContext?.();
+      this.context.loadSummaries();
+    }
+    const currentProfile = this.selectedProfile();
+    if (profileId && this.isCurrentProfile(profileId) && currentProfile) {
       this.loadProjects(profileId);
       return;
     }
@@ -585,7 +610,15 @@ export class ProjectEditorComponent {
   }
 
   private isCurrentProfile(profileId: string): boolean {
+    const managedMember = this.context.managedMember?.();
+    if (this.memberId) {
+      return this.profileId === profileId
+        && String(managedMember?.id) === this.memberId
+        && this.context.managedSelectedId() === profileId
+        && String(this.context.managedDetail()?.id) === profileId;
+    }
     return this.profileId === profileId
+      && !managedMember
       && this.context.selectedId() === profileId
       && String(this.context.detail()?.id) === profileId;
   }
@@ -613,5 +646,27 @@ export class ProjectEditorComponent {
 
   private apiError(error: unknown): ApiErrorResponse | undefined {
     return error instanceof HttpErrorResponse ? error.error as ApiErrorResponse : undefined;
+  }
+
+  private selectedProfile(): ProfileDetail | null {
+    return this.memberId ? this.context.managedDetail() : this.context.detail();
+  }
+
+  private workspaceRoute(profileId = this.profileId): (string | number)[] {
+    if (!profileId) return this.memberId ? ['/members', this.memberId, 'profiles'] : ['/profiles'];
+    return this.memberId
+      ? ['/members', this.memberId, 'profiles', profileId]
+      : ['/profiles', profileId];
+  }
+
+  private managedMemberState(memberId: string): { id: string; username?: string; email?: string } {
+    const state = typeof history !== 'undefined' ? history.state?.managedMember : null;
+    if (!state || String(state.id) !== memberId) return { id: memberId };
+    return { id: memberId, username: state.username, email: state.email };
+  }
+
+  private refreshManagedProfile(profileId: string): void {
+    const refresh$ = this.context.refreshManagedProfile?.(profileId);
+    refresh$?.subscribe({ error: () => undefined });
   }
 }

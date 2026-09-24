@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { filter, map, Observable, shareReplay, Subject, takeUntil, tap } from 'rxjs';
+import { filter, map, Observable, of, shareReplay, Subject, switchMap, takeUntil, tap, throwError } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { ManagedMemberContext, ProfileDetail, ProfileSummary } from '../models/profile.models';
@@ -18,6 +18,7 @@ export class ProfileContextService {
   private detailGeneration = 0;
   private managedSummariesGeneration = 0;
   private managedDetailGeneration = 0;
+  private managedRefreshGeneration = 0;
   private managedRequestedProfileId: string | null = null;
 
   readonly summaries = signal<ProfileSummary[]>([]);
@@ -122,6 +123,7 @@ export class ProfileContextService {
 
   clearManagedContext(): void {
     this.managedSummariesGeneration++;
+    this.managedRefreshGeneration++;
     this.managedSummariesRequest = undefined;
     this.managedRequestedProfileId = null;
     this.managedMember.set(null);
@@ -206,8 +208,9 @@ export class ProfileContextService {
     return request;
   }
 
-  private requestManagedSummaries(member: ManagedMemberContext): void {
+  private requestManagedSummaries(member: ManagedMemberContext): Observable<ProfileSummary[]> {
     const generation = ++this.managedSummariesGeneration;
+    this.managedRefreshGeneration++;
     this.managedSummariesRequest = undefined;
     this.managedSummaries.set([]);
     this.managedSummariesLoading.set(true);
@@ -234,11 +237,44 @@ export class ProfileContextService {
         this.managedSummariesRequest = undefined;
       },
     });
+    return request;
+  }
+
+  loadManagedProfile(member: ManagedMemberContext, profileId: string): Observable<ProfileDetail> {
+    const normalizedMember: ManagedMemberContext = { ...member, id: String(member.id) };
+    const normalizedProfileId = String(profileId);
+    this.loadManagedMember(normalizedMember, normalizedProfileId);
+
+    const currentDetail = this.managedDetail();
+    if (this.managedSummariesLoaded()) {
+      const summary = this.managedSummaries().find((item) => String(item.id) === normalizedProfileId);
+      if (!summary) {
+        this.selectManagedProfile(normalizedProfileId);
+        return throwError(() => new Error('Managed Profile is no longer available.'));
+      }
+      if (this.managedSelectedId() === normalizedProfileId && currentDetail && String(currentDetail.id) === normalizedProfileId) {
+        return of(currentDetail);
+      }
+      return this.reloadManagedDetail(normalizedProfileId);
+    }
+
+    const summariesRequest = this.managedSummariesRequest;
+    if (!summariesRequest) return throwError(() => new Error('Managed Profile list is not available.'));
+    return summariesRequest.pipe(
+      switchMap((summaries) => {
+        if (!summaries.some((summary) => String(summary.id) === normalizedProfileId)) {
+          this.selectManagedProfile(normalizedProfileId);
+          return throwError(() => new Error('Managed Profile is no longer available.'));
+        }
+        return this.reloadManagedDetail(normalizedProfileId);
+      }),
+    );
   }
 
   private beginManagedSelection(profileId: string | null): void {
     this.managedDetailRequestCancel.next();
     this.managedDetailGeneration++;
+    this.managedRefreshGeneration++;
     this.managedSelectedId.set(profileId);
     this.managedDetail.set(null);
     this.managedDetailError.set(null);
@@ -278,6 +314,7 @@ export class ProfileContextService {
   private clearManagedSelection(): void {
     this.managedDetailRequestCancel.next();
     this.managedDetailGeneration++;
+    this.managedRefreshGeneration++;
     this.managedSelectedId.set(null);
     this.managedDetail.set(null);
     this.managedDetailLoading.set(false);
@@ -337,6 +374,124 @@ export class ProfileContextService {
       filter(() => generation === this.summariesGeneration && this.summariesRequest === request),
       map((summaries) => summaries[0] ?? null),
     );
+  }
+
+  refreshManagedProfile(profileId: string): Observable<ProfileDetail> {
+    const member = this.managedMember();
+    if (!member) return throwError(() => new Error('Managed Member context is not active.'));
+
+    const memberId = String(member.id);
+    const normalizedProfileId = String(profileId);
+    const generation = ++this.managedRefreshGeneration;
+    this.managedSummariesLoading.set(true);
+    this.managedSummariesError.set(null);
+
+    return this.profileService.listForMember(memberId).pipe(
+      tap({
+        next: (summaries) => {
+          if (!this.isCurrentManagedRefresh(memberId, normalizedProfileId, generation)) return;
+
+          this.managedSummaries.set(summaries);
+          this.managedSummariesLoading.set(false);
+          this.managedSummariesLoaded.set(true);
+          const selected = summaries.some((summary) => String(summary.id) === normalizedProfileId);
+          this.managedProfileMissing.set(!selected);
+          if (selected) {
+            this.managedSelectedId.set(normalizedProfileId);
+            this.managedDetailLoading.set(true);
+          } else {
+            this.managedDetail.set(null);
+          }
+        },
+        error: (error) => {
+          if (!this.isCurrentManagedRefresh(memberId, normalizedProfileId, generation)) return;
+          this.managedSummariesLoading.set(false);
+          this.managedSummariesError.set(error);
+        },
+      }),
+      switchMap((summaries) => {
+        if (!this.isCurrentManagedRefresh(memberId, normalizedProfileId, generation)
+          || !summaries.some((summary) => String(summary.id) === normalizedProfileId)) {
+          return throwError(() => new Error('Managed Profile is no longer available.'));
+        }
+        return this.profileService.get(normalizedProfileId);
+      }),
+      tap({
+        next: (detail) => {
+          if (!this.isCurrentManagedRefresh(memberId, normalizedProfileId, generation)) return;
+          this.managedDetail.set(detail);
+          this.managedDetailLoading.set(false);
+          this.managedDetailError.set(null);
+          this.managedProfileMissing.set(false);
+        },
+        error: (error) => {
+          if (!this.isCurrentManagedRefresh(memberId, normalizedProfileId, generation)) return;
+          this.managedDetailLoading.set(false);
+          this.managedDetailError.set(error);
+        },
+      }),
+    );
+  }
+
+  refreshManagedSummariesAndSelectFirst(): Observable<ProfileSummary | null> {
+    const member = this.managedMember();
+    if (!member) return of(null);
+
+    const memberId = String(member.id);
+    const generation = ++this.managedRefreshGeneration;
+    this.managedRequestedProfileId = null;
+    this.managedDetailRequestCancel.next();
+    this.managedDetailGeneration++;
+    this.managedSelectedId.set(null);
+    this.managedDetail.set(null);
+    this.managedDetailLoading.set(false);
+    this.managedDetailError.set(null);
+    this.managedProfileMissing.set(false);
+    this.managedSummariesRequest = undefined;
+    this.managedSummaries.set([]);
+    this.managedSummariesLoading.set(true);
+    this.managedSummariesLoaded.set(false);
+    this.managedSummariesError.set(null);
+
+    const request = this.profileService.listForMember(memberId).pipe(shareReplay(1));
+    this.managedSummariesRequest = request;
+    return request.pipe(
+      tap({
+        next: (summaries) => {
+          if (!this.isCurrentManagedSummaryRefresh(memberId, generation, request)) return;
+
+          this.managedSummaries.set(summaries);
+          this.managedSummariesLoading.set(false);
+          this.managedSummariesLoaded.set(true);
+          const first = summaries[0] ? String(summaries[0].id) : null;
+          this.managedRequestedProfileId = first;
+          this.managedSelectedId.set(first);
+          this.managedProfileMissing.set(false);
+          if (first) this.requestManagedDetail(first);
+        },
+        error: (error) => {
+          if (!this.isCurrentManagedSummaryRefresh(memberId, generation, request)) return;
+          this.managedSummariesLoading.set(false);
+          this.managedSummariesLoaded.set(false);
+          this.managedSummariesError.set(error);
+          this.managedSummariesRequest = undefined;
+        },
+      }),
+      filter(() => this.isCurrentManagedSummaryRefresh(memberId, generation, request)),
+      map((summaries) => summaries[0] ?? null),
+    );
+  }
+
+  private isCurrentManagedRefresh(memberId: string, profileId: string, generation: number): boolean {
+    return this.managedRefreshGeneration === generation
+      && String(this.managedMember()?.id) === memberId
+      && this.managedSelectedId() === profileId;
+  }
+
+  private isCurrentManagedSummaryRefresh(memberId: string, generation: number, request: Observable<ProfileSummary[]>): boolean {
+    return this.managedRefreshGeneration === generation
+      && this.managedSummariesRequest === request
+      && String(this.managedMember()?.id) === memberId;
   }
 
   private reset(): void {

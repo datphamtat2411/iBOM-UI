@@ -14,8 +14,12 @@ describe('AboutMeSectionComponent', () => {
   let context: {
     selectedId: ReturnType<typeof signal>;
     detail: ReturnType<typeof signal>;
+    managedMember: ReturnType<typeof signal>;
+    managedSelectedId: ReturnType<typeof signal>;
+    managedDetail: ReturnType<typeof signal>;
     replaceDetail: jasmine.Spy;
     reloadDetail: jasmine.Spy;
+    refreshManagedProfile: jasmine.Spy;
   };
   let profiles: { update: jasmine.Spy };
   let notifications: { showSuccess: jasmine.Spy };
@@ -40,8 +44,12 @@ describe('AboutMeSectionComponent', () => {
     context = {
       selectedId: signal('1'),
       detail: signal<ProfileDetail | null>(profile),
+      managedMember: signal(null),
+      managedSelectedId: signal(null),
+      managedDetail: signal<ProfileDetail | null>(null),
       replaceDetail: jasmine.createSpy('replaceDetail'),
       reloadDetail: jasmine.createSpy('reloadDetail'),
+      refreshManagedProfile: jasmine.createSpy('refreshManagedProfile').and.returnValue(of(profile)),
     };
     profiles = { update: jasmine.createSpy('update') };
     notifications = { showSuccess: jasmine.createSpy('showSuccess') };
@@ -184,5 +192,24 @@ describe('AboutMeSectionComponent', () => {
     await expectAsync(decision).toBeResolvedTo(true);
     expect(fixture.componentInstance.isEditing).toBeFalse();
     expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
+  });
+
+  it('targets the selected managed Profile for About Me updates and refreshes managed authority', () => {
+    const managedProfile = { ...profile, id: 2, profileName: 'Managed CV' };
+    const updated = { ...managedProfile, firstName: 'Managed Updated', version: 4, hasPreviewed: false };
+    context.managedMember.set({ id: 'member-1' });
+    context.managedSelectedId.set('2');
+    context.managedDetail.set(managedProfile);
+    profiles.update.and.returnValue(of(updated));
+    context.refreshManagedProfile.and.returnValue(of(updated));
+    fixture.componentInstance.profile = managedProfile;
+    fixture.detectChanges();
+    fixture.componentInstance.resetForProfile();
+    fixture.componentInstance.startEditing();
+    fixture.componentInstance.editForm.controls.firstName.setValue('Managed Updated');
+    fixture.componentInstance.submit();
+
+    expect(profiles.update).toHaveBeenCalledWith('2', jasmine.objectContaining({ firstName: 'Managed Updated', version: 3 }));
+    expect(context.refreshManagedProfile).toHaveBeenCalledWith('2');
   });
 });

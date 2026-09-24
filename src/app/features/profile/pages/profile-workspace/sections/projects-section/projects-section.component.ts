@@ -37,6 +37,7 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
 
   private readonly listCancel = new Subject<void>();
   private activeProfileId: string | null = null;
+  private activeMemberId: string | null = null;
   private listGeneration = 0;
   private mutationGeneration = 0;
   private deleteRecoveryGeneration = 0;
@@ -48,7 +49,7 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
     const profileChange = changes['profile'];
     if (!profileChange || !this.profile) return;
     const nextProfileId = String(this.profile.id);
-    if (profileChange.firstChange || this.activeProfileId !== nextProfileId) this.resetForProfile();
+    if (profileChange.firstChange || this.activeProfileId !== nextProfileId || this.activeMemberId !== this.currentMemberId()) this.resetForProfile();
   }
 
   ngOnDestroy(): void {
@@ -63,6 +64,7 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
     this.mutationGeneration++;
     this.deleteRecoveryGeneration++;
     this.activeProfileId = this.profile ? String(this.profile.id) : null;
+    this.activeMemberId = this.currentMemberId();
     this.projects = [];
     this.expandedProjectIds.clear();
     this.projectLoading = false;
@@ -123,8 +125,8 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
 
   confirmProjectDelete(): void {
     const target = this.projectDeleteTarget;
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profileId = this.selectedProfileId();
+    const profile = this.selectedProfile();
     if (!this.projectDeleteConfirmation || !target || this.isProjectDeleting || this.deleteConflict || !profileId || !profile) return;
     if (String(profile.id) !== profileId || !this.isCurrentProjectRecord(target)) {
       this.closeProjectDeleteConfirmation();
@@ -143,6 +145,7 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
           this.syncInteraction();
           return;
         }
+        this.refreshManagedProfile(profileId);
 
         this.isProjectDeleting = false;
         this.expandedProjectIds.delete(String(target.id));
@@ -178,8 +181,8 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
 
   private requestProjectNavigation(projectId: number | string | null): void {
     if (this.mutationBlocked || !this.profile) return;
-    const profileId = this.context.selectedId();
-    const currentProfile = this.context.detail();
+    const profileId = this.selectedProfileId();
+    const currentProfile = this.selectedProfile();
     if (!profileId || !currentProfile || String(currentProfile.id) !== profileId || this.activeProfileId !== profileId) return;
     if (projectId !== null && !this.projects.some((project) => String(project.id) === String(projectId))) return;
     this.navigationRequested.emit({ projectId });
@@ -211,7 +214,7 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
   }
 
   private fetchLatestDeleteConflict(): void {
-    const profileId = this.context.selectedId();
+    const profileId = this.selectedProfileId();
     if (!profileId || !this.deleteConflict) return;
 
     const recoveryGeneration = ++this.deleteRecoveryGeneration;
@@ -273,15 +276,19 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
   private isCurrentProjectProfile(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
       && this.listGeneration === generation
-      && this.context.selectedId() === profileId
-      && String(this.context.detail()?.id) === profileId;
+      && this.isCurrentProfileContext(profileId);
   }
 
   private isCurrentProjectOperation(profileId: string, generation: number): boolean {
     return this.activeProfileId === profileId
-      && this.context.selectedId() === profileId
-      && String(this.context.detail()?.id) === profileId
+      && this.isCurrentProfileContext(profileId)
       && this.mutationGeneration === generation;
+  }
+
+  private isCurrentProfileContext(profileId: string): boolean {
+    return this.activeMemberId === this.currentMemberId()
+      && this.selectedProfileId() === profileId
+      && String(this.selectedProfile()?.id) === profileId;
   }
 
   private isCurrentDeleteRecovery(profileId: string, generation: number): boolean {
@@ -316,5 +323,23 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
 
   private apiError(error: unknown): ApiErrorResponse | undefined {
     return error instanceof HttpErrorResponse ? error.error as ApiErrorResponse : undefined;
+  }
+
+  private currentMemberId(): string | null {
+    const member = this.context.managedMember?.();
+    return member ? String(member.id) : null;
+  }
+
+  private selectedProfileId(): string | null {
+    return this.context.managedMember?.() ? this.context.managedSelectedId() : this.context.selectedId();
+  }
+
+  private selectedProfile(): ProfileDetail | null {
+    return this.context.managedMember?.() ? this.context.managedDetail() : this.context.detail();
+  }
+
+  private refreshManagedProfile(profileId: string): void {
+    const refresh$ = this.context.refreshManagedProfile?.(profileId);
+    refresh$?.subscribe({ error: () => undefined });
   }
 }

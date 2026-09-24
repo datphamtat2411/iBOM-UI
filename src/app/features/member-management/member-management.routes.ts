@@ -20,6 +20,22 @@ export const memberManagementRoutes: Routes = [
       ),
   },
   {
+    path: ':memberId/profiles/:profileId/projects/new',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('../profile/pages/project-editor/project-editor.component').then(
+        (component) => component.ProjectEditorComponent,
+      ),
+  },
+  {
+    path: ':memberId/profiles/:profileId/projects/:projectId',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('../profile/pages/project-editor/project-editor.component').then(
+        (component) => component.ProjectEditorComponent,
+      ),
+  },
+  {
     path: ':memberId/profiles/:profileId/preview',
     canActivate: [profileDirtyNavigationGuard],
     loadComponent: () =>

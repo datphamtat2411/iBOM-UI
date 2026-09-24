@@ -14,8 +14,12 @@ describe('ProjectsSectionComponent', () => {
   let context: {
     selectedId: ReturnType<typeof signal>;
     detail: ReturnType<typeof signal>;
+    managedMember: ReturnType<typeof signal>;
+    managedSelectedId: ReturnType<typeof signal>;
+    managedDetail: ReturnType<typeof signal>;
     reloadDetail: jasmine.Spy;
     applyMutationVersion: jasmine.Spy;
+    refreshManagedProfile: jasmine.Spy;
   };
   let profiles: { listProjects: jasmine.Spy; deleteProject: jasmine.Spy };
   let notifications: { showSuccess: jasmine.Spy };
@@ -53,11 +57,15 @@ describe('ProjectsSectionComponent', () => {
     context = {
       selectedId: signal('1'),
       detail: signal<ProfileDetail | null>(profile),
+      managedMember: signal(null),
+      managedSelectedId: signal(null),
+      managedDetail: signal<ProfileDetail | null>(null),
       reloadDetail: jasmine.createSpy('reloadDetail').and.returnValue(of(profile)),
       applyMutationVersion: jasmine.createSpy('applyMutationVersion').and.callFake((_id: string, version: number) => {
         context.detail.set({ ...profile, version, hasPreviewed: false });
         return true;
       }),
+      refreshManagedProfile: jasmine.createSpy('refreshManagedProfile').and.returnValue(of(profile)),
     };
     profiles = {
       listProjects: jasmine.createSpy('listProjects').and.returnValue(of([project])),
@@ -215,5 +223,25 @@ describe('ProjectsSectionComponent', () => {
 
     expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 9);
     expect(notifications.showSuccess).not.toHaveBeenCalled();
+  });
+
+  it('uses the selected managed Profile for Project list and delete requests', () => {
+    const managedProfile = { ...profile, id: 2, profileName: 'Managed CV' };
+    const managedProject = { ...project, id: 7, name: 'Managed Project' };
+    context.managedMember.set({ id: 'member-1' });
+    context.managedSelectedId.set('2');
+    context.managedDetail.set(managedProfile);
+    profiles.listProjects.and.returnValue(of([managedProject]));
+    profiles.deleteProject.and.returnValue(of({ profileVersion: 4 }));
+    context.refreshManagedProfile.and.returnValue(of({ ...managedProfile, version: 4, hasPreviewed: false }));
+    fixture.componentInstance.profile = managedProfile;
+    fixture.detectChanges();
+    fixture.componentInstance.resetForProfile();
+    fixture.componentInstance.openProjectDeleteConfirmation(managedProject);
+    fixture.componentInstance.confirmProjectDelete();
+
+    expect(profiles.listProjects).toHaveBeenCalledWith('2');
+    expect(profiles.deleteProject).toHaveBeenCalledWith('2', 7, 3);
+    expect(context.refreshManagedProfile).toHaveBeenCalledWith('2');
   });
 });

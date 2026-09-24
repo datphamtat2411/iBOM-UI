@@ -66,6 +66,7 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
   reloadConfirmation = false;
 
   private activeProfileId: string | null = null;
+  private activeMemberId: string | null = null;
   private editingEducationId: number | string | null = null;
   private originalValues: EditableEducationValues | null = null;
   private readonly listCancel = new Subject<void>();
@@ -86,7 +87,7 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
     const profileChange = changes['profile'];
     if (!profileChange || !this.profile) return;
     const nextProfileId = String(this.profile.id);
-    if (profileChange.firstChange || this.activeProfileId !== nextProfileId) this.resetForProfile();
+    if (profileChange.firstChange || this.activeProfileId !== nextProfileId || this.activeMemberId !== this.currentMemberId()) this.resetForProfile();
   }
 
   ngOnDestroy(): void {
@@ -103,6 +104,7 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
     this.mutationGeneration++;
     this.deleteRecoveryGeneration++;
     this.activeProfileId = this.profile ? String(this.profile.id) : null;
+    this.activeMemberId = this.currentMemberId();
     this.educations = [];
     this.educationLoading = false;
     this.educationError = null;
@@ -166,8 +168,8 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profileId = this.selectedProfileId();
+    const profile = this.selectedProfile();
     if (!profile || !profileId || String(profile.id) !== profileId) return;
 
     const value = this.educationForm.getRawValue();
@@ -196,6 +198,7 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
           this.syncDirtyState();
           return;
         }
+        this.refreshManagedProfile(profileId);
 
         this.educations = mode === 'edit' && educationId !== null
           ? this.educations.map((education) => String(education.id) === String(educationId) ? result.education : education)
@@ -229,8 +232,8 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
 
   confirmEducationDelete(): void {
     const target = this.educationDeleteTarget;
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profileId = this.selectedProfileId();
+    const profile = this.selectedProfile();
     if (!this.educationDeleteConfirmation || !target || this.isEducationDeleting || this.hasDeleteConflict() || this.educationEditorMode || !profileId || !profile) return;
     if (String(profile.id) !== profileId || !this.isCurrentEducationRecord(target)) {
       this.closeEducationDeleteConfirmation();
@@ -249,6 +252,7 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
           this.syncDirtyState();
           return;
         }
+        this.refreshManagedProfile(profileId);
 
         this.educations = this.educations.filter((education) => String(education.id) !== String(target.id));
         this.isEducationDeleting = false;
@@ -403,7 +407,7 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
   }
 
   private fetchLatestEducation(): void {
-    const profileId = this.context.selectedId();
+    const profileId = this.selectedProfileId();
     if (!profileId) return;
 
     this.closeEducationEditor();
@@ -427,7 +431,7 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
   }
 
   private fetchLatestDeleteConflict(): void {
-    const profileId = this.context.selectedId();
+    const profileId = this.selectedProfileId();
     if (!profileId || !this.hasDeleteConflict()) return;
 
     const recoveryGeneration = ++this.deleteRecoveryGeneration;
@@ -607,8 +611,9 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
 
   private isCurrentProfileContext(profileId: string): boolean {
     return this.activeProfileId === profileId
-      && this.context.selectedId() === profileId
-      && String(this.context.detail()?.id) === profileId;
+      && this.activeMemberId === this.currentMemberId()
+      && this.selectedProfileId() === profileId
+      && String(this.selectedProfile()?.id) === profileId;
   }
 
   private isCurrentEducationOperation(profileId: string, generation: number, requiresEditor = true): boolean {
@@ -664,5 +669,23 @@ export class EducationSectionComponent implements OnChanges, OnDestroy {
 
   private apiError(error: unknown): ApiErrorResponse | undefined {
     return error instanceof HttpErrorResponse ? error.error as ApiErrorResponse : undefined;
+  }
+
+  private currentMemberId(): string | null {
+    const member = this.context.managedMember?.();
+    return member ? String(member.id) : null;
+  }
+
+  private selectedProfileId(): string | null {
+    return this.context.managedMember?.() ? this.context.managedSelectedId() : this.context.selectedId();
+  }
+
+  private selectedProfile(): ProfileDetail | null {
+    return this.context.managedMember?.() ? this.context.managedDetail() : this.context.detail();
+  }
+
+  private refreshManagedProfile(profileId: string): void {
+    const refresh$ = this.context.refreshManagedProfile?.(profileId);
+    refresh$?.subscribe({ error: () => undefined });
   }
 }

@@ -326,6 +326,21 @@ describe('ApplicationShellComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', 3]);
   });
 
+  it('keeps managed Member context visible on shared Project editor routes', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles/2/projects/7');
+    profileContext.managedMember.set({ id: '10', username: 'managed-user' });
+    profileContext.managedSummaries.set([{ id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.managedSelectedId.set('2');
+    profileContext.managedDetail.set({ id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-01', yearsOfExperience: 5, personality: null, technicalSummary: null, hasPreviewed: false, version: 1, createdAt: '2026-01-01', lastExportedAt: null, preferredFileNameFormatId: null });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.isManagedProfileRoute()).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.member-context')?.textContent).toContain('managed-user');
+    expect(fixture.nativeElement.textContent).not.toContain('Create Profile');
+    expect(fixture.nativeElement.textContent).not.toContain('Copy Profile');
+  });
+
   it('keeps zero managed Profiles valid without exposing a Create action', () => {
     const router = TestBed.inject(Router);
     spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles');

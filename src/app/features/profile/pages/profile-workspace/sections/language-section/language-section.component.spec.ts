@@ -14,8 +14,12 @@ describe('LanguageSectionComponent', () => {
   let context: {
     selectedId: ReturnType<typeof signal>;
     detail: ReturnType<typeof signal>;
+    managedMember: ReturnType<typeof signal>;
+    managedSelectedId: ReturnType<typeof signal>;
+    managedDetail: ReturnType<typeof signal>;
     applyMutationVersion: jasmine.Spy;
     reloadDetail: jasmine.Spy;
+    refreshManagedProfile: jasmine.Spy;
   };
   let profiles: {
     listProfileLanguages: jasmine.Spy;
@@ -52,8 +56,12 @@ describe('LanguageSectionComponent', () => {
     context = {
       selectedId: signal('1'),
       detail: signal<ProfileDetail | null>(profile),
+      managedMember: signal(null),
+      managedSelectedId: signal(null),
+      managedDetail: signal<ProfileDetail | null>(null),
       applyMutationVersion: jasmine.createSpy('applyMutationVersion').and.returnValue(true),
       reloadDetail: jasmine.createSpy('reloadDetail').and.returnValue(of(profile)),
+      refreshManagedProfile: jasmine.createSpy('refreshManagedProfile').and.returnValue(of(profile)),
     };
     profiles = {
       listProfileLanguages: jasmine.createSpy('listProfileLanguages').and.returnValue(of([english, vietnamese])),
@@ -257,6 +265,27 @@ describe('LanguageSectionComponent', () => {
 
     expect(switchedFixture.componentInstance.languages).toEqual([]);
     switchedFixture.destroy();
+  });
+
+  it('uses the selected managed Profile for Language list and mutation requests', () => {
+    const managedProfile = { ...profile, id: 2, profileName: 'Managed CV' };
+    const created = { profileLanguageId: 3, languageId: french.id, languageName: french.name, level: 'INTERMEDIATE' as const };
+    context.managedMember.set({ id: 'member-1' });
+    context.managedSelectedId.set('2');
+    context.managedDetail.set(managedProfile);
+    profiles.listProfileLanguages.and.returnValue(of([english]));
+    profiles.createProfileLanguage.and.returnValue(of({ profileLanguage: created, profileVersion: 4 }));
+    context.refreshManagedProfile.and.returnValue(of({ ...managedProfile, version: 4, hasPreviewed: false }));
+    fixture.componentInstance.profile = managedProfile;
+    fixture.detectChanges();
+    fixture.componentInstance.resetForProfile();
+    openCreate();
+    select(french);
+    fixture.componentInstance.submitLanguage();
+
+    expect(profiles.listProfileLanguages).toHaveBeenCalledWith('2');
+    expect(profiles.createProfileLanguage).toHaveBeenCalledWith('2', jasmine.objectContaining({ version: 3 }));
+    expect(context.refreshManagedProfile).toHaveBeenCalledWith('2');
   });
 });
 

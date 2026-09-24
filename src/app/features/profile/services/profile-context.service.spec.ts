@@ -256,4 +256,46 @@ describe('ProfileContextService', () => {
     expect(service.selectedId()).toBe('2');
     expect(service.detail()).toBeNull();
   });
+
+  it('refreshes managed summaries and selected detail through Member-scoped APIs only', () => {
+    profiles.listForMember.and.returnValue(of([managedSummary]));
+    profiles.get.and.returnValue(of({ ...managedDetail, version: 2, hasPreviewed: false }));
+    service.loadManagedMember({ id: 10, username: 'managed-user' });
+    service.refreshManagedProfile('2').subscribe();
+
+    expect(profiles.list).not.toHaveBeenCalled();
+    expect(profiles.listForMember).toHaveBeenCalledWith('10');
+    expect(profiles.get).toHaveBeenCalledWith('2');
+    expect(service.managedSummaries()).toEqual([managedSummary]);
+    expect(service.managedDetail()?.version).toBe(2);
+  });
+
+  it('waits for a managed Profile list before resolving a direct Profile editor load', () => {
+    const summaries = new Subject<ProfileSummary[]>();
+    const loaded = jasmine.createSpy('loaded');
+    profiles.listForMember.and.returnValue(summaries);
+    profiles.get.and.returnValue(of(managedDetail));
+
+    service.loadManagedProfile({ id: 10 }, '2').subscribe(loaded);
+    expect(profiles.get).not.toHaveBeenCalled();
+
+    summaries.next([managedSummary]);
+
+    expect(profiles.get).toHaveBeenCalledWith('2');
+    expect(loaded).toHaveBeenCalledWith(managedDetail);
+  });
+
+  it('refreshes managed Profile deletion state and selects the remaining active Profile', () => {
+    const remaining = { ...managedSummary, id: 3, profileName: 'Remaining Managed CV' };
+    profiles.listForMember.and.returnValues(of([managedSummary]), of([remaining]));
+    profiles.get.and.returnValues(of(managedDetail), of({ ...managedDetail, id: 3, profileName: remaining.profileName }));
+    service.loadManagedMember({ id: 10, username: 'managed-user' });
+    service.refreshManagedSummariesAndSelectFirst().subscribe();
+
+    expect(profiles.list).not.toHaveBeenCalled();
+    expect(profiles.listForMember).toHaveBeenCalledWith('10');
+    expect(service.managedSummaries()).toEqual([remaining]);
+    expect(service.managedSelectedId()).toBe('3');
+    expect(service.managedDetail()?.id).toBe(3);
+  });
 });

@@ -50,6 +50,7 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
   saveMessage = '';
 
   private activeProfileId: string | null = null;
+  private activeMemberId: string | null = null;
   private originalValues: EditableAboutMeValues | null = null;
   private mutationGeneration = 0;
   private interactionActive = false;
@@ -64,7 +65,7 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
     const profileChange = changes['profile'];
     if (!profileChange || !this.profile) return;
     const nextProfileId = String(this.profile.id);
-    if (profileChange.firstChange || this.activeProfileId !== nextProfileId) this.resetForProfile();
+    if (profileChange.firstChange || this.activeProfileId !== nextProfileId || this.activeMemberId !== this.currentMemberId()) this.resetForProfile();
   }
 
   ngOnDestroy(): void {
@@ -76,6 +77,7 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
   resetForProfile(): void {
     this.mutationGeneration++;
     this.activeProfileId = this.profile ? String(this.profile.id) : null;
+    this.activeMemberId = this.currentMemberId();
     this.originalValues = null;
     this.isEditing = false;
     this.isSubmitting = false;
@@ -140,8 +142,8 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profileId = this.selectedProfileId();
+    const profile = this.selectedProfile();
     if (!profile || !profileId || String(profile.id) !== profileId) return;
 
     const value = this.editForm.getRawValue();
@@ -163,6 +165,7 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
       next: (updated) => {
         if (!this.isCurrentOperation(profileId, operationGeneration)) return;
         this.context.replaceDetail(updated);
+        this.refreshManagedProfile(profileId);
         this.isSubmitting = false;
         this.conflict = false;
         this.saveMessage = 'About Me updated successfully.';
@@ -214,11 +217,11 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
   }
 
   private fetchLatest(): void {
-    const profileId = this.context.selectedId();
+    const profileId = this.selectedProfileId();
     if (!profileId) return;
 
     const reloadGeneration = ++this.mutationGeneration;
-    const current = this.context.detail();
+    const current = this.selectedProfile();
     if (current) this.editForm.reset(this.formValues(current));
     this.editForm.markAsPristine();
     this.editForm.markAsUntouched();
@@ -345,8 +348,9 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
 
   private isCurrentProfileContext(profileId: string): boolean {
     return this.activeProfileId === profileId
-      && this.context.selectedId() === profileId
-      && String(this.context.detail()?.id) === profileId;
+      && this.activeMemberId === this.currentMemberId()
+      && this.selectedProfileId() === profileId
+      && String(this.selectedProfile()?.id) === profileId;
   }
 
   private isCurrentOperation(profileId: string, generation: number): boolean {
@@ -368,6 +372,24 @@ export class AboutMeSectionComponent implements OnChanges, OnDestroy {
 
   private apiError(error: unknown): ApiErrorResponse | undefined {
     return error instanceof HttpErrorResponse ? error.error as ApiErrorResponse : undefined;
+  }
+
+  private currentMemberId(): string | null {
+    const member = this.context.managedMember?.();
+    return member ? String(member.id) : null;
+  }
+
+  private selectedProfileId(): string | null {
+    return this.context.managedMember?.() ? this.context.managedSelectedId() : this.context.selectedId();
+  }
+
+  private selectedProfile(): ProfileDetail | null {
+    return this.context.managedMember?.() ? this.context.managedDetail() : this.context.detail();
+  }
+
+  private refreshManagedProfile(profileId: string): void {
+    const refresh$ = this.context.refreshManagedProfile?.(profileId);
+    refresh$?.subscribe({ error: () => undefined });
   }
 
 }

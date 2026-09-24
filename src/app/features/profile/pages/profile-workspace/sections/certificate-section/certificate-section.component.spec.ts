@@ -15,8 +15,12 @@ describe('CertificateSectionComponent', () => {
   let context: {
     selectedId: ReturnType<typeof signal>;
     detail: ReturnType<typeof signal>;
+    managedMember: ReturnType<typeof signal>;
+    managedSelectedId: ReturnType<typeof signal>;
+    managedDetail: ReturnType<typeof signal>;
     reloadDetail: jasmine.Spy;
     applyMutationVersion: jasmine.Spy;
+    refreshManagedProfile: jasmine.Spy;
   };
   let profiles: { listCertificates: jasmine.Spy; createCertificate: jasmine.Spy; updateCertificate: jasmine.Spy; deleteCertificate: jasmine.Spy };
   let notifications: { showSuccess: jasmine.Spy };
@@ -42,11 +46,15 @@ describe('CertificateSectionComponent', () => {
     context = {
       selectedId: signal('1'),
       detail: signal<ProfileDetail | null>(profile),
+      managedMember: signal(null),
+      managedSelectedId: signal(null),
+      managedDetail: signal<ProfileDetail | null>(null),
       reloadDetail: jasmine.createSpy('reloadDetail').and.returnValue(of(profile)),
       applyMutationVersion: jasmine.createSpy('applyMutationVersion').and.callFake((_id: string, version: number) => {
         context.detail.set({ ...profile, version, hasPreviewed: false });
         return true;
       }),
+      refreshManagedProfile: jasmine.createSpy('refreshManagedProfile').and.returnValue(of(profile)),
     };
     profiles = {
       listCertificates: jasmine.createSpy('listCertificates').and.returnValue(of([certificate])),
@@ -242,5 +250,26 @@ describe('CertificateSectionComponent', () => {
     context.detail.set({ ...profile, id: 2 });
     (profiles.createCertificate.calls.mostRecent().returnValue as Subject<unknown>).next({ certificate, profileVersion: 9 });
     expect(context.applyMutationVersion).not.toHaveBeenCalledWith('1', 9);
+  });
+
+  it('uses the selected managed Profile for Certificate list and mutation requests', () => {
+    const managedProfile = { ...profile, id: 2, profileName: 'Managed CV' };
+    const created = { ...certificate, id: 2, certificateName: 'Managed Certificate' };
+    context.managedMember.set({ id: 'member-1' });
+    context.managedSelectedId.set('2');
+    context.managedDetail.set(managedProfile);
+    profiles.listCertificates.and.returnValue(of([certificate]));
+    profiles.createCertificate.and.returnValue(of({ certificate: created, profileVersion: 4 }));
+    context.refreshManagedProfile.and.returnValue(of({ ...managedProfile, version: 4, hasPreviewed: false }));
+    fixture.componentInstance.profile = managedProfile;
+    fixture.detectChanges();
+    fixture.componentInstance.resetForProfile();
+    openCreate();
+    fillDraft(created.certificateName);
+    fixture.componentInstance.submitCertificate();
+
+    expect(profiles.listCertificates).toHaveBeenCalledWith('2');
+    expect(profiles.createCertificate).toHaveBeenCalledWith('2', jasmine.objectContaining({ version: 3 }));
+    expect(context.refreshManagedProfile).toHaveBeenCalledWith('2');
   });
 });

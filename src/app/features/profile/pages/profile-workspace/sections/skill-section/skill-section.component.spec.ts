@@ -14,8 +14,12 @@ describe('SkillSectionComponent', () => {
   let context: {
     selectedId: ReturnType<typeof signal>;
     detail: ReturnType<typeof signal>;
+    managedMember: ReturnType<typeof signal>;
+    managedSelectedId: ReturnType<typeof signal>;
+    managedDetail: ReturnType<typeof signal>;
     applyMutationVersion: jasmine.Spy;
     reloadDetail: jasmine.Spy;
+    refreshManagedProfile: jasmine.Spy;
   };
   let profiles: {
     listProfileSkills: jasmine.Spy;
@@ -52,8 +56,12 @@ describe('SkillSectionComponent', () => {
     context = {
       selectedId: signal('1'),
       detail: signal<ProfileDetail | null>(profile),
+      managedMember: signal(null),
+      managedSelectedId: signal(null),
+      managedDetail: signal<ProfileDetail | null>(null),
       applyMutationVersion: jasmine.createSpy('applyMutationVersion').and.returnValue(true),
       reloadDetail: jasmine.createSpy('reloadDetail').and.returnValue(of(profile)),
+      refreshManagedProfile: jasmine.createSpy('refreshManagedProfile').and.returnValue(of(profile)),
     };
     profiles = {
       listProfileSkills: jasmine.createSpy('listProfileSkills').and.returnValue(of([angularSkill, javaSkill])),
@@ -262,6 +270,27 @@ describe('SkillSectionComponent', () => {
 
     expect(switchedFixture.componentInstance.skills).toEqual([]);
     switchedFixture.destroy();
+  });
+
+  it('uses the selected managed Profile for Skill list and mutation requests', () => {
+    const managedProfile = { ...profile, id: 2, profileName: 'Managed CV' };
+    const created = { profileSkillId: 3, skillId: typescript.id, skillName: typescript.name, categoryId: typescript.categoryId, categoryCode: typescript.categoryCode, categoryName: typescript.categoryName, experienceYears: 1.5, lastUsed: null };
+    context.managedMember.set({ id: 'member-1' });
+    context.managedSelectedId.set('2');
+    context.managedDetail.set(managedProfile);
+    profiles.listProfileSkills.and.returnValue(of([angularSkill]));
+    profiles.createProfileSkill.and.returnValue(of({ profileSkill: created, profileVersion: 4 }));
+    context.refreshManagedProfile.and.returnValue(of({ ...managedProfile, version: 4, hasPreviewed: false }));
+    fixture.componentInstance.profile = managedProfile;
+    fixture.detectChanges();
+    fixture.componentInstance.resetForProfile();
+    openCreate();
+    select(typescript);
+    fixture.componentInstance.submitSkill();
+
+    expect(profiles.listProfileSkills).toHaveBeenCalledWith('2');
+    expect(profiles.createProfileSkill).toHaveBeenCalledWith('2', jasmine.objectContaining({ version: 3 }));
+    expect(context.refreshManagedProfile).toHaveBeenCalledWith('2');
   });
 });
 

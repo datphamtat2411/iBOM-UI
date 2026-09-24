@@ -14,8 +14,12 @@ describe('EducationSectionComponent', () => {
   let context: {
     selectedId: ReturnType<typeof signal>;
     detail: ReturnType<typeof signal>;
+    managedMember: ReturnType<typeof signal>;
+    managedSelectedId: ReturnType<typeof signal>;
+    managedDetail: ReturnType<typeof signal>;
     reloadDetail: jasmine.Spy;
     applyMutationVersion: jasmine.Spy;
+    refreshManagedProfile: jasmine.Spy;
   };
   let profiles: { listEducations: jasmine.Spy; createEducation: jasmine.Spy; updateEducation: jasmine.Spy; deleteEducation: jasmine.Spy };
   let notifications: { showSuccess: jasmine.Spy };
@@ -41,8 +45,12 @@ describe('EducationSectionComponent', () => {
     context = {
       selectedId: signal('1'),
       detail: signal<ProfileDetail | null>(profile),
+      managedMember: signal(null),
+      managedSelectedId: signal(null),
+      managedDetail: signal<ProfileDetail | null>(null),
       reloadDetail: jasmine.createSpy('reloadDetail'),
       applyMutationVersion: jasmine.createSpy('applyMutationVersion').and.returnValue(true),
+      refreshManagedProfile: jasmine.createSpy('refreshManagedProfile').and.returnValue(of(profile)),
     };
     profiles = {
       listEducations: jasmine.createSpy('listEducations').and.returnValue(of([education])),
@@ -261,5 +269,26 @@ describe('EducationSectionComponent', () => {
     fixture.componentInstance.discardEditing();
     expect(fixture.componentInstance.editSession.dirty()).toBeFalse();
     expect(fixture.componentInstance.educationEditorMode).toBeNull();
+  });
+
+  it('uses the selected managed Profile for Education list and mutation requests', () => {
+    const managedProfile = { ...profile, id: 2, profileName: 'Managed CV' };
+    const created = { ...education, id: 7, schoolName: 'Managed University' };
+    context.managedMember.set({ id: 'member-1' });
+    context.managedSelectedId.set('2');
+    context.managedDetail.set(managedProfile);
+    profiles.listEducations.and.returnValue(of([education]));
+    profiles.createEducation.and.returnValue(of({ education: created, profileVersion: 4 }));
+    context.refreshManagedProfile.and.returnValue(of({ ...managedProfile, version: 4, hasPreviewed: false }));
+    fixture.componentInstance.profile = managedProfile;
+    fixture.detectChanges();
+    fixture.componentInstance.resetForProfile();
+    openCreate();
+    fillDraft({ schoolName: 'Managed University' });
+    fixture.componentInstance.submitEducation();
+
+    expect(profiles.listEducations).toHaveBeenCalledWith('2');
+    expect(profiles.createEducation).toHaveBeenCalledWith('2', jasmine.objectContaining({ version: 3 }));
+    expect(context.refreshManagedProfile).toHaveBeenCalledWith('2');
   });
 });
