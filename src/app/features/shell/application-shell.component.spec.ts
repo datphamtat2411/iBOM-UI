@@ -258,6 +258,7 @@ describe('ApplicationShellComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.profile-trigger')).toBeNull();
     expect(fixture.nativeElement.querySelector('.profile-static-context')?.textContent).toContain('Backend CV');
+    expect(fixture.nativeElement.querySelector('.profile-static-context time')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('.profile-context-actions button').length).toBe(2);
     (fixture.nativeElement.querySelector('.profile-context-actions button') as HTMLButtonElement).click();
     expect(router.navigate).toHaveBeenCalledWith(['/profiles/new']);
@@ -274,10 +275,11 @@ describe('ApplicationShellComponent', () => {
     spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
     fixture.detectChanges();
 
-    (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.profile-menu-actions')?.textContent).toContain('Copy Profile');
-    (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
+     (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
+     fixture.detectChanges();
+     expect(fixture.nativeElement.querySelector('.profile-menu-actions')?.textContent).toContain('Copy Profile');
+     expect(fixture.nativeElement.querySelectorAll('.profile-option time').length).toBe(0);
+     (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
 
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
   });
@@ -287,10 +289,10 @@ describe('ApplicationShellComponent', () => {
     spyOn(router, 'navigate').and.resolveTo(true);
     spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles/2');
     profileContext.managedMember.set({ id: '10', username: 'managed-user' });
-    profileContext.managedSummaries.set([
-      { id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
-      { id: 3, profileName: 'Managed Frontend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-02' },
-    ]);
+     profileContext.managedSummaries.set([
+       { id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-01T00:00:00Z' },
+       { id: 3, profileName: 'Managed Frontend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-02T23:30:00Z' },
+     ]);
     profileContext.managedSelectedId.set('2');
     profileContext.managedDetail.set({ id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-01', yearsOfExperience: 5, personality: null, technicalSummary: null, hasPreviewed: false, version: 1, createdAt: '2026-01-01', lastExportedAt: null, preferredFileNameFormatId: null });
     fixture.detectChanges();
@@ -300,12 +302,37 @@ describe('ApplicationShellComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Create Profile');
     expect(fixture.nativeElement.textContent).not.toContain('Copy Profile');
 
-    (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
+     (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
+     fixture.detectChanges();
+     const formatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
+     const options = fixture.nativeElement.querySelectorAll('.profile-option') as NodeListOf<HTMLElement>;
+     expect(options[0].querySelector('strong')?.textContent?.trim()).toBe('Managed Backend CV');
+     expect(options[0].querySelector('time')?.textContent?.trim()).toBe(formatter.format(new Date('2026-01-01T00:00:00Z')));
+     expect(options[0].querySelector('time')?.getAttribute('datetime')).toBe('2026-01-01T00:00:00Z');
+     expect(options[1].querySelector('strong')?.textContent?.trim()).toBe('Managed Frontend CV');
+     expect(options[1].querySelector('time')?.textContent?.trim()).toBe(formatter.format(new Date('2026-01-02T23:30:00Z')));
+     expect(options[1].querySelector('time')?.getAttribute('datetime')).toBe('2026-01-02T23:30:00Z');
+     (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
 
-    expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', 3]);
-  });
+     expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', 3]);
+   });
+
+   it('renders the selected managed Profile name and last-updated timestamp in static context', () => {
+     const router = TestBed.inject(Router);
+     spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles/2');
+     profileContext.managedMember.set({ id: '10', username: 'managed-user' });
+     profileContext.managedSummaries.set([{ id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-02T23:30:00Z' }]);
+     profileContext.managedSelectedId.set('2');
+     fixture.detectChanges();
+
+     const staticContext = fixture.nativeElement.querySelector('.managed-profile-static') as HTMLElement;
+     const time = staticContext.querySelector('time');
+     const formatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
+     expect(staticContext.textContent).toContain('Managed Backend CV');
+     expect(staticContext.textContent).toContain('Last updated');
+     expect(time?.textContent?.trim()).toBe(formatter.format(new Date('2026-01-02T23:30:00Z')));
+     expect(time?.getAttribute('datetime')).toBe('2026-01-02T23:30:00Z');
+   });
 
   it('keeps the managed shell context on Preview routes and switches the selected Member Profile', () => {
     const router = TestBed.inject(Router);
@@ -348,7 +375,7 @@ describe('ApplicationShellComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.profile-trigger')).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('No active Profiles');
+     expect(fixture.nativeElement.textContent).toContain('This member has no profiles.');
     expect(fixture.nativeElement.textContent).not.toContain('Create Profile');
     expect(fixture.nativeElement.textContent).not.toContain('Copy Profile');
   });

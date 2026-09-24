@@ -8,7 +8,7 @@
       <button class="btn text" type="button" (click)="retryWorkspace()" [disabled]="workspaceSummariesLoading()">Retry</button>
     </div>
   } @else if (!workspaceSummaries().length && !(isManagedContext && context.managedProfileMissing())) {
-    <div class="workspace-state"><h1 id="workspace-title">{{ isManagedContext ? 'No active Profiles' : 'Profile Workspace' }}</h1><p>{{ isManagedContext ? 'This Member has no active Profiles available to manage.' : 'You do not have any active Profiles yet. Use the Profile menu above to create one.' }}</p></div>
+     <div class="workspace-state"><h1 id="workspace-title">{{ isManagedContext ? 'No active Profiles' : 'Profile Workspace' }}</h1><p>{{ isManagedContext ? 'This member has no profiles.' : 'You do not have any active Profiles yet. Use the Profile menu above to create one.' }}</p></div>
   } @else if (workspaceDetailError() || (isManagedContext && context.managedProfileMissing())) {
     <div class="workspace-state error" role="alert">
       @if (context.isNotFound(workspaceDetailError()) || (isManagedContext && context.managedProfileMissing())) { <h1>Profile not found</h1><p>{{ isManagedContext ? 'This Member Profile is not available or is no longer active.' : 'This Profile is not available to your account.' }}</p> }

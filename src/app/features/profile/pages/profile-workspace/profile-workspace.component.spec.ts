@@ -193,7 +193,7 @@ describe('ProfileWorkspaceComponent', () => {
 
     params.next(convertToParamMap({ memberId: '10' }));
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('No active Profiles');
+     expect(fixture.nativeElement.querySelector('.workspace-state p')?.textContent?.trim()).toBe('This member has no profiles.');
     expect(context.managedSelectedId()).toBeNull();
 
     params.next(convertToParamMap({ memberId: '10', profileId: 'missing' }));

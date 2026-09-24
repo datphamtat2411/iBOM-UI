@@ -4,7 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { AuthService } from '../../core/auth/auth.service';
 import { NotificationService } from '../../core/notifications/notification.service';
 import { ProfileCopyComponent } from '../profile/components/profile-copy/profile-copy.component';
-import { ProfileResponse } from '../profile/models/profile.models';
+import { ProfileResponse, ProfileSummary } from '../profile/models/profile.models';
 import { ProfileContextService } from '../profile/services/profile-context.service';
 import { ProfileEditSessionService } from '../profile/services/profile-edit-session.service';
 
@@ -25,6 +25,14 @@ export class ApplicationShellComponent {
   readonly user = this.authService.user;
   readonly managementVisible = computed(() => ['MANAGER', 'ADMIN'].includes(this.user()?.role ?? ''));
   readonly logoutError = this.authService.logoutError;
+  private readonly timestampFormatter = new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
   readonly avatarInitials = computed(() => {
     const username = this.user()?.username?.trim() || this.user()?.email || 'User';
     const words = username.split(/[\s._-]+/).filter(Boolean);
@@ -115,10 +123,11 @@ export class ApplicationShellComponent {
 
   get selectedProfileName(): string {
     if (this.isManagedProfileRoute()) {
+      const selected = this.selectedManagedSummary();
+      if (selected) return selected.profileName;
       const detail = this.profileContext.managedDetail();
       if (detail) return detail.profileName;
-      const selected = this.profileContext.managedSummaries().find((summary) => String(summary.id) === this.profileContext.managedSelectedId());
-      return selected?.profileName ?? 'No Profile selected';
+      return 'No Profile selected';
     }
 
     const detail = this.profileContext.detail();
@@ -217,6 +226,14 @@ export class ApplicationShellComponent {
   managedProfilesLoading(): boolean { return this.profileContext.managedSummariesLoading(); }
   managedProfilesError(): unknown | null { return this.profileContext.managedSummariesError(); }
   managedProfiles() { return this.profileContext.managedSummaries(); }
+  selectedManagedSummary(): ProfileSummary | null {
+    return this.managedProfiles().find((summary) => String(summary.id) === this.profileContext.managedSelectedId()) ?? null;
+  }
+  formatTimestamp(value: string | null | undefined): string {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : this.timestampFormatter.format(date);
+  }
 
   exitManagedMember(): void {
     const ownerProfileId = this.profileContext.selectedId()

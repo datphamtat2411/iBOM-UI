@@ -83,17 +83,30 @@
               @if (profileMenuOpen) {
                 <div class="profile-menu" id="managed-profile-menu" role="menu" aria-label="Select managed Member Profile">
                   <div class="profile-menu-head"><strong>Managed Member Profiles</strong><span>Switch Profiles for {{ managedMemberLabel() }}. Member context stays fixed.</span></div>
-                  @for (profile of managedProfiles(); track profile.id) {
-                    <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small></span><span class="mono"></span></button>
-                  }
+                   @for (profile of managedProfiles(); track profile.id) {
+                     <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small><small>Last updated: <time [attr.datetime]="profile.updatedAt">{{ formatTimestamp(profile.updatedAt) }}</time></small></span><span class="mono"></span></button>
+                   }
                 </div>
               }
             </div>
-          } @else {
-            <div class="profile-static-context managed-profile-static" aria-label="Managed Member Profile context">
-              <span><small>Managed Member Profiles</small><strong>{{ managedProfilesLoading() ? 'Loading Profiles...' : managedProfilesError() ? 'Profiles unavailable' : selectedProfileName === 'No Profile selected' ? 'No active Profiles' : selectedProfileName }}</strong></span>
-            </div>
-          }
+           } @else {
+             <div class="profile-static-context managed-profile-static" aria-label="Managed Member Profile context">
+               <span><small>Managed Member Profiles</small>
+                 @if (managedProfilesLoading()) {
+                   <strong>Loading Profiles...</strong>
+                 } @else if (managedProfilesError()) {
+                   <strong>Profiles unavailable</strong>
+                 } @else if (!managedProfiles().length) {
+                   <strong>This member has no profiles.</strong>
+                 } @else {
+                   <strong>{{ selectedProfileName }}</strong>
+                   @if (selectedManagedSummary(); as profile) {
+                     <small>Last updated: <time [attr.datetime]="profile.updatedAt">{{ formatTimestamp(profile.updatedAt) }}</time></small>
+                   }
+                 }
+               </span>
+             </div>
+           }
           <button class="btn text managed-context-exit" type="button" (click)="exitManagedMember()">Back to My Profiles</button>
         } @else if (contextTitle === 'Profile Workspace') {
           @if (profileContext.summaries().length > 1) {
