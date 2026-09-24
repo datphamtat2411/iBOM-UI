@@ -197,7 +197,7 @@
     </div>
   } @else if (!members.length) {
     <div class="empty-state" role="status">
-      <h2>{{ appliedFilter && (appliedFilter.languages.length || appliedFilter.skills.length) ? 'No Members match these conditions' : (filtersApplied ? 'No Members match these filters' : 'No Members yet') }}</h2>
+      <h2>{{ filtersApplied ? 'No matching members found.' : 'No members found.' }}</h2>
       <p>{{ appliedFilter && (appliedFilter.languages.length || appliedFilter.skills.length) ? 'Try different Profile conditions or reset the filters.' : (filtersApplied ? 'Try a different username, email, or account status.' : 'No Member records are available.') }}</p>
       @if (filtersApplied) { <button class="btn" type="button" (click)="clearFilters()" [disabled]="loading">Reset filters</button> }
     </div>

@@ -223,14 +223,31 @@ describe('MemberManagementComponent', () => {
     });
   });
 
-  it('retains applied filters when the Member search is empty or fails', () => {
+  it('shows the base empty-state copy when the Member list has no records', () => {
+    members.list.and.returnValue(of(page([], 0, 0, 0)));
+    component.loadMembers(0);
+    fixture.detectChanges();
+
+    expect(component.appliedFilter).toBeNull();
+    expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No members found.');
+  });
+
+  it('shows the matching empty-state copy and retains applied filters when the Member search is empty or fails', () => {
     component.selectSkill({ id: 11, name: 'Java' });
     members.searchMembers.and.returnValue(of(page([], 0, 0, 0)));
     component.applyFilters();
     fixture.detectChanges();
 
     expect(component.appliedFilter?.skills).toEqual([{ skillId: 11, seniorityId: null }]);
-    expect(fixture.nativeElement.textContent).toContain('No Members match these conditions');
+    expect(component.filterDraft.skills).toEqual([{ skillId: 11, seniorityId: null }]);
+    expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No matching members found.');
+
+    component.setSearchDraft('alice');
+    expect(component.appliedFilter?.search).toBe('');
+    expect(component.filterDraft.search).toBe('alice');
+    component.applyFilters();
+    expect(component.appliedFilter?.search).toBe('alice');
+    expect(component.appliedFilter?.skills).toEqual([{ skillId: 11, seniorityId: null }]);
 
     const failedSearch = new Subject<MemberPage>();
     members.searchMembers.and.returnValue(failedSearch);
