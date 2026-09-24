@@ -88,6 +88,11 @@ export class ApplicationShellComponent {
     return path === '/users' || path.startsWith('/users/');
   }
 
+  isDashboardRoute(url = this.router.url): boolean {
+    const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    return path === '/dashboard';
+  }
+
   isManagedProfileRoute(url = this.router.url): boolean {
     const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
     return /^\/members\/[^/]+\/profiles(?:\/[^/]+(?:\/preview|\/projects(?:\/[^/]+)?)?)?$/.test(path);
@@ -124,6 +129,7 @@ export class ApplicationShellComponent {
     if (this.isUserManagementRoute()) return 'User Management';
     if (this.isMasterDataRoute()) return 'Master Data';
     if (this.router.url.startsWith('/profiles')) return 'Profile Workspace';
+    if (this.router.url.startsWith('/dashboard/manager')) return 'Manager Dashboard';
     return this.router.url.includes('/account-settings') ? 'Account Settings' : 'Dashboard';
   }
 
@@ -147,6 +153,16 @@ export class ApplicationShellComponent {
   profileMenuOpen = false;
   selectProfile(id: number | string): void {
     this.closeProfileMenu();
+    if (this.isDashboardRoute()) {
+      const select = (): void => this.profileContext.beginSelection(String(id));
+      if (!this.profileEditSession.dirty()) {
+        select();
+        return;
+      }
+      this.profileEditSession.requestNavigation('/dashboard').then((allow) => { if (allow) select(); });
+      return;
+    }
+
     const commands = this.isManagedProfileRoute() && this.managedMemberId()
       ? ['/members', this.managedMemberId()!, 'profiles', id]
       : ['/profiles', id];

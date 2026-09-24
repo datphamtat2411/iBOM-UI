@@ -27,13 +27,16 @@
       </div>
       @if (managementVisible()) {
         <div class="nav-group management-group">
-          <p class="nav-label">Management</p>
-          <a class="nav-btn" routerLink="/members" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">
-            <span class="nav-glyph">01</span><span>Member Management</span>
-          </a>
-          <a class="nav-btn" routerLink="/users" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">
-            <span class="nav-glyph">02</span><span>User Management</span>
-          </a>
+           <p class="nav-label">Management</p>
+           <a class="nav-btn" routerLink="/dashboard/manager" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">
+             <span class="nav-glyph">03</span><span>Manager Dashboard</span>
+           </a>
+           <a class="nav-btn" routerLink="/members" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">
+             <span class="nav-glyph">04</span><span>Member Management</span>
+           </a>
+           <a class="nav-btn" routerLink="/users" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">
+             <span class="nav-glyph">05</span><span>User Management</span>
+           </a>
           <button
             class="nav-btn nav-parent"
             type="button"
@@ -42,7 +45,7 @@
             aria-controls="master-data-nav"
             (click)="toggleMasterData()"
           >
-            <span class="nav-glyph">03</span><span class="nav-parent-label">Master Data</span><span class="nav-chevron" aria-hidden="true"></span>
+             <span class="nav-glyph">06</span><span class="nav-parent-label">Master Data</span><span class="nav-chevron" aria-hidden="true"></span>
           </button>
           <div id="master-data-nav" class="nav-children" [hidden]="!masterDataExpanded">
             <a class="nav-btn nav-child" routerLink="/master-data/skills" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">Skills</a>
@@ -111,7 +114,7 @@
              </div>
            }
           <button class="btn text managed-context-exit" type="button" (click)="exitManagedMember()">Back to My Profiles</button>
-        } @else if (contextTitle === 'Profile Workspace') {
+         } @else if (contextTitle === 'Profile Workspace' || isDashboardRoute()) {
           @if (profileContext.summaries().length > 1) {
             <div class="profile-switcher">
               <button class="profile-trigger" type="button" aria-haspopup="menu" [attr.aria-expanded]="profileMenuOpen" aria-controls="profile-menu" (click)="toggleProfileMenu()">

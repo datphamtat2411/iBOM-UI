@@ -5,13 +5,21 @@ import { memberManagementRoutes } from './features/member-management/member-mana
 import { userManagementRoutes } from './features/user-management/user-management.routes';
 
 describe('application routes', () => {
-  it('protects the lazy dashboard shell and renders a lazy dashboard child', () => {
+  it('keeps the personal Dashboard authenticated but unrestricted by management role', () => {
     const dashboard = routes.find((route) => route.path === 'dashboard');
 
-    expect(dashboard?.canActivate).toBeTruthy();
+    expect(dashboard?.canActivate).toEqual([authGuard]);
     expect(dashboard?.loadComponent).toEqual(jasmine.any(Function));
     expect(dashboard?.children?.[0].path).toBe('');
     expect(dashboard?.children?.[0].loadComponent).toEqual(jasmine.any(Function));
+  });
+
+  it('guards Manager Dashboard with management authorization inside the authenticated shell', () => {
+    const dashboard = routes.find((route) => route.path === 'dashboard');
+    const managerDashboard = dashboard?.children?.find((route) => route.path === 'manager');
+
+    expect(managerDashboard?.canActivate).toEqual([managementGuard]);
+    expect(managerDashboard?.loadComponent).toEqual(jasmine.any(Function));
   });
 
   it('protects authentication pages from an existing session', () => {

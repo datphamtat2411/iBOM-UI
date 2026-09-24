@@ -39,6 +39,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'manager',
+        canActivate: [managementGuard],
+        loadComponent: () =>
+          import('./features/dashboard/manager-dashboard.component').then(
+            (component) => component.ManagerDashboardComponent,
+          ),
+      },
+      {
         path: 'account-settings',
         loadComponent: () =>
           import('./features/auth/pages/account-settings/account-settings.component').then(

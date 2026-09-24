@@ -145,6 +145,35 @@ describe('ProfileContextService', () => {
     expect(service.summariesError()).toBeNull();
   });
 
+  it('retains a valid own-Profile selection when Dashboard context loads', () => {
+    profiles.list.and.returnValue(of([summary, { ...summary, id: 2, profileName: 'Frontend CV' }]));
+    service.beginSelection('2');
+
+    service.loadSummariesAndResolveSelection();
+
+    expect(service.selectedId()).toBe('2');
+  });
+
+  it('falls back to the first own Profile when Dashboard selection is unavailable', () => {
+    profiles.list.and.returnValue(of([summary, { ...summary, id: 2, profileName: 'Frontend CV' }]));
+    service.beginSelection('missing');
+
+    service.loadSummariesAndResolveSelection();
+
+    expect(service.selectedId()).toBe('1');
+  });
+
+  it('clears own-Profile selection when Dashboard context has no Profiles', () => {
+    profiles.list.and.returnValue(of([summary]));
+    service.beginSelection('1');
+    profiles.list.and.returnValue(of([]));
+
+    service.invalidateSummaries();
+    service.loadSummariesAndResolveSelection();
+
+    expect(service.selectedId()).toBeNull();
+  });
+
   it('invalidates summary state without accepting the superseded response', () => {
     const first = new Subject<ProfileSummary[]>();
     const second = new Subject<ProfileSummary[]>();

@@ -68,6 +68,26 @@ export class ProfileContextService {
     });
   }
 
+  loadSummariesAndResolveSelection(): void {
+    this.loadSummaries();
+    const request = this.summariesRequest;
+    if (!request) return;
+
+    request.subscribe({
+      next: (summaries) => {
+        if (this.summariesRequest !== request) return;
+        this.resolveOwnSelection(summaries);
+      },
+      error: () => undefined,
+    });
+  }
+
+  resolveOwnSelection(summaries = this.summaries()): void {
+    const selectedId = this.selectedId();
+    if (selectedId && summaries.some((summary) => String(summary.id) === selectedId)) return;
+    this.beginSelection(summaries[0] ? String(summaries[0].id) : null);
+  }
+
   invalidateSummaries(): void {
     this.summariesGeneration++;
     this.summariesRequest = undefined;

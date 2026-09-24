@@ -12,7 +12,7 @@ import { ApplicationShellComponent } from './application-shell.component';
 describe('ApplicationShellComponent', () => {
   let fixture: ComponentFixture<ApplicationShellComponent>;
   let auth: { user: ReturnType<typeof signal>; logoutError: ReturnType<typeof signal>; logout: jasmine.Spy };
-  let profileContext: { summaries: ReturnType<typeof signal>; summariesLoading: ReturnType<typeof signal>; summariesError: ReturnType<typeof signal>; selectedId: ReturnType<typeof signal>; detail: ReturnType<typeof signal>; detailLoading: ReturnType<typeof signal>; managedMember: ReturnType<typeof signal>; managedSummaries: ReturnType<typeof signal>; managedSummariesLoading: ReturnType<typeof signal>; managedSummariesError: ReturnType<typeof signal>; managedSelectedId: ReturnType<typeof signal>; managedDetail: ReturnType<typeof signal>; clearManagedContext: jasmine.Spy; loadSummaries: jasmine.Spy; refreshSummariesAndSelect: jasmine.Spy };
+  let profileContext: { summaries: ReturnType<typeof signal>; summariesLoading: ReturnType<typeof signal>; summariesError: ReturnType<typeof signal>; selectedId: ReturnType<typeof signal>; detail: ReturnType<typeof signal>; detailLoading: ReturnType<typeof signal>; managedMember: ReturnType<typeof signal>; managedSummaries: ReturnType<typeof signal>; managedSummariesLoading: ReturnType<typeof signal>; managedSummariesError: ReturnType<typeof signal>; managedSelectedId: ReturnType<typeof signal>; managedDetail: ReturnType<typeof signal>; beginSelection: jasmine.Spy; clearManagedContext: jasmine.Spy; loadSummaries: jasmine.Spy; refreshSummariesAndSelect: jasmine.Spy };
   let editSession: ProfileEditSessionService;
 
   beforeEach(async () => {
@@ -22,7 +22,7 @@ describe('ApplicationShellComponent', () => {
       logout: jasmine.createSpy('logout').and.returnValue(of(undefined)),
     };
     profileContext = {
-      summaries: signal([]), summariesLoading: signal(false), summariesError: signal(null), selectedId: signal(null), detail: signal(null), detailLoading: signal(false), managedMember: signal(null), managedSummaries: signal([]), managedSummariesLoading: signal(false), managedSummariesError: signal(null), managedSelectedId: signal(null), managedDetail: signal(null), clearManagedContext: jasmine.createSpy('clearManagedContext'), loadSummaries: jasmine.createSpy('loadSummaries'), refreshSummariesAndSelect: jasmine.createSpy('refreshSummariesAndSelect').and.returnValue(of(undefined)),
+      summaries: signal([]), summariesLoading: signal(false), summariesError: signal(null), selectedId: signal(null), detail: signal(null), detailLoading: signal(false), managedMember: signal(null), managedSummaries: signal([]), managedSummariesLoading: signal(false), managedSummariesError: signal(null), managedSelectedId: signal(null), managedDetail: signal(null), beginSelection: jasmine.createSpy('beginSelection').and.callFake((id: string | null) => profileContext.selectedId.set(id)), clearManagedContext: jasmine.createSpy('clearManagedContext'), loadSummaries: jasmine.createSpy('loadSummaries'), refreshSummariesAndSelect: jasmine.createSpy('refreshSummariesAndSelect').and.returnValue(of(undefined)),
     };
     await TestBed.configureTestingModule({
       imports: [ApplicationShellComponent],
@@ -81,9 +81,10 @@ describe('ApplicationShellComponent', () => {
 
     expect(groups[0].textContent).toContain('01Dashboard');
     expect(groups[0].textContent).toContain('02Profile Workspace');
-    expect(groups[1].textContent).toContain('01Member Management');
-    expect(groups[1].textContent).toContain('02User Management');
-    expect(groups[1].textContent).toContain('03Master Data');
+     expect(groups[1].textContent).toContain('03Manager Dashboard');
+     expect(groups[1].textContent).toContain('04Member Management');
+     expect(groups[1].textContent).toContain('05User Management');
+     expect(groups[1].textContent).toContain('06Master Data');
   });
 
   it('links Member and User Management from the role-aware Management navigation', () => {
@@ -91,19 +92,45 @@ describe('ApplicationShellComponent', () => {
       auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role });
       fixture.detectChanges();
 
-      const memberLink = fixture.nativeElement.querySelector('a[routerLink="/members"]') as HTMLAnchorElement;
-      const userLink = fixture.nativeElement.querySelector('a[routerLink="/users"]') as HTMLAnchorElement;
-      expect(memberLink).not.toBeNull();
-      expect(memberLink.textContent).toContain('Member Management');
-      expect(userLink).not.toBeNull();
-      expect(userLink.textContent).toContain('User Management');
+       const memberLink = fixture.nativeElement.querySelector('a[routerLink="/members"]') as HTMLAnchorElement;
+       const userLink = fixture.nativeElement.querySelector('a[routerLink="/users"]') as HTMLAnchorElement;
+       const managerDashboardLink = fixture.nativeElement.querySelector('a[routerLink="/dashboard/manager"]') as HTMLAnchorElement;
+       expect(memberLink).not.toBeNull();
+       expect(memberLink.textContent).toContain('Member Management');
+       expect(userLink).not.toBeNull();
+       expect(userLink.textContent).toContain('User Management');
+       expect(managerDashboardLink).not.toBeNull();
+       expect(managerDashboardLink.textContent).toContain('Manager Dashboard');
+       expect(fixture.nativeElement.querySelector('a[routerLink="/dashboard"]')).not.toBeNull();
     }
 
     auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' });
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('a[routerLink="/members"]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('a[routerLink="/users"]')).toBeNull();
-  });
+     expect(fixture.nativeElement.querySelector('a[routerLink="/members"]')).toBeNull();
+     expect(fixture.nativeElement.querySelector('a[routerLink="/users"]')).toBeNull();
+     expect(fixture.nativeElement.querySelector('a[routerLink="/dashboard/manager"]')).toBeNull();
+     expect(fixture.nativeElement.querySelector('a[routerLink="/dashboard"]')).not.toBeNull();
+   });
+
+   it('shows the own-Profile switcher on Dashboard and changes context without navigation', () => {
+     const router = TestBed.inject(Router);
+     spyOnProperty(router, 'url', 'get').and.returnValue('/dashboard');
+     spyOn(router, 'navigate').and.resolveTo(true);
+     profileContext.summaries.set([
+       { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+       { id: 2, profileName: 'Frontend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+     ]);
+     profileContext.selectedId.set('1');
+     fixture.detectChanges();
+
+     expect(fixture.nativeElement.querySelector('.profile-trigger')).not.toBeNull();
+     (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
+     fixture.detectChanges();
+     (fixture.nativeElement.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
+
+     expect(profileContext.beginSelection).toHaveBeenCalledWith('2');
+     expect(router.navigate).not.toHaveBeenCalled();
+   });
 
   it('toggles the Master Data parent without navigating and preserves active child state when collapsed', () => {
     const router = TestBed.inject(Router);
