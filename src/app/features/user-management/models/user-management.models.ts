@@ -12,6 +12,13 @@ export interface UserSummary {
   status: UserStatus;
 }
 
+export interface CreateUserRequest {
+  email: string;
+  username: string;
+  password: string;
+  role: UserRole;
+}
+
 export interface UserPage {
   content: UserSummary[];
   page: number;

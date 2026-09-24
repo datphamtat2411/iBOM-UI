@@ -1,6 +1,7 @@
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { CreateUserRequest } from '../models/user-management.models';
 import { UserManagementService } from './user-management.service';
 
 describe('UserManagementService', () => {
@@ -41,5 +42,23 @@ describe('UserManagementService', () => {
 
     expect(request.request.params.has('role')).toBeFalse();
     request.flush({ data: page });
+  });
+
+  it('creates a managed User with the backend fields and unwraps the response data', () => {
+    const requestBody: CreateUserRequest = {
+      email: 'new@example.com',
+      username: 'new-user',
+      password: 'Strong!Password1',
+      role: 'MANAGER',
+    };
+    const created = { id: 3, username: 'new-user', email: 'new@example.com', role: 'MANAGER' as const, status: 'ACTIVE' as const };
+
+    service.create(requestBody).subscribe((result) => expect(result).toBe(created));
+    const request = http.expectOne('/api/users');
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(requestBody);
+    expect(request.request.body).not.toEqual(jasmine.objectContaining({ confirmPassword: jasmine.anything() }));
+    request.flush({ code: 201, data: created, message: 'created', timestamp: 'now' });
   });
 });

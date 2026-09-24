@@ -4,7 +4,7 @@ import { map, Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/http/api.config';
 import { ApiResponse } from '../../../core/http/api.models';
-import { UserPage, UserRole } from '../models/user-management.models';
+import { CreateUserRequest, UserPage, UserRole, UserSummary } from '../models/user-management.models';
 
 @Injectable({ providedIn: 'root' })
 export class UserManagementService {
@@ -16,6 +16,12 @@ export class UserManagementService {
     for (const role of roles) params = params.append('role', role);
 
     return this.http.get<ApiResponse<UserPage>>(this.usersUrl, { params }).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  create(request: CreateUserRequest): Observable<UserSummary> {
+    return this.http.post<ApiResponse<UserSummary>>(this.usersUrl, request).pipe(
       map((response) => response.data),
     );
   }
