@@ -87,10 +87,11 @@ export class CvPreviewComponent implements OnDestroy {
   private documentVersion: number | null = null;
   private pendingDocument: PendingDocument | null = null;
   private pendingExport: PendingExport | null = null;
+  private activeMemberId: string | null = null;
 
   constructor() {
     this.routeSubscription = this.route.paramMap.subscribe((params) => {
-      this.activateProfile(params.get('profileId'));
+      this.activateProfile(params.get('memberId'), params.get('profileId'));
     });
 
     effect(() => {
@@ -181,34 +182,74 @@ export class CvPreviewComponent implements OnDestroy {
   }
 
   returnToProfile(): void {
-    if (this.activeProfileId) void this.router.navigate(['/profiles', this.activeProfileId]);
+    if (!this.activeProfileId) return;
+    void this.router.navigate(this.activeMemberId
+      ? ['/members', this.activeMemberId, 'profiles', this.activeProfileId]
+      : ['/profiles', this.activeProfileId]);
   }
 
-  private activateProfile(profileId: string | null): void {
-    const reloadFileNameFormats = this.fileNameFormatsLoading;
+  activeDetail(): ProfileDetail | null {
+    return this.activeMemberId ? this.context.managedDetail() : this.context.detail();
+  }
+
+  activeDetailLoading(): boolean {
+    return this.activeMemberId ? this.context.managedDetailLoading() : this.context.detailLoading();
+  }
+
+  activeContextError(): unknown | null {
+    if (!this.activeMemberId) return this.context.detailError();
+    return this.context.managedSummariesError() ?? this.context.managedDetailError();
+  }
+
+  activeManagedProfileMissing(): boolean {
+    return !!this.activeMemberId && this.context.managedProfileMissing();
+  }
+
+  managedMemberLabel(): string {
+    const member = this.context.managedMember();
+    return member?.username?.trim() || member?.email?.trim() || (member ? `Member ${member.id}` : 'Managed Member');
+  }
+
+  previewSubtitle(): string {
+    const profileName = this.activeDetail()?.profileName ?? 'Current Profile';
+    return this.activeMemberId
+      ? `${this.managedMemberLabel()} · ${profileName} · Managed Member Profile`
+      : `${profileName} · Current saved Profile document`;
+  }
+
+  private activateProfile(memberId: string | null, profileId: string | null): void {
     this.invalidateFileNameFormatsLoad();
     this.invalidatePreview('loading');
+    this.activeMemberId = memberId;
     this.activeProfileId = profileId;
     this.observedProfileVersion = null;
     this.selectedFileNameFormatId = null;
     this.exportError = '';
     this.exportSuccess = '';
+    this.fileNameFormatsError = '';
 
-    if (profileId) this.context.loadDetail(profileId);
-    else this.context.beginSelection(null);
-    if (reloadFileNameFormats) this.loadFileNameFormats();
+    if (memberId) {
+      this.context.loadManagedMember({ id: memberId }, profileId);
+    } else {
+      this.context.clearManagedContext();
+      if (profileId) this.context.loadDetail(profileId);
+      else this.context.beginSelection(null);
+    }
+    if (!this.fileNameFormatsLoaded) this.loadFileNameFormats();
+    this.observeProfileContext();
   }
 
   private observeProfileContext(): void {
     const profileId = this.activeProfileId;
-    const selectedId = this.context.selectedId();
-    const detailError = this.context.detailError();
-    const detail = this.context.detail();
+    const selectedId = this.activeSelectedId();
+    const detailError = this.activeContextError();
+    const detail = this.activeDetail();
 
     if (!profileId) return;
 
-    if (selectedId !== profileId) {
-      this.invalidatePreview('loading');
+    if (this.activeManagedProfileMissing()) {
+      this.invalidatePreview('unavailable');
+      this.previewError = 'This Profile is not available to your account.';
       return;
     }
 
@@ -218,6 +259,11 @@ export class CvPreviewComponent implements OnDestroy {
       this.previewError = unavailable
         ? 'This Profile is not available to your account.'
         : 'We could not load this Profile. Please try again later.';
+      return;
+    }
+
+    if (selectedId !== profileId) {
+      this.invalidatePreview('loading');
       return;
     }
 
@@ -353,11 +399,11 @@ export class CvPreviewComponent implements OnDestroy {
   }
 
   private isCurrentPreview(profileId: string, version: number, hasPreviewed: boolean, generation: number): boolean {
-    const detail = this.context.detail();
+    const detail = this.activeDetail();
     return this.activePreviewGeneration === generation
       && this.previewGeneration === generation
       && this.activeProfileId === profileId
-      && this.context.selectedId() === profileId
+      && this.activeSelectedId() === profileId
       && !!detail
       && String(detail.id) === profileId
       && detail.version === version
@@ -368,12 +414,16 @@ export class CvPreviewComponent implements OnDestroy {
     return this.activeReconciliationGeneration === generation
       && this.previewGeneration === generation
       && this.activeProfileId === profileId
-      && this.context.selectedId() === profileId;
+      && this.activeSelectedId() === profileId;
   }
 
   private currentDetail(): ProfileDetail | null {
-    const detail = this.context.detail();
+    const detail = this.activeDetail();
     return this.activeProfileId && detail && String(detail.id) === this.activeProfileId ? detail : null;
+  }
+
+  private activeSelectedId(): string | null {
+    return this.activeMemberId ? this.context.managedSelectedId() : this.context.selectedId();
   }
 
   private invalidatePreview(nextState: PreviewState): void {
@@ -420,6 +470,7 @@ export class CvPreviewComponent implements OnDestroy {
 
     const generation = ++this.fileNameFormatsGeneration;
     const profileId = this.activeProfileId;
+    const memberId = this.activeMemberId;
     this.fileNameFormatsLoading = true;
     this.fileNameFormatsError = '';
     this.fileNameFormats = [];
@@ -435,12 +486,12 @@ export class CvPreviewComponent implements OnDestroy {
     );
     const subscription = request.subscribe({
       next: (formats) => {
-        if (!this.isCurrentFileNameFormatsLoad(profileId, generation)) return;
+        if (!this.isCurrentFileNameFormatsLoad(memberId, profileId, generation)) return;
         this.fileNameFormats = formats;
         this.fileNameFormatsLoaded = true;
       },
       error: (error: unknown) => {
-        if (!this.isCurrentFileNameFormatsLoad(profileId, generation)) return;
+        if (!this.isCurrentFileNameFormatsLoad(memberId, profileId, generation)) return;
         this.fileNameFormats = [];
         this.fileNameFormatsLoaded = false;
         this.fileNameFormatsLoading = false;
@@ -448,7 +499,7 @@ export class CvPreviewComponent implements OnDestroy {
         this.fileNameFormatsSubscription = null;
       },
       complete: () => {
-        if (!this.isCurrentFileNameFormatsLoad(profileId, generation)) return;
+        if (!this.isCurrentFileNameFormatsLoad(memberId, profileId, generation)) return;
         this.fileNameFormatsLoading = false;
         this.fileNameFormatsSubscription = null;
       },
@@ -465,10 +516,10 @@ export class CvPreviewComponent implements OnDestroy {
     return wasLoading;
   }
 
-  private isCurrentFileNameFormatsLoad(profileId: string | null, generation: number): boolean {
+  private isCurrentFileNameFormatsLoad(memberId: string | null, profileId: string | null, generation: number): boolean {
     return this.fileNameFormatsGeneration === generation
-      && this.activeProfileId === profileId
-      && this.context.selectedId() === profileId;
+      && this.activeMemberId === memberId
+      && this.activeProfileId === profileId;
   }
 
   private exportSucceeded(response: HttpResponse<Blob>, pending: PendingExport): void {
@@ -582,8 +633,8 @@ export class CvPreviewComponent implements OnDestroy {
   }
 
   private restoreDetailAfterExportFailure(pending: PendingExport): void {
-    if (this.activeProfileId !== pending.profileId || this.context.selectedId() !== pending.profileId) return;
-    this.context.beginSelection(pending.profileId);
+    if (this.activeProfileId !== pending.profileId || this.activeSelectedId() !== pending.profileId) return;
+    if (!this.activeMemberId) this.context.beginSelection(pending.profileId);
     this.context.replaceDetail(pending.detail);
     this.observedProfileVersion = pending.version;
   }
@@ -608,7 +659,7 @@ export class CvPreviewComponent implements OnDestroy {
     return this.activeExportGeneration === pending.generation
       && this.pendingExport === pending
       && this.activeProfileId === pending.profileId
-      && this.context.selectedId() === pending.profileId;
+      && this.activeSelectedId() === pending.profileId;
   }
 
   private isCurrentExportPreview(pending: PendingExport): boolean {
@@ -783,6 +834,7 @@ export class CvPreviewComponent implements OnDestroy {
 
   isUnavailableError(error: unknown, details?: BackendErrorDetails): boolean {
     if (details?.blobBody) return details.decoded === true && details.errorCode === 'PROFILE_NOT_FOUND';
+    if (this.activeMemberId && error instanceof HttpErrorResponse && error.status === 404) return true;
     return this.context.isNotFound(error)
       || (error instanceof HttpErrorResponse && error.status === 404 && (details?.errorCode ?? this.errorCode(error)) === 'PROFILE_NOT_FOUND');
   }

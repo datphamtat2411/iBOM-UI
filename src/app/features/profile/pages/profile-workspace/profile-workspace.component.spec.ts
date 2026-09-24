@@ -169,6 +169,9 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Managed Member Profile');
     expect(fixture.nativeElement.querySelector('.delete-profile-button')).toBeNull();
     expect(fixture.nativeElement.querySelector('button[type="submit"]')).toBeNull();
+
+    fixture.componentInstance.openPreview();
+    expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', '2', 'preview']);
   });
 
   it('keeps a zero-Profile managed route unselected and reports a missing deep-linked Profile in managed context', () => {

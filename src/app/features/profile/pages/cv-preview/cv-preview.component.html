@@ -1,13 +1,13 @@
 <section class="profile-page preview-page" aria-labelledby="preview-title">
-  @if (previewState !== 'generating' && (context.detailLoading() || (!context.detail() && !context.detailError()))) {
+  @if (previewState !== 'generating' && (activeDetailLoading() || (!activeDetail() && !activeContextError() && !activeManagedProfileMissing()))) {
     <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading the saved Profile before requesting its Preview.</p></div>
-  } @else if (context.detailError() && isUnavailableError(context.detailError())) {
+  } @else if (activeManagedProfileMissing() || (activeContextError() && isUnavailableError(activeContextError()))) {
     <div class="workspace-state error" role="alert"><h1>Profile not found</h1><p>This Profile is not available to your account.</p></div>
-  } @else if (context.detailError()) {
+  } @else if (activeContextError()) {
     <div class="workspace-state error" role="alert"><h1>Unable to load Profile</h1><p>We could not load this Profile. Please try again later.</p></div>
   } @else {
     <div class="page-heading">
-      <div><h1 id="preview-title">CV Preview</h1><p>{{ context.detail()?.profileName ?? 'Current Profile' }} · Current saved Profile document</p></div>
+      <div><h1 id="preview-title">CV Preview</h1><p>{{ previewSubtitle() }}</p></div>
       <div class="heading-actions"><button class="btn" type="button" (click)="returnToProfile()">Return to Profile</button></div>
     </div>
 
@@ -71,7 +71,7 @@
           }
           @if (exportSuccess) { <p class="preview-help success-copy" role="status">{{ exportSuccess }}</p> }
           @if (exportError) { <p class="preview-help error-copy" role="alert">{{ exportError }}</p> }
-          @if (formatLastExportedAt(context.detail()?.lastExportedAt); as formattedLastExportedAt) { <p class="last-exported">Last exported: {{ formattedLastExportedAt }}</p> }
+           @if (formatLastExportedAt(activeDetail()?.lastExportedAt); as formattedLastExportedAt) { <p class="last-exported">Last exported: {{ formattedLastExportedAt }}</p> }
         </div>
       </aside>
 

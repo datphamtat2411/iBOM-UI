@@ -307,6 +307,25 @@ describe('ApplicationShellComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', 3]);
   });
 
+  it('keeps the managed shell context on Preview routes and switches the selected Member Profile', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles/2/preview');
+    spyOn(router, 'navigate').and.resolveTo(true);
+    profileContext.managedMember.set({ id: '10', username: 'managed-user' });
+    profileContext.managedSummaries.set([
+      { id: 2, profileName: 'Managed Backend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+      { id: 3, profileName: 'Managed Frontend CV', firstName: 'A', lastName: 'Member', jobTitle: 'Engineer', updatedAt: '2026-01-02' },
+    ]);
+    profileContext.managedSelectedId.set('2');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.isManagedProfileRoute()).toBeTrue();
+    expect(fixture.componentInstance.contextTitle).toBe('Profile Workspace');
+    fixture.componentInstance.selectProfile(3);
+
+    expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', 3]);
+  });
+
   it('keeps zero managed Profiles valid without exposing a Create action', () => {
     const router = TestBed.inject(Router);
     spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles');

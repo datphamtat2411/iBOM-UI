@@ -18,9 +18,18 @@ describe('CvPreviewComponent', () => {
     detail: ReturnType<typeof signal<ProfileDetail | null>>;
     detailLoading: ReturnType<typeof signal<boolean>>;
     detailError: ReturnType<typeof signal<unknown | null>>;
+    managedMember: ReturnType<typeof signal<{ id: string; username?: string; email?: string } | null>>;
+    managedSummariesError: ReturnType<typeof signal<unknown | null>>;
+    managedSelectedId: ReturnType<typeof signal<string | null>>;
+    managedDetail: ReturnType<typeof signal<ProfileDetail | null>>;
+    managedDetailLoading: ReturnType<typeof signal<boolean>>;
+    managedDetailError: ReturnType<typeof signal<unknown | null>>;
+    managedProfileMissing: ReturnType<typeof signal<boolean>>;
     loadDetail: jasmine.Spy;
+    loadManagedMember: jasmine.Spy;
     reloadDetail: jasmine.Spy;
     beginSelection: jasmine.Spy;
+    clearManagedContext: jasmine.Spy;
     replaceDetail: jasmine.Spy;
     isNotFound: jasmine.Spy;
   };
@@ -60,9 +69,18 @@ describe('CvPreviewComponent', () => {
       detail: signal<ProfileDetail | null>(detail),
       detailLoading: signal(false),
       detailError: signal<unknown | null>(null),
+      managedMember: signal<{ id: string; username?: string; email?: string } | null>(null),
+      managedSummariesError: signal<unknown | null>(null),
+      managedSelectedId: signal<string | null>(null),
+      managedDetail: signal<ProfileDetail | null>(null),
+      managedDetailLoading: signal(false),
+      managedDetailError: signal<unknown | null>(null),
+      managedProfileMissing: signal(false),
       loadDetail: jasmine.createSpy('loadDetail'),
+      loadManagedMember: jasmine.createSpy('loadManagedMember'),
       reloadDetail: jasmine.createSpy('reloadDetail').and.returnValue(of(detail)),
       beginSelection: jasmine.createSpy('beginSelection'),
+      clearManagedContext: jasmine.createSpy('clearManagedContext'),
       replaceDetail: jasmine.createSpy('replaceDetail').and.callFake((updated: ProfileDetail) => context.detail.set(updated)),
       isNotFound: jasmine.createSpy('isNotFound').and.returnValue(false),
     };
@@ -103,6 +121,26 @@ describe('CvPreviewComponent', () => {
     });
   }
 
+  function activateManaged(currentDetail: ProfileDetail, memberId = '10', profileId = String(currentDetail.id)): void {
+    context.managedMember.set({ id: memberId, username: 'managed-user' });
+    context.managedSelectedId.set(profileId);
+    context.managedDetail.set(currentDetail);
+    context.managedDetailLoading.set(false);
+    context.managedDetailError.set(null);
+    context.managedSummariesError.set(null);
+    context.managedProfileMissing.set(false);
+    params.next(convertToParamMap({ memberId, profileId }));
+    fixture?.detectChanges();
+    fixture?.detectChanges();
+  }
+
+  function reloadManagedWith(reloaded: ProfileDetail): void {
+    context.reloadDetail.and.callFake(() => {
+      context.managedDetail.set(reloaded);
+      return of(reloaded);
+    });
+  }
+
   function renderValid(currentDetail: ProfileDetail = { ...detail, hasPreviewed: true }): CvPreviewComponent {
     profiles.preview.and.returnValue(of(new Blob(['backend pdf'], { type: 'application/pdf' })));
     reloadWith(currentDetail);
@@ -132,6 +170,82 @@ describe('CvPreviewComponent', () => {
     expect(component.previewState).toBe('required');
     expect(profiles.preview).not.toHaveBeenCalled();
     expect(fixture?.nativeElement.textContent).toContain('Preview required');
+  });
+
+  it('recovers a direct managed Preview route and targets its selected Profile for Preview and export', () => {
+    const managedDetail = { ...detail, id: 2, profileName: 'Managed CV', hasPreviewed: true };
+    profiles.preview.and.returnValue(of(new Blob(['managed pdf'], { type: 'application/pdf' })));
+    reloadManagedWith(managedDetail);
+    profiles.download.and.returnValue(NEVER);
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:managed-preview');
+    const component = render();
+
+    activateManaged(managedDetail);
+
+    expect(context.loadManagedMember).toHaveBeenCalledWith({ id: '10' }, '2');
+    expect(profiles.preview).toHaveBeenCalledWith('2');
+    expect(profiles.preview).not.toHaveBeenCalledWith('1');
+    expect(component.previewState).toBe('valid');
+
+    component.selectedFileNameFormatId = '7';
+    component.exportDocument('docx');
+
+    expect(profiles.download).toHaveBeenCalledWith('2', 'docx', '7');
+  });
+
+  it('blocks Preview and export when the managed Profile is not in the authoritative Member list', () => {
+    context.loadManagedMember.and.callFake((member: { id: string }, profileId: string | null) => {
+      context.managedMember.set(member);
+      context.managedSelectedId.set(profileId);
+      context.managedProfileMissing.set(true);
+    });
+    const component = render();
+
+    params.next(convertToParamMap({ memberId: '10', profileId: 'missing' }));
+    fixture?.detectChanges();
+    fixture?.detectChanges();
+
+    expect(context.loadManagedMember).toHaveBeenCalledWith({ id: '10' }, 'missing');
+    expect(profiles.preview).not.toHaveBeenCalled();
+    expect(profiles.download).not.toHaveBeenCalled();
+    expect(component.previewState).toBe('unavailable');
+    expect(fixture?.nativeElement.textContent).toContain('Profile not found');
+  });
+
+  it('cleans managed document and export state when switching Member and Profile context', () => {
+    const managedDetail = { ...detail, id: 2, profileName: 'Managed CV', hasPreviewed: true };
+    const nextManagedDetail = { ...detail, id: 3, profileName: 'Other Managed CV', hasPreviewed: false };
+    profiles.preview.and.returnValue(of(new Blob(['managed pdf'], { type: 'application/pdf' })));
+    reloadManagedWith(managedDetail);
+    const createObjectUrl = spyOn(URL, 'createObjectURL').and.returnValue('blob:managed-preview');
+    const revokeObjectUrl = spyOn(URL, 'revokeObjectURL');
+    const component = render();
+
+    activateManaged(managedDetail, '10', '2');
+    expect(component.previewState).toBe('valid');
+    component.selectedFileNameFormatId = '7';
+    component.exportError = 'stale export error';
+
+    context.managedMember.set({ id: '11', username: 'another-member' });
+    context.managedSelectedId.set('3');
+    context.managedDetail.set(nextManagedDetail);
+    params.next(convertToParamMap({ memberId: '11', profileId: '3' }));
+    fixture?.detectChanges();
+
+    expect(createObjectUrl).toHaveBeenCalledWith(jasmine.any(Blob));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:managed-preview');
+    expect(component.selectedFileNameFormatId).toBeNull();
+    expect(component.exportError).toBe('');
+    expect(component.previewState).toBe('required');
+  });
+
+  it('returns from managed Preview to the same Member Profile workspace', () => {
+    const component = render();
+    activateManaged({ ...detail, id: 2, profileName: 'Managed CV' });
+
+    component.returnToProfile();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/members', '10', 'profiles', '2']);
   });
 
   it('renders lastExportedAt in Ho Chi Minh time without mutating the backend value', () => {

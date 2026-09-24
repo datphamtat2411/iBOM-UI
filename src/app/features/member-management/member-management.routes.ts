@@ -20,6 +20,14 @@ export const memberManagementRoutes: Routes = [
       ),
   },
   {
+    path: ':memberId/profiles/:profileId/preview',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('../profile/pages/cv-preview/cv-preview.component').then(
+        (component) => component.CvPreviewComponent,
+      ),
+  },
+  {
     path: ':memberId/profiles/:profileId',
     canActivate: [profileDirtyNavigationGuard],
     loadComponent: () =>

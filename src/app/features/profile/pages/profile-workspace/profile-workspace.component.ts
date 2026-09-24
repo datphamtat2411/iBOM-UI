@@ -127,11 +127,12 @@ export class ProfileWorkspaceComponent {
   }
 
   openPreview(): void {
-    if (this.isManagedContext) return;
-    const profileId = this.context.selectedId();
-    const profile = this.context.detail();
+    const profileId = this.workspaceSelectedId();
+    const profile = this.workspaceDetail();
     if (!profileId || !profile || String(profile.id) !== profileId) return;
-    void this.router.navigate(['/profiles', profileId, 'preview']);
+    void this.router.navigate(this.isManagedContext && this.activeMemberId
+      ? ['/members', this.activeMemberId, 'profiles', profileId, 'preview']
+      : ['/profiles', profileId, 'preview']);
   }
 
   openDeleteConfirmation(): void {
