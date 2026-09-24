@@ -1,37 +1,27 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { forkJoin, Observable, of, switchMap } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { MemberFilterChoicePickerComponent } from '../../components/member-filter-choice-picker/member-filter-choice-picker.component';
 import { MemberManagementService } from '../../services/member-management.service';
 import {
-  AdvancedSearchMode,
-  AppliedMemberSearch,
+  AppliedMemberFilter,
   LanguageLevel,
-  LanguageSearchPair,
   MatchingProfile,
+  MemberFilterDraft,
+  MemberId,
   MemberPage,
-  MemberSearchMode,
+  MemberSearchRequest,
   MemberStatusFilter,
   MemberSummary,
   SearchChoice,
-  SkillSearchPair,
 } from '../../models/member-management.models';
-
-interface DraftSkillCondition {
-  skillId: number | string | null;
-  seniorityId: number | string | null;
-}
-
-interface DraftLanguageCondition {
-  languageId: number | string | null;
-  level: LanguageLevel | null;
-}
 
 @Component({
   selector: 'app-member-management',
   standalone: true,
+  imports: [MemberFilterChoicePickerComponent],
   templateUrl: './member-management.component.html',
   styleUrl: './member-management.component.scss',
 })
@@ -40,13 +30,7 @@ export class MemberManagementComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly pageSize = 10;
-  readonly masterDataPageSize = 100;
   readonly statusOptions: MemberStatusFilter[] = ['ALL', 'ACTIVE', 'INACTIVE'];
-  readonly searchModeOptions: ReadonlyArray<{ value: MemberSearchMode; label: string }> = [
-    { value: 'BASE', label: 'Base list: username or email' },
-    { value: 'SKILL', label: 'Skill + Seniority' },
-    { value: 'LANGUAGE', label: 'Language + Level' },
-  ];
   readonly languageLevels: ReadonlyArray<{ value: LanguageLevel; label: string }> = [
     { value: 'BEGINNER', label: 'Beginner' },
     { value: 'INTERMEDIATE', label: 'Intermediate' },
@@ -55,32 +39,25 @@ export class MemberManagementComponent implements OnInit {
     { value: 'NATIVE', label: 'Native' },
   ];
 
+  filterDraft: MemberFilterDraft = this.emptyFilterDraft();
+  appliedFilter: AppliedMemberFilter | null = null;
   members: MemberSummary[] = [];
   currentPage = 0;
   totalPages = 0;
   totalElements = 0;
-  searchTerm = '';
-  searchDraft = '';
-  statusFilter: MemberStatusFilter = 'ALL';
-  statusDraft: MemberStatusFilter = 'ALL';
-  searchModeDraft: MemberSearchMode = 'BASE';
-  skillConditions: DraftSkillCondition[] = [];
-  languageConditions: DraftLanguageCondition[] = [];
-  appliedQuery: AppliedMemberSearch | null = null;
-  skills: SearchChoice[] = [];
-  languages: SearchChoice[] = [];
-  seniorities: SearchChoice[] = [];
   loading = false;
   hasLoaded = false;
   loadErrorMessage = '';
-  choicesLoading = false;
-  choicesLoaded = false;
-  choicesErrorMessage = '';
+  seniorities: SearchChoice[] = [];
+  senioritiesLoading = false;
+  senioritiesErrorMessage = '';
   validationMessage = '';
   pageMessage = '';
 
+  readonly skillChoices = new Map<string, SearchChoice>();
+  readonly languageChoices = new Map<string, SearchChoice>();
   private loadGeneration = 0;
-  private choicesGeneration = 0;
+  private seniorityGeneration = 0;
   private readonly timestampFormatter = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -92,52 +69,81 @@ export class MemberManagementComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadMembers(0);
-    this.loadSearchChoices();
+    this.loadSeniorities();
+  }
+
+  get searchDraft(): string {
+    return this.filterDraft.search;
+  }
+
+  set searchDraft(value: string) {
+    this.setSearchDraft(value);
+  }
+
+  get statusDraft(): MemberStatusFilter {
+    return this.filterDraft.status;
+  }
+
+  set statusDraft(value: MemberStatusFilter) {
+    this.setStatusDraft(value);
+  }
+
+  get languageConditions() {
+    return this.filterDraft.languages;
+  }
+
+  get skillConditions() {
+    return this.filterDraft.skills;
+  }
+
+  get selectedLanguageIds(): MemberId[] {
+    return this.filterDraft.languages.map((condition) => condition.languageId);
+  }
+
+  get selectedSkillIds(): MemberId[] {
+    return this.filterDraft.skills.map((condition) => condition.skillId);
+  }
+
+  get searchTerm(): string {
+    return this.appliedFilter?.search ?? '';
+  }
+
+  get statusFilter(): MemberStatusFilter {
+    return this.appliedFilter?.status ?? 'ALL';
   }
 
   get filtersApplied(): boolean {
-    return Boolean(this.searchTerm) || this.statusFilter !== 'ALL' || this.appliedQuery !== null;
+    return this.appliedFilter !== null || this.hasDraftFilters();
   }
 
   get filtering(): boolean {
     return this.loading && this.filtersApplied;
   }
 
-  get advancedModeSelected(): boolean {
-    return this.searchModeDraft !== 'BASE';
-  }
-
-  get canResetSearch(): boolean {
-    return this.filtersApplied || this.searchDraft.trim().length > 0 || this.statusDraft !== 'ALL' || this.searchModeDraft !== 'BASE';
+  get canResetFilters(): boolean {
+    return this.filtersApplied;
   }
 
   get appliedSearchDescription(): string {
-    const query = this.appliedQuery;
-    if (!query) return '';
+    const filter = this.appliedFilter;
+    if (!filter) return '';
 
-    if (query.mode === 'SKILL') {
-      const pairs = query.pairs.map((pair) => {
-        return `${this.choiceName(this.skills, pair.skillId)} + ${this.choiceName(this.seniorities, pair.seniorityId)}`;
-      });
-      const status = query.status === 'ALL' ? '' : ` · ${query.status}`;
-      return `Skill + Seniority: ${pairs.join(' AND ')}${status}`;
+    const parts: string[] = [];
+    if (filter.search) parts.push(`Username/email: ${filter.search}`);
+    if (filter.status !== 'ALL') parts.push(filter.status);
+    if (filter.languages.length) {
+      parts.push(`Languages: ${filter.languages.map((condition) => `${this.choiceName(this.languageChoices, condition.languageId)} + ${this.languageLevelName(condition.level)}`).join(' AND ')}`);
     }
-
-    const pairs = query.pairs.map((pair) => `${this.choiceName(this.languages, pair.languageId)} + ${this.languageLevelName(pair.level)}`);
-    const status = query.status === 'ALL' ? '' : ` · ${query.status}`;
-    return `Language + Level: ${pairs.join(' AND ')}${status}`;
+    if (filter.skills.length) {
+      parts.push(`Skills: ${filter.skills.map((condition) => `${this.choiceName(this.skillChoices, condition.skillId)} + ${this.seniorityName(condition.seniorityId)}`).join(' AND ')}`);
+    }
+    return parts.join(' · ') || 'All Members';
   }
 
-  loadMembers(page = this.currentPage, search = this.searchTerm, status = this.statusFilter): void {
+  loadMembers(page = this.currentPage): void {
     const requestedPage = Math.max(0, page);
-    const requestedSearch = search.trim();
-    const requestedStatus = this.validStatusFilter(status) ? status : 'ALL';
     const generation = ++this.loadGeneration;
-
-    this.appliedQuery = null;
     this.currentPage = requestedPage;
-    this.searchTerm = requestedSearch;
-    this.statusFilter = requestedStatus;
     this.loading = true;
     this.hasLoaded = false;
     this.loadErrorMessage = '';
@@ -146,24 +152,13 @@ export class MemberManagementComponent implements OnInit {
     this.totalPages = 0;
     this.totalElements = 0;
 
-    const apiStatus = requestedStatus === 'ALL' ? undefined : requestedStatus;
-    this.memberService.list(requestedPage, this.pageSize, requestedSearch, apiStatus).subscribe({
+    this.memberService.list(requestedPage, this.pageSize, '', undefined).subscribe({
       next: (result: MemberPage) => {
         if (generation !== this.loadGeneration) return;
-
-        this.members = result.content;
-        this.currentPage = result.page;
-        this.totalPages = result.totalPages;
-        this.totalElements = result.totalElements;
-        this.loading = false;
-        this.hasLoaded = true;
-        if (result.page !== requestedPage) {
-          this.pageMessage = `The requested page was unavailable. Showing page ${result.page + 1} instead.`;
-        }
+        this.setResult(result, requestedPage);
       },
       error: (error: unknown) => {
         if (generation !== this.loadGeneration) return;
-
         this.loading = false;
         this.loadErrorMessage = this.backendErrorMessage(error) ?? 'Unable to load Members right now.';
       },
@@ -172,142 +167,113 @@ export class MemberManagementComponent implements OnInit {
 
   retryMembers(): void {
     if (this.loading) return;
-    if (this.appliedQuery) {
-      this.loadAppliedSearch(this.currentPage);
-    } else {
-      this.loadMembers(this.currentPage, this.searchTerm, this.statusFilter);
-    }
+    if (this.appliedFilter) this.loadAppliedSearch(this.currentPage);
+    else this.loadMembers(this.currentPage);
   }
 
   setSearchDraft(value: string): void {
-    this.searchDraft = value;
+    this.filterDraft = { ...this.filterDraft, search: value };
   }
 
   setStatusDraft(value: string): void {
-    this.statusDraft = this.validStatusFilter(value) ? value : 'ALL';
+    this.filterDraft = { ...this.filterDraft, status: this.validStatusFilter(value) ? value : 'ALL' };
   }
 
-  setSearchMode(value: string): void {
-    if (!this.validSearchMode(value)) return;
-
-    this.searchModeDraft = value;
-    this.validationMessage = '';
-    if (value === 'SKILL' && !this.skillConditions.length) this.addSkillCondition();
-    if (value === 'LANGUAGE' && !this.languageConditions.length) this.addLanguageCondition();
+  selectLanguage(choice: SearchChoice): void {
+    if (this.filterDraft.languages.some((condition) => this.sameId(condition.languageId, choice.id))) return;
+    this.languageChoices.set(String(choice.id), choice);
+    this.filterDraft = {
+      ...this.filterDraft,
+      languages: [...this.filterDraft.languages, { languageId: choice.id, level: null }],
+    };
   }
 
-  setSkillConditionValue(index: number, field: 'skillId' | 'seniorityId', value: string): void {
-    const condition = this.skillConditions[index];
+  selectSkill(choice: SearchChoice): void {
+    if (this.filterDraft.skills.some((condition) => this.sameId(condition.skillId, choice.id))) return;
+    this.skillChoices.set(String(choice.id), choice);
+    this.filterDraft = {
+      ...this.filterDraft,
+      skills: [...this.filterDraft.skills, { skillId: choice.id, seniorityId: null }],
+    };
+  }
+
+  setLanguageLevel(index: number, value: string): void {
+    const condition = this.filterDraft.languages[index];
     if (!condition) return;
-
-    condition[field] = value.trim() ? value : null;
-    this.validationMessage = '';
+    this.filterDraft = {
+      ...this.filterDraft,
+      languages: this.filterDraft.languages.map((item, itemIndex) => itemIndex === index
+        ? { ...item, level: this.validLanguageLevel(value) ? value : null }
+        : item),
+    };
   }
 
-  setLanguageConditionValue(index: number, field: 'languageId' | 'level', value: string): void {
-    const condition = this.languageConditions[index];
+  setSkillSeniority(index: number, value: string): void {
+    const condition = this.filterDraft.skills[index];
     if (!condition) return;
-
-    if (field === 'languageId') {
-      condition.languageId = value.trim() ? value : null;
-    } else {
-      condition.level = this.validLanguageLevel(value) ? value : null;
-    }
-    this.validationMessage = '';
+    this.filterDraft = {
+      ...this.filterDraft,
+      skills: this.filterDraft.skills.map((item, itemIndex) => itemIndex === index
+        ? { ...item, seniorityId: value.trim() ? value : null }
+        : item),
+    };
   }
 
-  addCondition(): void {
-    if (this.searchModeDraft === 'SKILL') this.addSkillCondition();
-    if (this.searchModeDraft === 'LANGUAGE') this.addLanguageCondition();
+  removeLanguageCondition(index: number): void {
+    this.filterDraft = {
+      ...this.filterDraft,
+      languages: this.filterDraft.languages.filter((_, itemIndex) => itemIndex !== index),
+    };
   }
 
-  removeCondition(mode: AdvancedSearchMode, index: number): void {
-    if (mode === 'SKILL') {
-      this.skillConditions.splice(index, 1);
-    } else {
-      this.languageConditions.splice(index, 1);
-    }
-    this.validationMessage = '';
-  }
-
-  applySearch(): void {
-    this.validationMessage = '';
-    const requestedStatus = this.validStatusFilter(this.statusDraft) ? this.statusDraft : 'ALL';
-
-    if (this.searchModeDraft === 'BASE') {
-      this.searchTerm = this.searchDraft.trim();
-      this.statusFilter = requestedStatus;
-      this.loadMembers(0, this.searchTerm, this.statusFilter);
-      return;
-    }
-
-    const validationMessage = this.validateDraftConditions(this.searchModeDraft);
-    if (validationMessage) {
-      this.validationMessage = validationMessage;
-      return;
-    }
-
-    this.appliedQuery = this.createAppliedQuery(this.searchModeDraft, requestedStatus);
-    this.searchTerm = '';
-    this.statusFilter = requestedStatus;
-    this.loadAppliedSearch(0);
+  removeSkillCondition(index: number): void {
+    this.filterDraft = {
+      ...this.filterDraft,
+      skills: this.filterDraft.skills.filter((_, itemIndex) => itemIndex !== index),
+    };
   }
 
   applyFilters(): void {
-    this.applySearch();
+    this.validationMessage = '';
+    this.appliedFilter = this.cloneDraft(this.filterDraft);
+    this.loadAppliedSearch(0);
   }
 
   clearFilters(): void {
-    this.searchDraft = '';
-    this.statusDraft = 'ALL';
-    this.searchModeDraft = 'BASE';
-    this.skillConditions = [];
-    this.languageConditions = [];
+    this.filterDraft = this.emptyFilterDraft();
+    this.appliedFilter = null;
+    this.skillChoices.clear();
+    this.languageChoices.clear();
     this.validationMessage = '';
-    this.appliedQuery = null;
-    this.loadMembers(0, '', 'ALL');
+    this.loadMembers(0);
   }
 
-  loadSearchChoices(): void {
-    const generation = ++this.choicesGeneration;
-    this.choicesLoading = true;
-    this.choicesLoaded = false;
-    this.choicesErrorMessage = '';
-
-    forkJoin({
-      skills: this.loadAllSkills(),
-      languages: this.loadAllLanguages(),
-      seniorities: this.memberService.listSeniorities(),
-    }).subscribe({
-      next: ({ skills, languages, seniorities }) => {
-        if (generation !== this.choicesGeneration) return;
-
-        this.skills = skills;
-        this.languages = languages;
+  loadSeniorities(): void {
+    const generation = ++this.seniorityGeneration;
+    this.senioritiesLoading = true;
+    this.senioritiesErrorMessage = '';
+    this.memberService.listSeniorities().subscribe({
+      next: (seniorities) => {
+        if (generation !== this.seniorityGeneration) return;
         this.seniorities = seniorities;
-        this.choicesLoading = false;
-        this.choicesLoaded = true;
+        this.senioritiesLoading = false;
       },
       error: (error: unknown) => {
-        if (generation !== this.choicesGeneration) return;
-
-        this.choicesLoading = false;
-        this.choicesErrorMessage = this.backendErrorMessage(error) ?? 'Unable to load search choices right now.';
+        if (generation !== this.seniorityGeneration) return;
+        this.senioritiesLoading = false;
+        this.senioritiesErrorMessage = this.backendErrorMessage(error) ?? 'Unable to load Seniority choices right now.';
       },
     });
   }
 
-  retryChoices(): void {
-    if (!this.choicesLoading) this.loadSearchChoices();
+  retrySeniorities(): void {
+    if (!this.senioritiesLoading) this.loadSeniorities();
   }
 
   goToPage(page: number): void {
     if (this.loading || page < 0 || page >= this.totalPages || page === this.currentPage) return;
-    if (this.appliedQuery) {
-      this.loadAppliedSearch(page);
-    } else {
-      this.loadMembers(page, this.searchTerm, this.statusFilter);
-    }
+    if (this.appliedFilter) this.loadAppliedSearch(page);
+    else this.loadMembers(page);
   }
 
   previousPage(): void {
@@ -348,38 +314,30 @@ export class MemberManagementComponent implements OnInit {
     });
   }
 
-  showMemberActionBoundary(member: MemberSummary): void {
-    this.openMember(member);
+  choiceName(choices: ReadonlyMap<string, SearchChoice>, id: MemberId): string {
+    return choices.get(String(id))?.name ?? String(id);
+  }
+
+  seniorityName(id: MemberId | null): string {
+    if (id === null) return 'Any Seniority';
+    return this.seniorities.find((choice) => this.sameId(choice.id, id))?.name ?? String(id);
+  }
+
+  languageLevelName(level: LanguageLevel | null): string {
+    if (level === null) return 'Any Level';
+    return this.languageLevels.find((option) => option.value === level)?.label ?? level;
   }
 
   private loadAppliedSearch(page: number): void {
-    const query = this.appliedQuery;
-    if (!query) {
-      this.loadMembers(page, this.searchTerm, this.statusFilter);
+    const filter = this.appliedFilter;
+    if (!filter) {
+      this.loadMembers(page);
       return;
     }
 
     const requestedPage = Math.max(0, page);
     const generation = ++this.loadGeneration;
-    const apiStatus = query.status === 'ALL' ? undefined : query.status;
-    const request$ = query.mode === 'SKILL'
-      ? this.memberService.searchBySkill(
-        requestedPage,
-        this.pageSize,
-        query.pairs.map((pair) => pair.skillId),
-        query.pairs.map((pair) => pair.seniorityId),
-        apiStatus,
-      )
-      : this.memberService.searchByLanguage(
-        requestedPage,
-        this.pageSize,
-        query.pairs.map((pair) => pair.languageId),
-        query.pairs.map((pair) => pair.level),
-        apiStatus,
-      );
-
     this.currentPage = requestedPage;
-    this.statusFilter = query.status;
     this.loading = true;
     this.hasLoaded = false;
     this.loadErrorMessage = '';
@@ -388,105 +346,68 @@ export class MemberManagementComponent implements OnInit {
     this.totalPages = 0;
     this.totalElements = 0;
 
-    request$.subscribe({
+    this.memberService.searchMembers(this.toSearchRequest(filter, requestedPage)).subscribe({
       next: (result: MemberPage) => {
         if (generation !== this.loadGeneration) return;
-
-        this.members = result.content;
-        this.currentPage = result.page;
-        this.totalPages = result.totalPages;
-        this.totalElements = result.totalElements;
-        this.loading = false;
-        this.hasLoaded = true;
-        if (result.page !== requestedPage) {
-          this.pageMessage = `The requested page was unavailable. Showing page ${result.page + 1} instead.`;
-        }
+        this.setResult(result, requestedPage);
       },
       error: (error: unknown) => {
         if (generation !== this.loadGeneration) return;
-
         this.loading = false;
         this.loadErrorMessage = this.backendErrorMessage(error) ?? 'Unable to search Members right now.';
       },
     });
   }
 
-  private loadAllSkills(page = 0, accumulated: SearchChoice[] = []): Observable<SearchChoice[]> {
-    return this.memberService.listSkills(page, this.masterDataPageSize).pipe(
-      switchMap((result) => {
-        const choices = [...accumulated, ...result.content];
-        return page + 1 < result.totalPages ? this.loadAllSkills(page + 1, choices) : of(choices);
-      }),
-    );
-  }
-
-  private loadAllLanguages(page = 0, accumulated: SearchChoice[] = []): Observable<SearchChoice[]> {
-    return this.memberService.listLanguages(page, this.masterDataPageSize).pipe(
-      switchMap((result) => {
-        const choices = [...accumulated, ...result.content];
-        return page + 1 < result.totalPages ? this.loadAllLanguages(page + 1, choices) : of(choices);
-      }),
-    );
-  }
-
-  private addSkillCondition(): void {
-    this.skillConditions.push({ skillId: null, seniorityId: null });
-  }
-
-  private addLanguageCondition(): void {
-    this.languageConditions.push({ languageId: null, level: null });
-  }
-
-  private validateDraftConditions(mode: AdvancedSearchMode): string | null {
-    if (mode === 'SKILL') {
-      if (!this.skillConditions.length) return 'Add at least one Skill + Seniority condition.';
-      if (this.skillConditions.some((condition) => condition.skillId === null || condition.seniorityId === null)) {
-        return 'Complete every Skill + Seniority condition before searching.';
-      }
-      const ids = this.skillConditions.map((condition) => String(condition.skillId));
-      if (new Set(ids).size !== ids.length) return 'Each Skill can appear only once in a search.';
-      return null;
+  private setResult(result: MemberPage, requestedPage: number): void {
+    this.members = result.content;
+    this.currentPage = result.page;
+    this.totalPages = result.totalPages;
+    this.totalElements = result.totalElements;
+    this.loading = false;
+    this.hasLoaded = true;
+    if (result.page !== requestedPage) {
+      this.pageMessage = `The requested page was unavailable. Showing page ${result.page + 1} instead.`;
     }
-
-    if (!this.languageConditions.length) return 'Add at least one Language + Level condition.';
-    if (this.languageConditions.some((condition) => condition.languageId === null || condition.level === null)) {
-      return 'Complete every Language + Level condition before searching.';
-    }
-    const ids = this.languageConditions.map((condition) => String(condition.languageId));
-    if (new Set(ids).size !== ids.length) return 'Each Language can appear only once in a search.';
-    return null;
   }
 
-  private createAppliedQuery(mode: AdvancedSearchMode, status: MemberStatusFilter): AppliedMemberSearch {
-    if (mode === 'SKILL') {
-      const pairs: SkillSearchPair[] = this.skillConditions.map((condition) => ({
-        skillId: condition.skillId as number | string,
-        seniorityId: condition.seniorityId as number | string,
-      }));
-      return { mode, pairs, status };
-    }
-
-    const pairs: LanguageSearchPair[] = this.languageConditions.map((condition) => ({
-      languageId: condition.languageId as number | string,
-      level: condition.level as LanguageLevel,
-    }));
-    return { mode, pairs, status };
+  private toSearchRequest(filter: AppliedMemberFilter, page: number): MemberSearchRequest {
+    return {
+      search: filter.search,
+      status: filter.status === 'ALL' ? null : filter.status,
+      languages: filter.languages.map((condition) => ({ languageId: condition.languageId, level: condition.level })),
+      skills: filter.skills.map((condition) => ({ skillId: condition.skillId, seniorityId: condition.seniorityId })),
+      page,
+      size: this.pageSize,
+    };
   }
 
-  private choiceName(choices: ReadonlyArray<SearchChoice>, id: number | string): string {
-    return choices.find((choice) => String(choice.id) === String(id))?.name ?? String(id);
+  private cloneDraft(draft: MemberFilterDraft): AppliedMemberFilter {
+    return {
+      search: draft.search.trim(),
+      status: draft.status,
+      languages: draft.languages.map((condition) => ({ ...condition })),
+      skills: draft.skills.map((condition) => ({ ...condition })),
+    };
   }
 
-  private languageLevelName(level: LanguageLevel): string {
-    return this.languageLevels.find((option) => option.value === level)?.label ?? level;
+  private emptyFilterDraft(): MemberFilterDraft {
+    return { search: '', status: 'ALL', languages: [], skills: [] };
+  }
+
+  private hasDraftFilters(): boolean {
+    return this.filterDraft.search.trim().length > 0
+      || this.filterDraft.status !== 'ALL'
+      || this.filterDraft.languages.length > 0
+      || this.filterDraft.skills.length > 0;
+  }
+
+  private sameId(left: MemberId, right: MemberId): boolean {
+    return String(left) === String(right);
   }
 
   private validStatusFilter(value: string): value is MemberStatusFilter {
     return this.statusOptions.includes(value as MemberStatusFilter);
-  }
-
-  private validSearchMode(value: string): value is MemberSearchMode {
-    return this.searchModeOptions.some((option) => option.value === value);
   }
 
   private validLanguageLevel(value: string): value is LanguageLevel {
