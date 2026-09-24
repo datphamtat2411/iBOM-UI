@@ -1,62 +1,94 @@
-<section class="choice-picker" [attr.aria-label]="kindLabel + ' picker'">
-  <div class="picker-controls">
-    <label [for]="kind.toLowerCase() + '-filter-search'">{{ searchLabel }}</label>
-    <input
-      [id]="kind.toLowerCase() + '-filter-search'"
-      type="search"
-      autocomplete="off"
-      [value]="searchDraft"
-      [disabled]="disabled"
-      (input)="setSearchDraft($any($event.target).value)"
-    >
-    @if (kind === 'SKILL') {
-      <label [for]="kind.toLowerCase() + '-filter-category'">Category</label>
-      <select
-        [id]="kind.toLowerCase() + '-filter-category'"
-        [value]="categoryId"
-        [disabled]="disabled || !!categoryErrorMessage"
-        (change)="setCategoryFilter($any($event.target).value)"
-      >
-        <option value="">All Categories</option>
-        @for (category of categories; track category.id) {
-          <option [value]="category.id">{{ category.name }}</option>
-        }
-      </select>
-      @if (categoryErrorMessage) {
-        <span class="picker-error" role="alert">{{ categoryErrorMessage }} <button class="btn text" type="button" (click)="retryCategories()">Retry</button></span>
-      }
-    }
-  </div>
+<div class="choice-combobox">
+  <button
+    class="combobox-trigger"
+    type="button"
+    role="combobox"
+    [attr.aria-label]="placeholder"
+    aria-haspopup="listbox"
+    [attr.aria-expanded]="dropdownOpen"
+    [attr.aria-controls]="kind.toLowerCase() + '-filter-listbox'"
+    [disabled]="disabled"
+    (click)="toggleDropdown()"
+    (keydown)="triggerKeydown($event)"
+  >
+    <span [class.placeholder]="!selectedChoice">{{ selectedChoice?.name || placeholder }}</span>
+    <span class="combobox-chevron" aria-hidden="true">▾</span>
+  </button>
 
-  <div class="choice-list" [attr.aria-busy]="loading">
-    @if (loading) {
-      <div class="choice-state" role="status" aria-live="polite">Searching {{ kindLabel }}...</div>
-    } @else if (errorMessage) {
-      <div class="choice-state error" role="alert">{{ errorMessage }} <button class="btn text" type="button" (click)="retryChoices()">Retry</button></div>
-    } @else if (!choices.length) {
-      <div class="choice-state" role="status">{{ emptyMessage }}</div>
-    } @else {
-      @for (choice of choices; track choice.id) {
-        <button
-          class="choice-option"
-          type="button"
-          [class.is-selected]="isSelected(choice)"
-          [disabled]="disabled || isSelected(choice)"
-          (click)="selectChoice(choice)"
+  @if (dropdownOpen) {
+    <div class="combobox-popup">
+      <div class="popup-controls">
+        <label class="visually-hidden" [for]="kind.toLowerCase() + '-filter-search'">{{ searchLabel }}</label>
+        <input
+          class="combobox-search"
+          [id]="kind.toLowerCase() + '-filter-search'"
+          type="search"
+          role="searchbox"
+          autocomplete="off"
+          [placeholder]="searchLabel + '...'"
+          [value]="searchDraft"
+          [attr.aria-controls]="kind.toLowerCase() + '-filter-listbox'"
+          [attr.aria-activedescendant]="activeOptionId"
+          [attr.aria-busy]="loading"
+          (input)="setSearchDraft($any($event.target).value)"
+          (keydown)="searchKeydown($event)"
         >
-          <span>{{ choice.name }}</span>
-          @if (kind === 'SKILL') { <small>{{ categoryLabel(choice) }}</small> }
-          @if (isSelected(choice)) { <small>Already selected</small> }
-        </button>
-      }
-    }
-  </div>
+        @if (kind === 'SKILL') {
+          <label class="category-label" [for]="kind.toLowerCase() + '-filter-category'">Category</label>
+          <select
+            [id]="kind.toLowerCase() + '-filter-category'"
+            aria-label="Skill Category"
+            [value]="categoryId"
+            [disabled]="categoriesLoading || !!categoryErrorMessage"
+            (change)="setCategoryFilter($any($event.target).value)"
+          >
+            <option value="">All Categories</option>
+            @for (category of categories; track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+          @if (categoryErrorMessage) {
+            <div class="popup-inline-error" role="alert">{{ categoryErrorMessage }} <button class="btn text" type="button" (click)="retryCategories()">Retry</button></div>
+          }
+        }
+      </div>
 
-  @if (!loading && !errorMessage && totalPages > 1) {
-    <nav class="picker-pagination" [attr.aria-label]="kindLabel + ' picker pagination'">
-      <button class="btn text" type="button" (click)="previousPage()" [disabled]="!canGoPrevious">Previous</button>
-      <span class="metadata">Page {{ page + 1 }} of {{ totalPages }} · {{ totalElements }} choices</span>
-      <button class="btn text" type="button" (click)="nextPage()" [disabled]="!canGoNext">Next</button>
-    </nav>
+      <div class="choice-list" [id]="kind.toLowerCase() + '-filter-listbox'" role="listbox" [attr.aria-label]="kindLabel + ' choices'" [attr.aria-busy]="loading">
+        @if (loading) {
+          <div class="choice-state" role="status" aria-live="polite">Searching {{ kindLabel }}...</div>
+        } @else if (errorMessage) {
+          <div class="choice-state error" role="alert">{{ errorMessage }} <button class="btn text" type="button" (click)="retryChoices()">Retry</button></div>
+        } @else if (!choices.length) {
+          <div class="choice-state" role="status">{{ emptyMessage }}</div>
+        } @else {
+          @for (choice of choices; track choice.id) {
+            <button
+              class="choice-option"
+              type="button"
+              role="option"
+              [id]="optionId(choice)"
+              [class.is-highlighted]="highlightedIndex === $index"
+              [class.is-selected]="isSelected(choice)"
+              [attr.aria-selected]="isSelected(choice)"
+              [disabled]="disabled || isSelected(choice)"
+              (mousedown)="$event.preventDefault()"
+              (click)="selectChoice(choice)"
+            >
+              <span>{{ choice.name }}</span>
+              @if (kind === 'SKILL') { <small>{{ categoryLabel(choice) }}</small> }
+              @if (isSelected(choice)) { <small>Already selected</small> }
+            </button>
+          }
+        }
+      </div>
+
+      @if (!loading && !errorMessage && totalPages > 1) {
+        <nav class="picker-pagination" [attr.aria-label]="kindLabel + ' picker pagination'">
+          <button class="btn text" type="button" (click)="previousPage()" [disabled]="!canGoPrevious">Previous</button>
+          <span class="metadata">Page {{ page + 1 }} of {{ totalPages }} · {{ totalElements }} choices</span>
+          <button class="btn text" type="button" (click)="nextPage()" [disabled]="!canGoNext">Next</button>
+        </nav>
+      }
+    </div>
   }
-</section>
+</div>

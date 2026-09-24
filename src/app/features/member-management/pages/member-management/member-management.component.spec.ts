@@ -84,6 +84,81 @@ describe('MemberManagementComponent', () => {
     expect(component.filterDraft).toEqual({ search: '', status: 'ALL', languages: [], skills: [] });
   });
 
+  it('shows a left-side tab workspace with only the selected picker panel rendered', () => {
+    const tablist = fixture.nativeElement.querySelector('[role="tablist"]') as HTMLElement;
+    const languageTab = fixture.nativeElement.querySelector('#member-filter-tab-languages') as HTMLButtonElement;
+    const skillTab = fixture.nativeElement.querySelector('#member-filter-tab-skills') as HTMLButtonElement;
+
+    expect(tablist).not.toBeNull();
+    expect(languageTab.getAttribute('aria-selected')).toBe('true');
+    expect(skillTab.getAttribute('aria-selected')).toBe('false');
+    expect(fixture.nativeElement.querySelectorAll('app-member-filter-choice-picker').length).toBe(1);
+    expect(fixture.nativeElement.querySelector('app-member-filter-choice-picker').getAttribute('kind')).toBe('LANGUAGE');
+
+    skillTab.click();
+    fixture.detectChanges();
+
+    expect(languageTab.getAttribute('aria-selected')).toBe('false');
+    expect(skillTab.getAttribute('aria-selected')).toBe('true');
+    expect(fixture.nativeElement.querySelectorAll('app-member-filter-choice-picker').length).toBe(1);
+    expect(fixture.nativeElement.querySelector('app-member-filter-choice-picker').getAttribute('kind')).toBe('SKILL');
+  });
+
+  it('shows optional Level and adds a Language with Any Level by default', () => {
+    const level = fixture.nativeElement.querySelector('#pending-language-level') as HTMLSelectElement;
+    const add = fixture.nativeElement.querySelector('#add-pending-language') as HTMLButtonElement;
+
+    expect(level).not.toBeNull();
+    expect(level.options[0].textContent).toBe('Any Level');
+    expect(add.disabled).toBeTrue();
+    component.chooseLanguage({ id: 'en', name: 'English' });
+    fixture.detectChanges();
+    expect(component.filterDraft.languages).toEqual([]);
+    expect(add.disabled).toBeFalse();
+    component.addPendingLanguage();
+    fixture.detectChanges();
+
+    expect(component.filterDraft.languages).toEqual([{ languageId: 'en', level: null }]);
+    expect(fixture.nativeElement.querySelector('#pending-language-level').value).toBe('');
+    expect(fixture.nativeElement.querySelector('.selected-filter-language')?.textContent).toContain('English');
+    expect(fixture.nativeElement.querySelector('.selected-filter-language')?.textContent).toContain('Any Level');
+  });
+
+  it('shows optional Seniority before selecting a Skill and adds the Skill with Any Seniority by default', () => {
+    (fixture.nativeElement.querySelector('#member-filter-tab-skills') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const seniority = fixture.nativeElement.querySelector('#pending-skill-seniority') as HTMLSelectElement;
+    expect(seniority).not.toBeNull();
+    expect(seniority.value).toBe('');
+
+    component.chooseSkill({ id: 11, name: 'Java' });
+    fixture.detectChanges();
+    expect(component.canAddPendingSkill).toBeTrue();
+    component.addPendingSkill();
+    fixture.detectChanges();
+
+    expect(component.filterDraft.skills).toEqual([{ skillId: 11, seniorityId: null }]);
+    expect(fixture.nativeElement.querySelector('.selected-filter-skill')?.textContent).toContain('Any Seniority');
+  });
+
+  it('keeps Level and Seniority editable in the selected summary while switching tabs', () => {
+    component.selectLanguage({ id: 'en', name: 'English' });
+    component.setLanguageLevel(0, 'INTERMEDIATE');
+    component.selectSkill({ id: 11, name: 'Java' });
+    component.setSkillSeniority(0, '21');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#selected-language-level-0')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('#selected-skill-seniority-0')).not.toBeNull();
+    (fixture.nativeElement.querySelector('#member-filter-tab-skills') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.selected-filter-language')?.textContent).toContain('English');
+    expect(fixture.nativeElement.querySelector('.selected-filter-skill')?.textContent).toContain('Java');
+    expect((fixture.nativeElement.querySelector('#selected-language-level-0') as HTMLSelectElement).value).toBe('INTERMEDIATE');
+    expect((fixture.nativeElement.querySelector('#selected-skill-seniority-0') as HTMLSelectElement).value).toBe('21');
+  });
+
   it('applies account, Language, and Skill conditions in one request with optional Any modifiers', () => {
     members.searchMembers.calls.reset();
     component.setSearchDraft('  alice  ');
@@ -188,9 +263,13 @@ describe('MemberManagementComponent', () => {
     component.selectLanguage({ id: 'en', name: 'English' });
     component.selectSkill({ id: 11, name: 'Java' });
     members.listSkills.and.returnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { message: 'Skills unavailable' } })));
+    (fixture.nativeElement.querySelector('#member-filter-tab-skills') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('[role="combobox"]') as HTMLButtonElement).click();
     fixture.detectChanges();
 
     expect(component.filterDraft.languages).toEqual([{ languageId: 'en', level: null }]);
     expect(component.filterDraft.skills).toEqual([{ skillId: 11, seniorityId: null }]);
+    expect(fixture.nativeElement.textContent).toContain('Unable to load Skills right now.');
   });
 });

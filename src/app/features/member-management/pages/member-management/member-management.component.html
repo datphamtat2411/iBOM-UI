@@ -31,82 +31,138 @@
       </div>
     </div>
 
-    <div class="filter-groups">
-      <section class="filter-group" aria-labelledby="member-language-filter-title">
-        <div class="filter-group-heading">
-          <div>
-            <h3 id="member-language-filter-title">Languages</h3>
-            <p>Select a Language to add it immediately.</p>
-          </div>
-        </div>
-        <app-member-filter-choice-picker
-          kind="LANGUAGE"
-          [selectedIds]="selectedLanguageIds"
-          [disabled]="loading"
-          (choiceSelected)="selectLanguage($event)"
-        />
-        @if (languageConditions.length) {
-          <div class="condition-list" aria-label="Selected Language conditions">
-            @for (condition of languageConditions; track condition.languageId; let index = $index) {
-              <div class="condition">
-                <strong>Language</strong>
-                <span class="condition-choice">{{ choiceName(languageChoices, condition.languageId) }}</span>
-                <span class="and">+</span>
-                <select [value]="condition.level ?? ''" (change)="setLanguageLevel(index, $any($event.target).value)" [disabled]="loading">
-                  <option value="">Any Level</option>
-                  @for (level of languageLevels; track level.value) {
-                    <option [value]="level.value">{{ level.label }}</option>
-                  }
-                </select>
-                <button class="remove-condition" type="button" [attr.aria-label]="'Remove Language ' + choiceName(languageChoices, condition.languageId)" (click)="removeLanguageCondition(index)" [disabled]="loading">×</button>
-              </div>
-            }
-          </div>
-        }
-      </section>
+    <div class="filter-workspace">
+      <div class="filter-tabs" role="tablist" aria-label="Profile condition type" aria-orientation="vertical" (keydown)="handleFilterTabKeydown($event)">
+        <button
+          id="member-filter-tab-languages"
+          class="filter-tab"
+          type="button"
+          role="tab"
+          aria-controls="member-filter-panel"
+          [attr.aria-selected]="activeFilterTab === 'LANGUAGES'"
+          [attr.tabindex]="activeFilterTab === 'LANGUAGES' ? 0 : -1"
+          [class.active]="activeFilterTab === 'LANGUAGES'"
+          (click)="setActiveFilterTab('LANGUAGES')"
+        >
+          <span>Languages</span><span class="tab-count">{{ languageConditions.length }}</span>
+        </button>
+        <button
+          id="member-filter-tab-skills"
+          class="filter-tab"
+          type="button"
+          role="tab"
+          aria-controls="member-filter-panel"
+          [attr.aria-selected]="activeFilterTab === 'SKILLS'"
+          [attr.tabindex]="activeFilterTab === 'SKILLS' ? 0 : -1"
+          [class.active]="activeFilterTab === 'SKILLS'"
+          (click)="setActiveFilterTab('SKILLS')"
+        >
+          <span>Skills</span><span class="tab-count">{{ skillConditions.length }}</span>
+        </button>
+      </div>
 
-      <section class="filter-group" aria-labelledby="member-skill-filter-title">
-        <div class="filter-group-heading">
-          <div>
-            <h3 id="member-skill-filter-title">Skills</h3>
-            <p>Select a Skill to add it immediately.</p>
+      @if (activeFilterTab === 'LANGUAGES') {
+        <section id="member-filter-panel" class="filter-tab-panel" role="tabpanel" [attr.aria-labelledby]="'member-filter-tab-' + activeFilterTab.toLowerCase()" tabindex="0">
+          <div class="filter-panel-heading">
+            <div><h3>Add Language</h3><p>Choose a Language and proficiency before adding it to the filters.</p></div>
           </div>
-        </div>
-        <app-member-filter-choice-picker
-          kind="SKILL"
-          [selectedIds]="selectedSkillIds"
-          [disabled]="loading"
-          (choiceSelected)="selectSkill($event)"
-        />
-        @if (skillConditions.length) {
-          <div class="condition-list" aria-label="Selected Skill conditions">
-            @for (condition of skillConditions; track condition.skillId; let index = $index) {
-              <div class="condition">
-                <strong>Skill</strong>
-                <span class="condition-choice">{{ choiceName(skillChoices, condition.skillId) }}</span>
-                <span class="and">+</span>
-                <select [value]="condition.seniorityId ?? ''" (change)="setSkillSeniority(index, $any($event.target).value)" [disabled]="loading">
-                  <option value="">Any Seniority</option>
-                  @for (seniority of seniorities; track seniority.id) {
-                    <option [value]="seniority.id">{{ seniority.name }}</option>
-                  }
-                </select>
-                <button class="remove-condition" type="button" [attr.aria-label]="'Remove Skill ' + choiceName(skillChoices, condition.skillId)" (click)="removeSkillCondition(index)" [disabled]="loading">×</button>
-              </div>
-            }
+          <div class="pending-filter-form">
+            <div class="pending-choice-field">
+              <label>Language</label>
+              <app-member-filter-choice-picker
+                kind="LANGUAGE"
+                [selectedIds]="selectedLanguageIds"
+                [selectedChoice]="pendingLanguage"
+                [disabled]="loading"
+                (choiceSelected)="chooseLanguage($event)"
+              />
+            </div>
+            <div class="pending-modifier-field">
+              <label for="pending-language-level">Level <span class="optional">(optional)</span></label>
+              <select id="pending-language-level" [value]="pendingLanguageLevel ?? ''" (change)="setPendingLanguageLevel($any($event.target).value)" [disabled]="loading">
+                <option value="">Any Level</option>
+                @for (level of languageLevels; track level.value) {
+                  <option [value]="level.value">{{ level.label }}</option>
+                }
+              </select>
+            </div>
+            <button id="add-pending-language" class="btn primary add-filter-button" type="button" (click)="addPendingLanguage()" [disabled]="!canAddPendingLanguage">Add Language</button>
           </div>
-        }
-      </section>
+        </section>
+      } @else {
+        <section id="member-filter-panel" class="filter-tab-panel" role="tabpanel" [attr.aria-labelledby]="'member-filter-tab-' + activeFilterTab.toLowerCase()" tabindex="0">
+          <div class="filter-panel-heading">
+            <div><h3>Add Skill</h3><p>Choose a Skill; Category narrows the choices in the dropdown.</p></div>
+          </div>
+          <div class="pending-filter-form">
+            <div class="pending-choice-field">
+              <label>Skill</label>
+              <app-member-filter-choice-picker
+                kind="SKILL"
+                [selectedIds]="selectedSkillIds"
+                [selectedChoice]="pendingSkill"
+                [disabled]="loading"
+                (choiceSelected)="chooseSkill($event)"
+              />
+            </div>
+            <div class="pending-modifier-field">
+              <label for="pending-skill-seniority">Seniority <span class="optional">(optional)</span></label>
+              <select id="pending-skill-seniority" [value]="pendingSkillSeniorityId ?? ''" (change)="setPendingSkillSeniority($any($event.target).value)" [disabled]="loading || senioritiesLoading || !!senioritiesErrorMessage">
+                <option value="">Any Seniority</option>
+                @for (seniority of seniorities; track seniority.id) {
+                  <option [value]="seniority.id">{{ seniority.name }}</option>
+                }
+              </select>
+            </div>
+            <button class="btn primary add-filter-button" type="button" (click)="addPendingSkill()" [disabled]="!canAddPendingSkill">Add Skill</button>
+          </div>
+          @if (senioritiesLoading) {
+            <p class="metadata" role="status" aria-live="polite">Loading Seniority choices...</p>
+          } @else if (senioritiesErrorMessage) {
+            <div class="notice error choice-notice" role="alert"><span>{{ senioritiesErrorMessage }}</span><button class="btn text" type="button" (click)="retrySeniorities()" [disabled]="senioritiesLoading">Retry choices</button></div>
+          }
+        </section>
+      }
     </div>
 
-    @if (senioritiesLoading) {
-      <p class="metadata" role="status" aria-live="polite">Loading Seniority choices...</p>
-    } @else if (senioritiesErrorMessage) {
-      <div class="notice error choice-notice" role="alert">
-        <span>{{ senioritiesErrorMessage }}</span>
-        <button class="btn text" type="button" (click)="retrySeniorities()" [disabled]="senioritiesLoading">Retry choices</button>
+    <section class="selected-filters" aria-labelledby="selected-filters-title">
+      <div class="selected-filters-heading">
+        <h3 id="selected-filters-title">Selected conditions</h3>
+        <span class="metadata">{{ languageConditions.length + skillConditions.length }} selected</span>
       </div>
-    }
+      @if (!languageConditions.length && !skillConditions.length) {
+        <p class="selected-empty">No Language or Skill conditions selected.</p>
+      } @else {
+        <div class="selected-filter-list" aria-label="Selected Language conditions">
+          @for (condition of languageConditions; track condition.languageId; let index = $index) {
+            <div class="condition selected-filter-row selected-filter-language">
+              <strong class="selected-filter-name">{{ choiceName(languageChoices, condition.languageId) }}</strong>
+              <label class="selected-modifier" [for]="'selected-language-level-' + index"><span>Level</span>
+                <select [id]="'selected-language-level-' + index" [value]="condition.level ?? ''" (change)="setLanguageLevel(index, $any($event.target).value)" [disabled]="loading">
+                  <option value="" [selected]="condition.level === null">Any Level</option>
+                  @for (level of languageLevels; track level.value) { <option [value]="level.value" [selected]="condition.level === level.value">{{ level.label }}</option> }
+                </select>
+              </label>
+              <button class="remove-condition" type="button" [attr.aria-label]="'Remove Language ' + choiceName(languageChoices, condition.languageId)" (click)="removeLanguageCondition(index)" [disabled]="loading">×</button>
+            </div>
+          }
+        </div>
+        <div class="selected-filter-list" aria-label="Selected Skill conditions">
+          @for (condition of skillConditions; track condition.skillId; let index = $index) {
+            <div class="condition selected-filter-row selected-filter-skill">
+              <strong class="selected-filter-name">{{ choiceName(skillChoices, condition.skillId) }}</strong>
+              <label class="selected-modifier" [for]="'selected-skill-seniority-' + index"><span>Seniority</span>
+                <select [id]="'selected-skill-seniority-' + index" [value]="condition.seniorityId ?? ''" (change)="setSkillSeniority(index, $any($event.target).value)" [disabled]="loading || senioritiesLoading || !!senioritiesErrorMessage">
+                  <option value="" [selected]="condition.seniorityId === null">Any Seniority</option>
+                  @for (seniority of seniorities; track seniority.id) { <option [value]="seniority.id" [selected]="condition.seniorityId !== null && sameId(condition.seniorityId, seniority.id)">{{ seniority.name }}</option> }
+                </select>
+              </label>
+              <button class="remove-condition" type="button" [attr.aria-label]="'Remove Skill ' + choiceName(skillChoices, condition.skillId)" (click)="removeSkillCondition(index)" [disabled]="loading">×</button>
+            </div>
+          }
+        </div>
+      }
+    </section>
 
     @if (validationMessage) {
       <div class="notice error validation-notice" role="alert">{{ validationMessage }}</div>

@@ -18,6 +18,8 @@ import {
   SearchChoice,
 } from '../../models/member-management.models';
 
+type MemberFilterTab = 'LANGUAGES' | 'SKILLS';
+
 @Component({
   selector: 'app-member-management',
   standalone: true,
@@ -41,6 +43,11 @@ export class MemberManagementComponent implements OnInit {
 
   filterDraft: MemberFilterDraft = this.emptyFilterDraft();
   appliedFilter: AppliedMemberFilter | null = null;
+  activeFilterTab: MemberFilterTab = 'LANGUAGES';
+  pendingLanguage: SearchChoice | null = null;
+  pendingLanguageLevel: LanguageLevel | null = null;
+  pendingSkill: SearchChoice | null = null;
+  pendingSkillSeniorityId: MemberId | null = null;
   members: MemberSummary[] = [];
   currentPage = 0;
   totalPages = 0;
@@ -97,11 +104,27 @@ export class MemberManagementComponent implements OnInit {
   }
 
   get selectedLanguageIds(): MemberId[] {
-    return this.filterDraft.languages.map((condition) => condition.languageId);
+    return [
+      ...this.filterDraft.languages.map((condition) => condition.languageId),
+      ...(this.pendingLanguage ? [this.pendingLanguage.id] : []),
+    ];
   }
 
   get selectedSkillIds(): MemberId[] {
-    return this.filterDraft.skills.map((condition) => condition.skillId);
+    return [
+      ...this.filterDraft.skills.map((condition) => condition.skillId),
+      ...(this.pendingSkill ? [this.pendingSkill.id] : []),
+    ];
+  }
+
+  get canAddPendingLanguage(): boolean {
+    return !!this.pendingLanguage && !this.loading
+      && !this.filterDraft.languages.some((condition) => this.sameId(condition.languageId, this.pendingLanguage!.id));
+  }
+
+  get canAddPendingSkill(): boolean {
+    return !!this.pendingSkill && !this.loading
+      && !this.filterDraft.skills.some((condition) => this.sameId(condition.skillId, this.pendingSkill!.id));
   }
 
   get searchTerm(): string {
@@ -179,6 +202,70 @@ export class MemberManagementComponent implements OnInit {
     this.filterDraft = { ...this.filterDraft, status: this.validStatusFilter(value) ? value : 'ALL' };
   }
 
+  setActiveFilterTab(tab: MemberFilterTab): void {
+    this.activeFilterTab = tab;
+  }
+
+  handleFilterTabKeydown(event: KeyboardEvent): void {
+    const tabs: MemberFilterTab[] = ['LANGUAGES', 'SKILLS'];
+    let next: MemberFilterTab | null = null;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      next = tabs[(tabs.indexOf(this.activeFilterTab) + 1) % tabs.length];
+    } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      next = tabs[(tabs.indexOf(this.activeFilterTab) + tabs.length - 1) % tabs.length];
+    } else if (event.key === 'Home') {
+      next = tabs[0];
+    } else if (event.key === 'End') {
+      next = tabs[tabs.length - 1];
+    }
+    if (!next) return;
+    event.preventDefault();
+    this.setActiveFilterTab(next);
+    document.getElementById(`member-filter-tab-${next.toLowerCase()}`)?.focus();
+  }
+
+  chooseLanguage(choice: SearchChoice): void {
+    if (this.filterDraft.languages.some((condition) => this.sameId(condition.languageId, choice.id))) return;
+    if (!this.pendingLanguage || !this.sameId(this.pendingLanguage.id, choice.id)) this.pendingLanguageLevel = null;
+    this.languageChoices.set(String(choice.id), choice);
+    this.pendingLanguage = choice;
+  }
+
+  setPendingLanguageLevel(value: string): void {
+    this.pendingLanguageLevel = this.validLanguageLevel(value) ? value : null;
+  }
+
+  addPendingLanguage(): void {
+    if (!this.canAddPendingLanguage || !this.pendingLanguage) return;
+    this.filterDraft = {
+      ...this.filterDraft,
+      languages: [...this.filterDraft.languages, { languageId: this.pendingLanguage.id, level: this.pendingLanguageLevel }],
+    };
+    this.pendingLanguage = null;
+    this.pendingLanguageLevel = null;
+  }
+
+  chooseSkill(choice: SearchChoice): void {
+    if (this.filterDraft.skills.some((condition) => this.sameId(condition.skillId, choice.id))) return;
+    if (!this.pendingSkill || !this.sameId(this.pendingSkill.id, choice.id)) this.pendingSkillSeniorityId = null;
+    this.skillChoices.set(String(choice.id), choice);
+    this.pendingSkill = choice;
+  }
+
+  setPendingSkillSeniority(value: string): void {
+    this.pendingSkillSeniorityId = value.trim() ? value : null;
+  }
+
+  addPendingSkill(): void {
+    if (!this.canAddPendingSkill || !this.pendingSkill) return;
+    this.filterDraft = {
+      ...this.filterDraft,
+      skills: [...this.filterDraft.skills, { skillId: this.pendingSkill.id, seniorityId: this.pendingSkillSeniorityId }],
+    };
+    this.pendingSkill = null;
+    this.pendingSkillSeniorityId = null;
+  }
+
   selectLanguage(choice: SearchChoice): void {
     if (this.filterDraft.languages.some((condition) => this.sameId(condition.languageId, choice.id))) return;
     this.languageChoices.set(String(choice.id), choice);
@@ -242,6 +329,10 @@ export class MemberManagementComponent implements OnInit {
   clearFilters(): void {
     this.filterDraft = this.emptyFilterDraft();
     this.appliedFilter = null;
+    this.pendingLanguage = null;
+    this.pendingLanguageLevel = null;
+    this.pendingSkill = null;
+    this.pendingSkillSeniorityId = null;
     this.skillChoices.clear();
     this.languageChoices.clear();
     this.validationMessage = '';
@@ -402,7 +493,7 @@ export class MemberManagementComponent implements OnInit {
       || this.filterDraft.skills.length > 0;
   }
 
-  private sameId(left: MemberId, right: MemberId): boolean {
+  sameId(left: MemberId, right: MemberId): boolean {
     return String(left) === String(right);
   }
 
