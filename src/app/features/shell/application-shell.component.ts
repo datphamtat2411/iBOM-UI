@@ -83,6 +83,11 @@ export class ApplicationShellComponent {
     return path === '/members' || path.startsWith('/members/');
   }
 
+  isUserManagementRoute(url = this.router.url): boolean {
+    const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    return path === '/users' || path.startsWith('/users/');
+  }
+
   isManagedProfileRoute(url = this.router.url): boolean {
     const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
     return /^\/members\/[^/]+\/profiles(?:\/[^/]+(?:\/preview|\/projects(?:\/[^/]+)?)?)?$/.test(path);
@@ -116,6 +121,7 @@ export class ApplicationShellComponent {
   get contextTitle(): string {
     if (this.isManagedProfileRoute()) return 'Profile Workspace';
     if (this.isMemberManagementRoute()) return 'Member Management';
+    if (this.isUserManagementRoute()) return 'User Management';
     if (this.isMasterDataRoute()) return 'Master Data';
     if (this.router.url.startsWith('/profiles')) return 'Profile Workspace';
     return this.router.url.includes('/account-settings') ? 'Account Settings' : 'Dashboard';

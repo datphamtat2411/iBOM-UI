@@ -82,20 +82,27 @@ describe('ApplicationShellComponent', () => {
     expect(groups[0].textContent).toContain('01Dashboard');
     expect(groups[0].textContent).toContain('02Profile Workspace');
     expect(groups[1].textContent).toContain('01Member Management');
-    expect(groups[1].textContent).toContain('02Master Data');
+    expect(groups[1].textContent).toContain('02User Management');
+    expect(groups[1].textContent).toContain('03Master Data');
   });
 
-  it('links Member Management from the role-aware Management navigation', () => {
-    auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MANAGER' });
-    fixture.detectChanges();
+  it('links Member and User Management from the role-aware Management navigation', () => {
+    for (const role of ['MANAGER', 'ADMIN']) {
+      auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role });
+      fixture.detectChanges();
 
-    const memberLink = fixture.nativeElement.querySelector('a[routerLink="/members"]') as HTMLAnchorElement;
-    expect(memberLink).not.toBeNull();
-    expect(memberLink.textContent).toContain('Member Management');
+      const memberLink = fixture.nativeElement.querySelector('a[routerLink="/members"]') as HTMLAnchorElement;
+      const userLink = fixture.nativeElement.querySelector('a[routerLink="/users"]') as HTMLAnchorElement;
+      expect(memberLink).not.toBeNull();
+      expect(memberLink.textContent).toContain('Member Management');
+      expect(userLink).not.toBeNull();
+      expect(userLink.textContent).toContain('User Management');
+    }
 
     auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('a[routerLink="/members"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('a[routerLink="/users"]')).toBeNull();
   });
 
   it('toggles the Master Data parent without navigating and preserves active child state when collapsed', () => {

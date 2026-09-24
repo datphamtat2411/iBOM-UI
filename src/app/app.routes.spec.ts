@@ -2,6 +2,7 @@ import { routes } from './app.routes';
 import { authGuard, managementGuard } from './core/auth/auth.guard';
 import { masterDataRoutes } from './features/master-data/master-data.routes';
 import { memberManagementRoutes } from './features/member-management/member-management.routes';
+import { userManagementRoutes } from './features/user-management/user-management.routes';
 
 describe('application routes', () => {
   it('protects the lazy dashboard shell and renders a lazy dashboard child', () => {
@@ -63,5 +64,17 @@ describe('application routes', () => {
     const masterData = routes.find((route) => route.path === 'master-data');
 
     expect(masterData?.data?.['managementDeniedMessage']).toBeUndefined();
+  });
+
+  it('protects User Management with authentication and management authorization', () => {
+    const users = routes.find((route) => route.path === 'users');
+
+    expect(users?.canActivate).toEqual([authGuard, managementGuard]);
+    expect(users?.data).toEqual({
+      managementDeniedMessage: 'You do not have permission to access User Management.',
+    });
+    expect(users?.loadComponent).toEqual(jasmine.any(Function));
+    expect(users?.children).toBe(userManagementRoutes);
+    expect(users?.children?.map((route) => route.path)).toEqual(['']);
   });
 });

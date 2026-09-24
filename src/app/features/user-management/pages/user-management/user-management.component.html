@@ -1,0 +1,106 @@
+<section class="user-management-page" aria-labelledby="user-management-title" [attr.aria-busy]="loading">
+  <header class="page-heading">
+    <div>
+      <p class="page-kicker">Management / Users</p>
+      <h1 id="user-management-title">User Management</h1>
+      <p>Search the unified User directory by username or email, then filter by role.</p>
+    </div>
+  </header>
+
+  <section class="query-panel" aria-labelledby="user-search-title">
+    <div class="query-head">
+      <div>
+        <h2 id="user-search-title">Find Users</h2>
+        <p>Apply account search and role filters together. Leave roles unselected to include every role.</p>
+      </div>
+      <span class="metadata">USERNAME / EMAIL</span>
+    </div>
+
+    <div class="query-controls">
+      <div class="field-control">
+        <label for="user-search">Username or email</label>
+        <input id="user-search" type="search" autocomplete="off" [value]="searchDraft" (input)="setSearchDraft($any($event.target).value)" (keydown.enter)="applyFilters()" [disabled]="loading">
+      </div>
+      <fieldset class="role-control" [disabled]="loading">
+        <legend>Roles</legend>
+        <div class="role-options">
+          @for (role of roleOptions; track role.value) {
+            <label class="role-option">
+              <input type="checkbox" [checked]="roleDraft.includes(role.value)" (change)="toggleRole(role.value, $any($event.target).checked)">
+              <span>{{ role.label }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="query-actions">
+      <span class="metadata">Results remain unchanged until filters are applied.</span>
+      <div>
+        @if (canResetFilters) {
+          <button class="btn text" type="button" (click)="clearFilters()" [disabled]="loading">Reset filters</button>
+        }
+        <button class="btn primary" type="button" (click)="applyFilters()" [disabled]="loading">Apply filters</button>
+      </div>
+    </div>
+  </section>
+
+  @if (appliedFilter) {
+    <div class="applied-query" role="status" aria-live="polite">
+      <span><strong>Applied filters:</strong> {{ appliedSearchDescription }}</span>
+      <button class="btn text" type="button" (click)="clearFilters()" [disabled]="loading">Reset</button>
+    </div>
+  }
+
+  @if (pageMessage) { <div class="notice info" role="status" aria-live="polite">{{ pageMessage }}</div> }
+
+  @if (loading) {
+    <div class="state-panel" role="status" aria-live="polite">{{ filtering ? 'Filtering Users...' : 'Loading Users...' }}</div>
+  } @else if (loadErrorMessage) {
+    <div class="notice error" role="alert">
+      <span>{{ loadErrorMessage }}</span>
+      <button class="btn text" type="button" (click)="retryUsers()" [disabled]="loading">Retry</button>
+    </div>
+  } @else if (!users.length) {
+    <div class="empty-state" role="status">
+      <h2>{{ filtersApplied ? 'No matching users found.' : 'No users found.' }}</h2>
+      <p>{{ filtersApplied ? 'Try a different username, email, or role, or reset the filters.' : 'No User records are available.' }}</p>
+      @if (filtersApplied) { <button class="btn" type="button" (click)="clearFilters()" [disabled]="loading">Reset filters</button> }
+    </div>
+  } @else {
+    <div class="results-heading">
+      <h2 id="user-results-title">{{ totalElements }} {{ totalElements === 1 ? 'User' : 'Users' }}</h2>
+      <span class="metadata">Backend-ordered User list</span>
+    </div>
+    <div class="table-wrap">
+      <table class="user-table" aria-labelledby="user-results-title">
+        <caption class="visually-hidden">User records</caption>
+        <thead>
+          <tr>
+            <th scope="col">Username</th>
+            <th scope="col">Email</th>
+            <th scope="col">Role</th>
+            <th scope="col">Account Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of users; track user.id) {
+            <tr>
+              <td><strong>{{ user.username }}</strong></td>
+              <td>{{ user.email }}</td>
+              <td><span class="role">{{ user.role }}</span></td>
+              <td><span class="status" [class.active]="user.status === 'ACTIVE'" [class.inactive]="user.status === 'INACTIVE'">{{ user.status }}</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (totalPages > 1) {
+      <nav class="pagination" aria-label="Users pagination">
+        <button class="btn text" type="button" aria-label="Previous page" (click)="previousPage()" [disabled]="loading || currentPage === 0">Previous</button>
+        <span class="metadata" aria-live="polite">Page {{ currentPage + 1 }} of {{ totalPages }}</span>
+        <button class="btn text" type="button" aria-label="Next page" (click)="nextPage()" [disabled]="loading || currentPage + 1 >= totalPages">Next</button>
+      </nav>
+    }
+  }
+</section>

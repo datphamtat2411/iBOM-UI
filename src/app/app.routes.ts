@@ -5,6 +5,7 @@ import { profileDirtyDeactivationGuard } from './features/profile/guards/profile
 import { masterDataRoutes } from './features/master-data/master-data.routes';
 import { memberManagementRoutes } from './features/member-management/member-management.routes';
 import { profileRoutes } from './features/profile/profile.routes';
+import { userManagementRoutes } from './features/user-management/user-management.routes';
 
 export const routes: Routes = [
   {
@@ -75,6 +76,16 @@ export const routes: Routes = [
         (component) => component.ApplicationShellComponent,
       ),
     children: memberManagementRoutes,
+  },
+  {
+    path: 'users',
+    canActivate: [authGuard, managementGuard],
+    data: { managementDeniedMessage: 'You do not have permission to access User Management.' },
+    loadComponent: () =>
+      import('./features/shell/application-shell.component').then(
+        (component) => component.ApplicationShellComponent,
+      ),
+    children: userManagementRoutes,
   },
   {
     path: 'registration',
