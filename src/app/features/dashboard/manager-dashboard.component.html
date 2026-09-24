@@ -1,8 +1,124 @@
-<section class="dashboard-page manager-dashboard" aria-labelledby="manager-dashboard-title">
-  <div class="page-heading">
+<section class="dashboard-page manager-dashboard" aria-labelledby="manager-dashboard-title" [attr.aria-busy]="loading">
+  <header class="page-heading">
     <div>
+      <p class="page-kicker">Management / Analytics</p>
       <h1 id="manager-dashboard-title">Manager Dashboard</h1>
-      <p>Management overview will be available here.</p>
+      <p>Review Profile completion and skill distribution across eligible Profiles.</p>
     </div>
-  </div>
+    <div class="heading-actions">
+      <span class="metadata">Data loaded <time [attr.datetime]="dataLoadedAt?.toISOString()">{{ dataLoadedLabel }}</time></span>
+      <button class="btn primary" type="button" (click)="refreshStats()" [disabled]="loading">
+        {{ loading ? 'Refreshing...' : 'Refresh' }}
+      </button>
+    </div>
+  </header>
+
+  @if (!hasLoaded && loading) {
+    <div class="state-panel" role="status" aria-live="polite">Loading Manager Dashboard analytics...</div>
+  } @else if (!hasLoaded && loadErrorMessage) {
+    <div class="notice error" role="alert">
+      <span>{{ loadErrorMessage }}</span>
+      <button class="btn text retry-button" type="button" (click)="retryStats()" [disabled]="loading">Retry</button>
+    </div>
+  } @else if (stats) {
+    @if (loadErrorMessage) {
+      <div class="notice error" role="alert">
+        <span>{{ loadErrorMessage }} Existing data is still shown.</span>
+        <button class="btn text retry-button" type="button" (click)="retryStats()" [disabled]="loading">Retry</button>
+      </div>
+    }
+
+    <section class="completion-card" aria-labelledby="completed-profiles-title">
+      <div class="section-title">
+        <div>
+          <p class="page-kicker">Profile readiness</p>
+          <h2 id="completed-profiles-title">Completed Profiles</h2>
+        </div>
+        <span class="metadata">Backend eligibility rules</span>
+      </div>
+      <div class="completion-content">
+        <div class="completion-summary">
+          <p class="metadata">Completed Profiles</p>
+          <p class="completion-count"><strong>{{ formatCount(completedProfilesCount) }}</strong> / {{ formatCount(totalProfilesCount) }}</p>
+          <p class="completion-note completion-percentage">{{ formatPercentage(completedPercentage) }} of eligible Profiles</p>
+        </div>
+        <div class="progress-column">
+          <div class="progress-labels"><span>Completion progress</span><strong>{{ formatPercentage(completedPercentage) }}</strong></div>
+          <div class="progress-track" role="progressbar" aria-label="Completed Profiles progress" [attr.aria-valuenow]="completedPercentage" aria-valuemin="0" aria-valuemax="100">
+            <span class="progress-value" [style.width.%]="completedPercentage"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="analytics-grid">
+      <section class="analytics-panel" aria-labelledby="main-skills-title">
+        <div class="section-title">
+          <div>
+            <p class="page-kicker">Primary Skill</p>
+            <h2 id="main-skills-title">Main Skills</h2>
+          </div>
+          <span class="metadata">Backend order</span>
+        </div>
+
+        @if (hasPrimarySkillData) {
+          <div class="chart-frame primary-chart-frame">
+            <canvas #primarySkillsCanvas class="primary-skills-chart" role="img" [attr.aria-label]="primarySkillChartAriaLabel"></canvas>
+          </div>
+          <ul class="distribution-list" aria-label="Main Skills counts">
+            @for (row of primarySkillRows; track $index) {
+              <li class="distribution-row">
+                <span class="distribution-label">{{ row.label }}</span>
+                <strong>{{ formatCount(row.profileCount) }} Profiles</strong>
+              </li>
+            }
+          </ul>
+        } @else {
+          <div class="empty-state" role="status">
+            <strong>No Main Skills data available.</strong>
+            <p>The manager analytics API returned no primary-skill contributions.</p>
+          </div>
+        }
+      </section>
+
+      <section class="analytics-panel" aria-labelledby="skill-distribution-title">
+        <div class="section-title">
+          <div>
+            <p class="page-kicker">Skill Category</p>
+            <h2 id="skill-distribution-title">Skill Distribution</h2>
+          </div>
+          <span class="metadata">Backend percentages</span>
+        </div>
+
+        @if (hasSkillCategoryData) {
+          <div class="chart-frame category-chart-frame">
+            <canvas #skillCategoriesCanvas class="skill-categories-chart" role="img" [attr.aria-label]="skillCategoryChartAriaLabel"></canvas>
+          </div>
+          <ul class="distribution-list category-breakdown" aria-label="Skill Category counts and percentages">
+            @for (row of skillCategoryRows; track $index) {
+              <li class="distribution-row">
+                <span class="distribution-label">{{ row.label }}</span>
+                <strong>{{ formatCount(row.profileCount) }} Profiles · {{ formatPercentage(row.percentage) }}</strong>
+              </li>
+            }
+          </ul>
+        } @else {
+          <div class="empty-state" role="status">
+            <strong>No Skill Distribution data available.</strong>
+            <p>The manager analytics API returned no skill-category contributions.</p>
+          </div>
+        }
+      </section>
+    </div>
+
+    <section class="data-info" aria-labelledby="data-info-title">
+      <div>
+        <p class="page-kicker">Data info</p>
+        <h2 id="data-info-title">Analytics source</h2>
+      </div>
+      <div class="data-info-item"><span>Eligible Profiles</span><strong>{{ formatCount(totalProfilesCount) }}</strong></div>
+      <div class="data-info-item"><span>Source</span><strong>Manager analytics API</strong></div>
+      <div class="data-info-item"><span>Refresh state</span><strong>{{ loading ? 'Updating' : 'Current' }}</strong></div>
+    </section>
+  }
 </section>
