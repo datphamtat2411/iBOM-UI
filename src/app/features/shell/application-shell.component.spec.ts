@@ -520,4 +520,17 @@ describe('ApplicationShellComponent', () => {
     expect(toast.getAttribute('aria-live')).toBe('polite');
     expect(toast.textContent).toContain('Project added successfully.');
   });
+
+  it('renders application error feedback as an accessible alert', () => {
+    const notifications = TestBed.inject(NotificationService);
+    notifications.showError('You do not have permission to access Member Management.');
+    fixture.detectChanges();
+
+    const toast = fixture.nativeElement.querySelector('[data-notification-toast]') as HTMLElement;
+    expect(toast.classList).toContain('error');
+    expect(toast.getAttribute('role')).toBe('alert');
+    expect(toast.getAttribute('aria-live')).toBe('assertive');
+    expect(toast.getAttribute('aria-atomic')).toBe('true');
+    expect(toast.textContent).toContain('You do not have permission to access Member Management.');
+  });
 });

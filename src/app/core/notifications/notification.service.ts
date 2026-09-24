@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 
 export interface ApplicationNotification {
   id: number;
-  tone: 'success';
+  tone: 'success' | 'error';
   message: string;
 }
 
@@ -14,8 +14,16 @@ export class NotificationService {
   private dismissTimer: ReturnType<typeof setTimeout> | null = null;
 
   showSuccess(message: string): void {
+    this.show('success', message);
+  }
+
+  showError(message: string): void {
+    this.show('error', message);
+  }
+
+  private show(tone: ApplicationNotification['tone'], message: string): void {
     this.clearDismissTimer();
-    const notification = { id: ++this.nextId, tone: 'success' as const, message };
+    const notification = { id: ++this.nextId, tone, message };
     this.notification.set(notification);
     this.dismissTimer = setTimeout(() => {
       if (this.notification()?.id === notification.id) this.notification.set(null);

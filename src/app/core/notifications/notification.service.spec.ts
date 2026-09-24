@@ -31,4 +31,14 @@ describe('NotificationService', () => {
     tick(1);
     expect(service.notification()).toBeNull();
   }));
+
+  it('publishes an error notification and auto-dismisses it deterministically', fakeAsync(() => {
+    service.showError('You do not have permission to access Member Management.');
+
+    expect(service.notification()).toEqual(jasmine.objectContaining({ message: 'You do not have permission to access Member Management.', tone: 'error' }));
+    tick(4999);
+    expect(service.notification()).not.toBeNull();
+    tick(1);
+    expect(service.notification()).toBeNull();
+  }));
 });

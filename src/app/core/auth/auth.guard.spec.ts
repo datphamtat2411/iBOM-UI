@@ -5,6 +5,9 @@ import { of } from 'rxjs';
 
 import { authGuard, guestGuard, managementGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { NotificationService } from '../notifications/notification.service';
+
+const memberManagementDeniedMessage = 'You do not have permission to access Member Management.';
 
 describe('authGuard', () => {
   let auth: {
@@ -13,6 +16,7 @@ describe('authGuard', () => {
     user: WritableSignal<{ role: string } | null>;
     restoration$: AuthService['restoration$'];
   };
+  let notifications: { showError: jasmine.Spy };
 
   beforeEach(() => {
     auth = {
@@ -21,9 +25,10 @@ describe('authGuard', () => {
       user: signal<{ role: string } | null>(null),
       restoration$: () => of(true),
     };
+    notifications = { showError: jasmine.createSpy('showError') };
 
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: AuthService, useValue: auth }],
+      providers: [provideRouter([]), { provide: AuthService, useValue: auth }, { provide: NotificationService, useValue: notifications }],
     });
   });
 
@@ -64,14 +69,43 @@ describe('authGuard', () => {
   it('allows only managers and admins into Management routes', () => {
     auth.isRestored.set(true);
     auth.isAuthenticated.set(true);
+    const route = { data: { managementDeniedMessage: memberManagementDeniedMessage } };
 
     for (const role of ['MANAGER', 'ADMIN']) {
       auth.user.set({ role });
-      expect(TestBed.runInInjectionContext(() => managementGuard({} as never, {} as never))).toBeTrue();
+      expect(TestBed.runInInjectionContext(() => managementGuard(route as never, {} as never))).toBeTrue();
     }
+    expect(notifications.showError).not.toHaveBeenCalled();
 
     auth.user.set({ role: 'MEMBER' });
+    expect(TestBed.runInInjectionContext(() => managementGuard(route as never, {} as never))).toEqual(TestBed.inject(Router).parseUrl('/dashboard'));
+  });
+
+  it('publishes the route-scoped denial once for an authenticated non-manager', () => {
+    auth.isRestored.set(true);
+    auth.isAuthenticated.set(true);
+    auth.user.set({ role: 'MEMBER' });
+    const route = { data: { managementDeniedMessage: memberManagementDeniedMessage } };
+
+    expect(TestBed.runInInjectionContext(() => managementGuard(route as never, {} as never))).toEqual(TestBed.inject(Router).parseUrl('/dashboard'));
+    expect(notifications.showError).toHaveBeenCalledOnceWith(memberManagementDeniedMessage);
+  });
+
+  it('redirects an unauthenticated user to login without publishing route feedback', () => {
+    auth.isRestored.set(true);
+    const route = { data: { managementDeniedMessage: memberManagementDeniedMessage } };
+
+    expect(TestBed.runInInjectionContext(() => managementGuard(route as never, {} as never))).toEqual(TestBed.inject(Router).parseUrl('/login'));
+    expect(notifications.showError).not.toHaveBeenCalled();
+  });
+
+  it('does not publish Member Management copy for management routes without denial metadata', () => {
+    auth.isRestored.set(true);
+    auth.isAuthenticated.set(true);
+    auth.user.set({ role: 'MEMBER' });
+
     expect(TestBed.runInInjectionContext(() => managementGuard({} as never, {} as never))).toEqual(TestBed.inject(Router).parseUrl('/dashboard'));
+    expect(notifications.showError).not.toHaveBeenCalled();
   });
 
   it('waits for session restoration before deciding Management access', () => {

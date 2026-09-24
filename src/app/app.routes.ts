@@ -68,6 +68,7 @@ export const routes: Routes = [
   {
     path: 'members',
     canActivate: [authGuard, managementGuard],
+    data: { managementDeniedMessage: 'You do not have permission to access Member Management.' },
     canDeactivate: [profileDirtyDeactivationGuard],
     loadComponent: () =>
       import('./features/shell/application-shell.component').then(

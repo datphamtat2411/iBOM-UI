@@ -142,7 +142,14 @@
   </main>
 </div>
 @if (notifications.notification(); as notification) {
-  <div class="application-toast" data-notification-toast role="status" aria-live="polite" aria-atomic="true">{{ notification.message }}</div>
+  <div
+    class="application-toast"
+    [class.error]="notification.tone === 'error'"
+    data-notification-toast
+    [attr.role]="notification.tone === 'error' ? 'alert' : 'status'"
+    [attr.aria-live]="notification.tone === 'error' ? 'assertive' : 'polite'"
+    aria-atomic="true"
+  >{{ notification.message }}</div>
 }
 @if (copyModalOpen && copySource; as source) {
   <app-profile-copy [sourceProfileId]="source.id" [sourceProfileName]="source.name" (closed)="closeCopyProfile()" (copied)="copyCompleted($event)" (openCopied)="profileCopied($event)" />

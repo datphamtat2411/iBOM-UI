@@ -42,8 +42,26 @@ describe('application routes', () => {
     const members = routes.find((route) => route.path === 'members');
 
     expect(members?.canActivate).toEqual([authGuard, managementGuard]);
+    expect(members?.data).toEqual({
+      managementDeniedMessage: 'You do not have permission to access Member Management.',
+    });
     expect(members?.canDeactivate).toBeTruthy();
     expect(members?.loadComponent).toEqual(jasmine.any(Function));
     expect(members?.children).toBe(memberManagementRoutes);
+    expect(members?.children?.map((route) => route.path)).toEqual([
+      '',
+      ':memberId/profiles',
+      ':memberId/profiles/:profileId/projects/new',
+      ':memberId/profiles/:profileId/projects/:projectId',
+      ':memberId/profiles/:profileId/preview',
+      ':memberId/profiles/:profileId',
+    ]);
+    expect(members?.children?.slice(1).every((route) => route.canActivate)).toBeTrue();
+  });
+
+  it('does not attach Member Management denial feedback to Master Data', () => {
+    const masterData = routes.find((route) => route.path === 'master-data');
+
+    expect(masterData?.data?.['managementDeniedMessage']).toBeUndefined();
   });
 });
