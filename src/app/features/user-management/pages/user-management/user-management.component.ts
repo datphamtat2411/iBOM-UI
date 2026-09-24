@@ -44,6 +44,7 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
   private readonly authService = inject(AuthService);
 
   @ViewChild('statusDialog') private statusDialog?: ElementRef<HTMLElement>;
+  @ViewChild('createDialog') private createDialog?: ElementRef<HTMLElement>;
 
   readonly pageSize = 10;
   readonly roleOptions: ReadonlyArray<{ value: UserRole; label: string }> = [
@@ -67,6 +68,8 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
   private pendingStatusChanges = new Set<string>();
   private lastStatusActionTarget: HTMLElement | null = null;
   private focusStatusDialog = false;
+  private lastCreateDialogTrigger: HTMLElement | null = null;
+  private focusCreateDialog = false;
 
   readonly createForm = this.formBuilder.nonNullable.group({
     email: ['', [Validators.required, trimmedEmail]],
@@ -90,9 +93,14 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
   }
 
   ngAfterViewChecked(): void {
-    if (!this.focusStatusDialog || !this.statusDialog) return;
-    this.focusStatusDialog = false;
-    this.statusDialog.nativeElement.focus();
+    if (this.focusStatusDialog && this.statusDialog) {
+      this.focusStatusDialog = false;
+      this.statusDialog.nativeElement.focus();
+    }
+    if (this.focusCreateDialog && this.createDialog) {
+      this.focusCreateDialog = false;
+      this.createDialog.nativeElement.focus();
+    }
   }
 
   get searchDraft(): string {
@@ -108,7 +116,7 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
   }
 
   get filtersApplied(): boolean {
-    return this.appliedFilter !== null || this.hasDraftFilters();
+    return this.appliedFilter !== null;
   }
 
   get filtering(): boolean {
@@ -116,7 +124,7 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
   }
 
   get canResetFilters(): boolean {
-    return this.filtersApplied;
+    return this.filtersApplied || this.hasDraftFilters();
   }
 
   get appliedSearchDescription(): string {
@@ -202,16 +210,24 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
 
   openCreateDialog(): void {
     if (this.isCreatingUser) return;
+    this.lastCreateDialogTrigger = typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     this.resetCreateForm();
     this.createUserErrorMessage = '';
     this.isCreateDialogOpen = true;
+    this.focusCreateDialog = true;
   }
 
-  closeCreateDialog(): void {
+  closeCreateDialog(event?: MouseEvent): void {
+    if (event && event.target !== event.currentTarget) return;
     if (this.isCreatingUser) return;
     this.isCreateDialogOpen = false;
+    this.focusCreateDialog = false;
     this.createUserErrorMessage = '';
     this.resetCreateForm();
+    this.lastCreateDialogTrigger?.focus();
+    this.lastCreateDialogTrigger = null;
   }
 
   get createPasswordValue(): string {
@@ -225,6 +241,31 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
 
   toggleCreatePasswordVisibility(): void { this.showCreatePassword = !this.showCreatePassword; }
   toggleCreateConfirmPasswordVisibility(): void { this.showCreateConfirmPassword = !this.showCreateConfirmPassword; }
+
+  handleCreateDialogKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeCreateDialog();
+      return;
+    }
+
+    if (event.key !== 'Tab' || !this.createDialog) return;
+    const dialog = this.createDialog.nativeElement;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])',
+    ));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || active === dialog)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || active === dialog)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   createUser(): void {
     if (this.isCreatingUser) return;
@@ -246,8 +287,7 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
     this.userService.create(request).subscribe({
       next: () => {
         this.isCreatingUser = false;
-        this.isCreateDialogOpen = false;
-        this.resetCreateForm();
+        this.closeCreateDialog();
         this.notifications.showSuccess('User created successfully.');
         this.loadUsers(this.currentPage);
       },
@@ -294,7 +334,7 @@ export class UserManagementComponent implements AfterViewChecked, OnInit {
 
   statusChangeCopy(confirmation: StatusConfirmation): string {
     return confirmation.requestedStatus === 'INACTIVE'
-      ? `This will prevent ${confirmation.user.username} from signing in and end the account's active sessions.`
+      ? `This will make ${confirmation.user.username}'s account access and existing authenticated sessions unusable. The account and its Profile data will be retained.`
       : `This will allow ${confirmation.user.username} to sign in again. Existing sessions are not restored.`;
   }
 

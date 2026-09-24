@@ -79,6 +79,73 @@ describe('UserManagementComponent', () => {
     expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeTruthy();
   });
 
+  it('moves focus into the create dialog and restores it after idle dismissal', () => {
+    const trigger = fixture.nativeElement.querySelector('.page-heading .btn.primary') as HTMLButtonElement;
+    trigger.focus();
+    component.openCreateDialog();
+    fixture.detectChanges();
+
+    const dialog = fixture.nativeElement.querySelector('.create-user-dialog') as HTMLElement;
+    expect(document.activeElement).toBe(dialog);
+
+    component.closeCreateDialog();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('contains Tab and Shift+Tab within the create dialog', () => {
+    component.openCreateDialog();
+    fixture.detectChanges();
+
+    const dialog = fixture.nativeElement.querySelector('.create-user-dialog') as HTMLElement;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('input, select, button'));
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    last.focus();
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    expect(document.activeElement).toBe(first);
+
+    first.focus();
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('dismisses the create dialog with Escape or a direct backdrop click while idle', () => {
+    component.openCreateDialog();
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('.create-user-dialog') as HTMLElement;
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(component.isCreateDialogOpen).toBeFalse();
+
+    component.openCreateDialog();
+    fixture.detectChanges();
+    const backdrop = fixture.nativeElement.querySelector('.dialog-backdrop') as HTMLElement;
+    backdrop.click();
+    expect(component.isCreateDialogOpen).toBeFalse();
+  });
+
+  it('blocks create dialog dismissal while creation is pending', () => {
+    const pending = new Subject<UserSummary>();
+    users.create.and.returnValue(pending);
+    component.openCreateDialog();
+    component.createForm.setValue({
+      email: 'new@example.com',
+      username: 'new-user',
+      password: 'Strong!Password1',
+      confirmPassword: 'Strong!Password1',
+      role: 'MEMBER',
+    });
+    component.createUser();
+    fixture.detectChanges();
+
+    const dialog = fixture.nativeElement.querySelector('.create-user-dialog') as HTMLElement;
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    (fixture.nativeElement.querySelector('.dialog-backdrop') as HTMLElement).click();
+    expect(component.isCreateDialogOpen).toBeTrue();
+
+    pending.error(new HttpErrorResponse({ status: 503, error: { message: 'Unavailable' } }));
+  });
+
   it('validates required, email, username, password, and confirmation fields', () => {
     component.openCreateDialog();
     component.createUser();
@@ -116,6 +183,9 @@ describe('UserManagementComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[role="dialog"] h2')?.textContent).toContain('Deactivate alice?');
+    expect(fixture.nativeElement.querySelector('[role="dialog"] #status-confirmation-copy')?.textContent).toBe(
+      "This will make alice's account access and existing authenticated sessions unusable. The account and its Profile data will be retained.",
+    );
     (fixture.nativeElement.querySelector('[role="dialog"] .btn:not(.primary)') as HTMLButtonElement).click();
     fixture.detectChanges();
 
@@ -314,11 +384,17 @@ describe('UserManagementComponent', () => {
     users.list.and.returnValue(of(page([], 0, 0, 0)));
     component.loadUsers(0);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No users found.');
+    expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No user accounts found.');
 
     component.setSearchDraft('missing');
+    expect(component.filtersApplied).toBeFalse();
+    expect(component.canResetFilters).toBeTrue();
+    component.loadUsers(0);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No user accounts found.');
+
     component.applyFilters();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No matching users found.');
+    expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No matching user accounts found.');
   });
 });

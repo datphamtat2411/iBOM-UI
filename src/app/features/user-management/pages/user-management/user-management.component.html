@@ -64,7 +64,7 @@
     </div>
   } @else if (!users.length) {
     <div class="empty-state" role="status">
-      <h2>{{ filtersApplied ? 'No matching users found.' : 'No users found.' }}</h2>
+      <h2>{{ filtersApplied ? 'No matching user accounts found.' : 'No user accounts found.' }}</h2>
       <p>{{ filtersApplied ? 'Try a different username, email, or role, or reset the filters.' : 'No User records are available.' }}</p>
       @if (filtersApplied) { <button class="btn" type="button" (click)="clearFilters()" [disabled]="loading">Reset filters</button> }
     </div>
@@ -135,8 +135,8 @@
 </section>
 
 @if (isCreateDialogOpen) {
-  <div class="dialog-backdrop" role="presentation">
-    <section class="dialog create-user-dialog" role="dialog" aria-modal="true" aria-labelledby="create-user-title" aria-describedby="create-user-copy" [attr.aria-busy]="isCreatingUser">
+  <div class="dialog-backdrop" role="presentation" (click)="closeCreateDialog($event)">
+    <section #createDialog class="dialog create-user-dialog" role="dialog" aria-modal="true" aria-labelledby="create-user-title" aria-describedby="create-user-copy" tabindex="-1" [attr.aria-busy]="isCreatingUser" (keydown)="handleCreateDialogKeydown($event)">
       <form [formGroup]="createForm" (ngSubmit)="createUser()" novalidate>
         <div class="dialog-heading">
           <div>
