@@ -1,7 +1,7 @@
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
-import { CreateUserRequest } from '../models/user-management.models';
+import { CreateUserRequest, UserSummary } from '../models/user-management.models';
 import { UserManagementService } from './user-management.service';
 
 describe('UserManagementService', () => {
@@ -60,5 +60,15 @@ describe('UserManagementService', () => {
     expect(request.request.body).toEqual(requestBody);
     expect(request.request.body).not.toEqual(jasmine.objectContaining({ confirmPassword: jasmine.anything() }));
     request.flush({ code: 201, data: created, message: 'created', timestamp: 'now' });
+  });
+
+  it('updates a user status with the explicit status payload and unwraps the response', () => {
+    const updated: UserSummary = { ...page.content[0], status: 'INACTIVE' };
+    service.updateStatus(updated.id, updated.status).subscribe((result) => expect(result).toBe(updated));
+    const request = http.expectOne('/api/users/2/status');
+
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ status: 'INACTIVE' });
+    request.flush({ code: 200, data: updated, message: 'ok', timestamp: 'now' });
   });
 });

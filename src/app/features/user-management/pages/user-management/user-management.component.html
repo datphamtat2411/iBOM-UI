@@ -82,6 +82,7 @@
             <th scope="col">Email</th>
             <th scope="col">Role</th>
             <th scope="col">Account Status</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -91,6 +92,15 @@
               <td>{{ user.email }}</td>
               <td><span class="role">{{ user.role }}</span></td>
               <td><span class="status" [class.active]="user.status === 'ACTIVE'" [class.inactive]="user.status === 'INACTIVE'">{{ user.status }}</span></td>
+              <td class="actions-cell">
+                @if (isSelfDeactivationUnavailable(user)) {
+                  <span class="action-note">Self-deactivation unavailable</span>
+                } @else {
+                  <button class="btn text status-action" type="button" (click)="requestStatusChange(user)" [disabled]="isStatusChangePending(user)" [attr.aria-busy]="isStatusChangePending(user)">
+                    {{ isStatusChangePending(user) ? 'Updating...' : statusActionLabel(user) }}
+                  </button>
+                }
+              </td>
             </tr>
           }
         </tbody>
@@ -103,6 +113,24 @@
         <button class="btn text" type="button" aria-label="Next page" (click)="nextPage()" [disabled]="loading || currentPage + 1 >= totalPages">Next</button>
       </nav>
     }
+  }
+
+  @if (statusConfirmation; as confirmation) {
+    <div class="modal-backdrop" role="presentation" (click)="cancelStatusChange($event)">
+      <section #statusDialog class="status-modal" role="dialog" aria-modal="true" aria-labelledby="status-confirmation-title" aria-describedby="status-confirmation-copy" tabindex="-1" (keydown)="handleStatusDialogKeydown($event)">
+        <h2 id="status-confirmation-title">{{ statusChangeVerb(confirmation.requestedStatus) }} {{ confirmation.user.username }}?</h2>
+        <p id="status-confirmation-copy">{{ statusChangeCopy(confirmation) }}</p>
+        @if (confirmation.errorMessage) {
+          <div class="notice error" role="alert" aria-live="polite">{{ confirmation.errorMessage }}</div>
+        }
+        <div class="modal-actions">
+          <button class="btn" type="button" (click)="cancelStatusChange()" [disabled]="isStatusChangePending(confirmation.user)">Cancel</button>
+          <button class="btn primary" type="button" (click)="confirmStatusChange()" [disabled]="isStatusChangePending(confirmation.user)" [attr.aria-busy]="isStatusChangePending(confirmation.user)">
+            {{ isStatusChangePending(confirmation.user) ? 'Updating...' : statusChangeVerb(confirmation.requestedStatus) }}
+          </button>
+        </div>
+      </section>
+    </div>
   }
 </section>
 

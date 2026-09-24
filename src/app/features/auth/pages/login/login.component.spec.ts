@@ -95,4 +95,16 @@ describe('LoginComponent', () => {
     expect(fixture.nativeElement.querySelector('#auth-message').textContent).toContain('Account disabled.');
     expect(fixture.nativeElement.querySelector('#auth-message').classList).toContain('warning');
   });
+
+  it('shows generic session-ended feedback without attributing the cause to deactivation', () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'getCurrentNavigation').and.returnValue({ extras: { state: { sessionEnded: true } } } as never);
+    const sessionFixture = TestBed.createComponent(LoginComponent);
+    sessionFixture.detectChanges();
+
+    const message = sessionFixture.nativeElement.querySelector('#auth-message');
+    expect(message.textContent).toContain('Your session has ended. Please sign in again.');
+    expect(message.textContent).not.toContain('deactivat');
+    expect(message.classList).toContain('warning');
+  });
 });

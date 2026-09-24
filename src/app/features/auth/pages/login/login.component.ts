@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
@@ -16,7 +16,7 @@ type MessageTone = 'error' | 'warning';
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
@@ -30,6 +30,14 @@ export class LoginComponent {
   showPassword = false;
   message = '';
   messageTone: MessageTone = 'error';
+
+  ngOnInit(): void {
+    const navigationState = this.router.getCurrentNavigation()?.extras.state as { sessionEnded?: boolean } | undefined;
+    const historyState = typeof history !== 'undefined' ? history.state as { sessionEnded?: boolean } : undefined;
+    if (navigationState?.sessionEnded || historyState?.sessionEnded) {
+      this.setMessage('Your session has ended. Please sign in again.', 'warning');
+    }
+  }
 
   togglePasswordVisibility(): void { this.showPassword = !this.showPassword; }
 

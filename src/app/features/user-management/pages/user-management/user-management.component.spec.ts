@@ -1,7 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 
+import { AuthenticatedUser } from '../../../../core/auth/auth.models';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { UserPage, UserSummary } from '../../models/user-management.models';
 import { UserManagementService } from '../../services/user-management.service';
@@ -10,8 +13,9 @@ import { UserManagementComponent } from './user-management.component';
 describe('UserManagementComponent', () => {
   let fixture: ComponentFixture<UserManagementComponent>;
   let component: UserManagementComponent;
-  let users: { list: jasmine.Spy; create: jasmine.Spy };
-  let notifications: { showSuccess: jasmine.Spy };
+  let users: { list: jasmine.Spy; create: jasmine.Spy; updateStatus: jasmine.Spy };
+  let auth: { user: WritableSignal<AuthenticatedUser | null> };
+  let notifications: { showSuccess: jasmine.Spy; showError: jasmine.Spy };
 
   const active: UserSummary = {
     id: 1,
@@ -33,12 +37,18 @@ describe('UserManagementComponent', () => {
   }
 
   beforeEach(async () => {
-    users = { list: jasmine.createSpy('list').and.returnValue(of(page())), create: jasmine.createSpy('create') };
-    notifications = { showSuccess: jasmine.createSpy('showSuccess') };
+    users = {
+      list: jasmine.createSpy('list').and.returnValue(of(page())),
+      create: jasmine.createSpy('create'),
+      updateStatus: jasmine.createSpy('updateStatus').and.returnValue(of(active)),
+    };
+    auth = { user: signal<AuthenticatedUser | null>(null) };
+    notifications = { showSuccess: jasmine.createSpy('showSuccess'), showError: jasmine.createSpy('showError') };
     await TestBed.configureTestingModule({
       imports: [UserManagementComponent],
       providers: [
         { provide: UserManagementService, useValue: users },
+        { provide: AuthService, useValue: auth },
         { provide: NotificationService, useValue: notifications },
       ],
     }).compileComponents();
@@ -48,11 +58,12 @@ describe('UserManagementComponent', () => {
     component = fixture.componentInstance;
   });
 
-  it('renders one unified User table with only the four approved columns', () => {
+  it('renders status-appropriate Activate and Deactivate actions', () => {
     const headers = [...fixture.nativeElement.querySelectorAll('th')].map((header: HTMLElement) => header.textContent?.trim());
 
-    expect(headers).toEqual(['Username', 'Email', 'Role', 'Account Status']);
+    expect(headers).toEqual(['Username', 'Email', 'Role', 'Account Status', 'Actions']);
     expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(2);
+    expect([...fixture.nativeElement.querySelectorAll('.status-action')].map((button: HTMLElement) => button.textContent?.trim())).toEqual(['Deactivate', 'Activate']);
     expect(fixture.nativeElement.textContent).not.toContain('Full Name');
     expect(fixture.nativeElement.textContent).not.toContain('Job Title');
     expect(fixture.nativeElement.textContent).toContain('Create User');
@@ -97,6 +108,76 @@ describe('UserManagementComponent', () => {
 
     component.createForm.controls.password.setValue('Other!Password2');
     expect(component.createForm.controls.confirmPassword.errors?.['passwordMismatch']).toBeTrue();
+  });
+
+  it('requires confirmation and leaves cancellation without a mutation', () => {
+    const activeAction = fixture.nativeElement.querySelector('.status-action') as HTMLButtonElement;
+    activeAction.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[role="dialog"] h2')?.textContent).toContain('Deactivate alice?');
+    (fixture.nativeElement.querySelector('[role="dialog"] .btn:not(.primary)') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();
+    expect(users.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('explains self-protection and defensively preserves a rejected self-deactivation for retry', () => {
+    auth.user.set({ id: 1, email: active.email, username: active.username, role: active.role });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Self-deactivation unavailable');
+    expect(fixture.nativeElement.querySelectorAll('.status-action').length).toBe(1);
+
+    auth.user.set(null);
+    users.updateStatus.and.returnValue(throwError(() => new HttpErrorResponse({
+      status: 409,
+      error: { errorCode: 'USER_SELF_DEACTIVATION_NOT_ALLOWED' },
+    })));
+    component.requestStatusChange(active);
+    component.confirmStatusChange();
+    fixture.detectChanges();
+
+    expect(component.users[0].status).toBe('ACTIVE');
+    expect(fixture.nativeElement.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain('cannot deactivate your own account');
+    expect(notifications.showError).toHaveBeenCalledWith('You cannot deactivate your own account.');
+  });
+
+  it('prevents duplicate requests, keeps status unchanged while pending, and preserves retryable failure state', () => {
+    const pending = new Subject<UserSummary>();
+    users.updateStatus.and.returnValue(pending);
+    component.requestStatusChange(active);
+    component.confirmStatusChange();
+    component.confirmStatusChange();
+    fixture.detectChanges();
+
+    expect(users.updateStatus).toHaveBeenCalledOnceWith(1, 'INACTIVE');
+    expect(component.users[0].status).toBe('ACTIVE');
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')?.textContent).toContain('Updating...');
+
+    pending.error(new HttpErrorResponse({ status: 503, error: { message: 'Status service unavailable' } }));
+    fixture.detectChanges();
+    expect(component.users[0].status).toBe('ACTIVE');
+    expect(fixture.nativeElement.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain('Status service unavailable');
+
+    users.updateStatus.and.returnValue(of({ ...active, status: 'INACTIVE' }));
+    component.confirmStatusChange();
+    expect(users.updateStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows success feedback and refreshes the current page with applied filters intact', () => {
+    users.updateStatus.and.returnValue(of({ ...active, status: 'INACTIVE' }));
+    component.appliedFilter = { search: 'alice', roles: ['ADMIN'] };
+    component.currentPage = 2;
+    users.list.calls.reset();
+    users.list.and.returnValue(of(page([active], 2, 3, 3)));
+    component.requestStatusChange(active);
+    component.confirmStatusChange();
+
+    expect(notifications.showSuccess).toHaveBeenCalledWith('alice deactivated successfully.');
+    expect(users.list).toHaveBeenCalledOnceWith(2, 10, 'alice', ['ADMIN']);
+    expect(component.appliedFilter).toEqual({ search: 'alice', roles: ['ADMIN'] });
+    expect(component.currentPage).toBe(2);
   });
 
   it('applies trimmed Username/email search and selected roles from page zero, then resets them', () => {

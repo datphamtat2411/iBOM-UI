@@ -43,7 +43,9 @@ describe('AuthService', () => {
 
   it('sends one credentialed logout and clears the session only after success', () => {
     const sessionEnded = jasmine.createSpy('sessionEnded');
+    const unexpectedSessionEnded = jasmine.createSpy('unexpectedSessionEnded');
     service.sessionEnded$().subscribe(sessionEnded);
+    service.unexpectedSessionEnded$().subscribe(unexpectedSessionEnded);
     service.setSession(session);
     service.logout().subscribe();
 
@@ -57,6 +59,7 @@ describe('AuthService', () => {
     expect(service.accessToken()).toBeNull();
     expect(service.user()).toBeNull();
     expect(sessionEnded).toHaveBeenCalledTimes(1);
+    expect(unexpectedSessionEnded).not.toHaveBeenCalled();
   });
 
   it('waits for refresh and ignores its result once logout starts', () => {
@@ -105,7 +108,9 @@ describe('AuthService', () => {
 
   it('clears the session when refresh fails', () => {
     const sessionEnded = jasmine.createSpy('sessionEnded');
+    const unexpectedSessionEnded = jasmine.createSpy('unexpectedSessionEnded');
     service.sessionEnded$().subscribe(sessionEnded);
+    service.unexpectedSessionEnded$().subscribe(unexpectedSessionEnded);
     service.setSession(session);
     service.refreshAccessToken().subscribe({ error: () => undefined });
     http.expectOne('/api/auth/refresh-token').flush({ errorCode: 'AUTH_INVALID_REFRESH_TOKEN' }, { status: 401, statusText: 'Unauthorized' });
@@ -113,13 +118,17 @@ describe('AuthService', () => {
     expect(service.accessToken()).toBeNull();
     expect(service.user()).toBeNull();
     expect(sessionEnded).toHaveBeenCalledTimes(1);
+    expect(unexpectedSessionEnded).toHaveBeenCalledTimes(1);
   });
 
   it('resolves restoration after a failed refresh', async () => {
+    const unexpectedSessionEnded = jasmine.createSpy('unexpectedSessionEnded');
+    service.unexpectedSessionEnded$().subscribe(unexpectedSessionEnded);
     const restoration = service.restoreSession();
     http.expectOne('/api/auth/refresh-token').flush({}, { status: 401, statusText: 'Unauthorized' });
 
     await restoration;
     expect(service.isRestored()).toBeTrue();
+    expect(unexpectedSessionEnded).not.toHaveBeenCalled();
   });
 });

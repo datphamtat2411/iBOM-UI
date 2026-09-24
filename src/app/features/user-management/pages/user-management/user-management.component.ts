@@ -1,7 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ApiErrorResponse } from '../../../../core/http/api.models';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import {
@@ -23,6 +24,12 @@ function trimmedEmail(control: AbstractControl): ValidationErrors | null {
   return value ? Validators.email({ value } as AbstractControl) : { email: true };
 }
 
+interface StatusConfirmation {
+  user: UserSummary;
+  requestedStatus: UserStatus;
+  errorMessage: string;
+}
+
 @Component({
   selector: 'app-user-management',
   standalone: true,
@@ -30,10 +37,13 @@ function trimmedEmail(control: AbstractControl): ValidationErrors | null {
   templateUrl: './user-management.component.html',
   styleUrl: './user-management.component.scss',
 })
-export class UserManagementComponent implements OnInit {
+export class UserManagementComponent implements AfterViewChecked, OnInit {
   private readonly userService = inject(UserManagementService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly notifications = inject(NotificationService);
+  private readonly authService = inject(AuthService);
+
+  @ViewChild('statusDialog') private statusDialog?: ElementRef<HTMLElement>;
 
   readonly pageSize = 10;
   readonly roleOptions: ReadonlyArray<{ value: UserRole; label: string }> = [
@@ -52,7 +62,11 @@ export class UserManagementComponent implements OnInit {
   hasLoaded = false;
   loadErrorMessage = '';
   pageMessage = '';
+  statusConfirmation: StatusConfirmation | null = null;
   private loadGeneration = 0;
+  private pendingStatusChanges = new Set<string>();
+  private lastStatusActionTarget: HTMLElement | null = null;
+  private focusStatusDialog = false;
 
   readonly createForm = this.formBuilder.nonNullable.group({
     email: ['', [Validators.required, trimmedEmail]],
@@ -73,6 +87,12 @@ export class UserManagementComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadUsers(0);
+  }
+
+  ngAfterViewChecked(): void {
+    if (!this.focusStatusDialog || !this.statusDialog) return;
+    this.focusStatusDialog = false;
+    this.statusDialog.nativeElement.focus();
   }
 
   get searchDraft(): string {
@@ -247,6 +267,116 @@ export class UserManagementComponent implements OnInit {
     return 'This value is not valid.';
   }
 
+  isCurrentUser(user: UserSummary): boolean {
+    const currentUser = this.authService.user();
+    return currentUser !== null && String(currentUser.id) === String(user.id);
+  }
+
+  isSelfDeactivationUnavailable(user: UserSummary): boolean {
+    return user.status === 'ACTIVE' && this.isCurrentUser(user);
+  }
+
+  isStatusChangePending(user: UserSummary): boolean {
+    return this.pendingStatusChanges.has(this.userKey(user.id));
+  }
+
+  statusAction(user: UserSummary): UserStatus {
+    return user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+  }
+
+  statusActionLabel(user: UserSummary): string {
+    return this.statusChangeVerb(this.statusAction(user));
+  }
+
+  statusChangeVerb(status: UserStatus): string {
+    return status === 'ACTIVE' ? 'Activate' : 'Deactivate';
+  }
+
+  statusChangeCopy(confirmation: StatusConfirmation): string {
+    return confirmation.requestedStatus === 'INACTIVE'
+      ? `This will prevent ${confirmation.user.username} from signing in and end the account's active sessions.`
+      : `This will allow ${confirmation.user.username} to sign in again. Existing sessions are not restored.`;
+  }
+
+  requestStatusChange(user: UserSummary): void {
+    if (this.isStatusChangePending(user) || this.isSelfDeactivationUnavailable(user)) return;
+
+    this.lastStatusActionTarget = typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    this.statusConfirmation = {
+      user,
+      requestedStatus: this.statusAction(user),
+      errorMessage: '',
+    };
+    this.focusStatusDialog = true;
+  }
+
+  cancelStatusChange(event?: MouseEvent): void {
+    if (event && event.target !== event.currentTarget) return;
+    if (this.statusConfirmation && this.isStatusChangePending(this.statusConfirmation.user)) return;
+
+    this.statusConfirmation = null;
+    this.focusStatusDialog = false;
+    this.lastStatusActionTarget?.focus();
+    this.lastStatusActionTarget = null;
+  }
+
+  confirmStatusChange(): void {
+    const confirmation = this.statusConfirmation;
+    if (!confirmation || this.isStatusChangePending(confirmation.user)) return;
+
+    if (confirmation.requestedStatus === 'INACTIVE' && this.isCurrentUser(confirmation.user)) {
+      this.statusConfirmation = {
+        ...confirmation,
+        errorMessage: 'You cannot deactivate your own account.',
+      };
+      return;
+    }
+
+    const userKey = this.userKey(confirmation.user.id);
+    this.setStatusChangePending(userKey, true);
+    this.statusConfirmation = { ...confirmation, errorMessage: '' };
+
+    this.userService.updateStatus(confirmation.user.id, confirmation.requestedStatus).subscribe({
+      next: () => {
+        this.setStatusChangePending(userKey, false);
+        this.cancelStatusChange();
+        this.notifications.showSuccess(`${confirmation.user.username} ${confirmation.requestedStatus === 'ACTIVE' ? 'activated' : 'deactivated'} successfully.`);
+        this.loadUsers(this.currentPage);
+      },
+      error: (error: unknown) => {
+        this.setStatusChangePending(userKey, false);
+        const message = this.statusMutationErrorMessage(error, confirmation.user);
+        if (this.statusConfirmation && this.sameStatusConfirmation(this.statusConfirmation, confirmation)) {
+          this.statusConfirmation = { ...this.statusConfirmation, errorMessage: message };
+        }
+        this.notifications.showError(message);
+      },
+    });
+  }
+
+  handleStatusDialogKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelStatusChange();
+      return;
+    }
+
+    if (event.key !== 'Tab' || !this.statusDialog) return;
+    const focusable = Array.from(this.statusDialog.nativeElement.querySelectorAll<HTMLButtonElement>('button:not([disabled])'));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   private setResult(result: UserPage, requestedPage: number): void {
     this.users = result.content;
     this.currentPage = result.page;
@@ -344,5 +474,29 @@ export class UserManagementComponent implements OnInit {
     if (!(error instanceof HttpErrorResponse) || !error.error || typeof error.error !== 'object') return null;
     const message = (error.error as ApiErrorResponse).message;
     return typeof message === 'string' && message.trim() ? message.trim() : null;
+  }
+
+  private statusMutationErrorMessage(error: unknown, user: UserSummary): string {
+    if (error instanceof HttpErrorResponse && error.error && typeof error.error === 'object') {
+      const response = error.error as ApiErrorResponse;
+      if (response.errorCode === 'USER_SELF_DEACTIVATION_NOT_ALLOWED') return 'You cannot deactivate your own account.';
+    }
+
+    return this.backendErrorMessage(error) ?? `Unable to update ${user.username}'s account status. Please try again.`;
+  }
+
+  private userKey(userId: UserSummary['id']): string {
+    return String(userId);
+  }
+
+  private setStatusChangePending(userKey: string, pending: boolean): void {
+    const next = new Set(this.pendingStatusChanges);
+    if (pending) next.add(userKey);
+    else next.delete(userKey);
+    this.pendingStatusChanges = next;
+  }
+
+  private sameStatusConfirmation(left: StatusConfirmation, right: StatusConfirmation): boolean {
+    return String(left.user.id) === String(right.user.id) && left.requestedStatus === right.requestedStatus;
   }
 }

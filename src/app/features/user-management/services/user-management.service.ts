@@ -4,7 +4,15 @@ import { map, Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/http/api.config';
 import { ApiResponse } from '../../../core/http/api.models';
-import { CreateUserRequest, UserPage, UserRole, UserSummary } from '../models/user-management.models';
+import {
+  CreateUserRequest,
+  UserId,
+  UserPage,
+  UserRole,
+  UserStatus,
+  UserStatusUpdateRequest,
+  UserSummary,
+} from '../models/user-management.models';
 
 @Injectable({ providedIn: 'root' })
 export class UserManagementService {
@@ -22,6 +30,13 @@ export class UserManagementService {
 
   create(request: CreateUserRequest): Observable<UserSummary> {
     return this.http.post<ApiResponse<UserSummary>>(this.usersUrl, request).pipe(
+      map((response) => response.data),
+    );
+  }
+
+  updateStatus(userId: UserId, status: UserStatus): Observable<UserSummary> {
+    const body: UserStatusUpdateRequest = { status };
+    return this.http.put<ApiResponse<UserSummary>>(`${this.usersUrl}/${encodeURIComponent(String(userId))}/status`, body).pipe(
       map((response) => response.data),
     );
   }

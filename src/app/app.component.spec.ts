@@ -1,12 +1,13 @@
 import { DebugElement } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter, Router, RouterOutlet } from '@angular/router';
 
 import { AppComponent } from './app.component';
 import { routes } from './app.routes';
+import { AuthService } from './core/auth/auth.service';
 
 describe('AppComponent', () => {
   let fixture: ComponentFixture<AppComponent>;
@@ -36,5 +37,20 @@ describe('AppComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('app-home')).not.toBeNull();
+  });
+
+  it('navigates once to Login with generic session-ended state after an established refresh failure', () => {
+    const auth = TestBed.inject(AuthService);
+    const router = TestBed.inject(Router);
+    const http = TestBed.inject(HttpTestingController);
+    const clearSession = spyOn(auth, 'clearSession').and.callThrough();
+    const navigate = spyOn(router, 'navigate').and.resolveTo(true);
+    auth.setSession({ accessToken: 'token', user: { id: 1, email: 'user@example.com', username: 'user', role: 'USER' } });
+
+    auth.refreshAccessToken().subscribe({ error: () => undefined });
+    http.expectOne('/api/auth/refresh-token').flush({}, { status: 401, statusText: 'Unauthorized' });
+
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledOnceWith(['/login'], { state: { sessionEnded: true } });
   });
 });

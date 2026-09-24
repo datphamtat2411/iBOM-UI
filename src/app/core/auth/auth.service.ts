@@ -20,6 +20,7 @@ export class AuthService {
   private logoutActive = false;
   private readonly restorationState$ = new BehaviorSubject(false);
   private readonly sessionEndState$ = new Subject<void>();
+  private readonly unexpectedSessionEndState$ = new Subject<void>();
 
   constructor(private readonly http: HttpClient) {}
 
@@ -93,9 +94,13 @@ export class AuthService {
              if (!this.logoutActive && generation === this.refreshGeneration) this.setSession(session);
            }),
            catchError((error: unknown) => {
-             if (!this.logoutActive && generation === this.refreshGeneration) this.clearSession();
-             return throwError(() => error);
-           }),
+              if (!this.logoutActive && generation === this.refreshGeneration) {
+                const hadEstablishedSession = this.isAuthenticated();
+                this.clearSession();
+                if (hadEstablishedSession) this.unexpectedSessionEndState$.next();
+              }
+              return throwError(() => error);
+            }),
            finalize(() => {
              if (this.refreshRequest$ === refreshRequest$) this.refreshRequest$ = null;
            }),
@@ -128,6 +133,10 @@ export class AuthService {
 
   sessionEnded$(): Observable<void> {
     return this.sessionEndState$.asObservable();
+  }
+
+  unexpectedSessionEnded$(): Observable<void> {
+    return this.unexpectedSessionEndState$.asObservable();
   }
 
 }

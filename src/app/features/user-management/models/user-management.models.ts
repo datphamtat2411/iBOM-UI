@@ -19,6 +19,10 @@ export interface CreateUserRequest {
   role: UserRole;
 }
 
+export interface UserStatusUpdateRequest {
+  status: UserStatus;
+}
+
 export interface UserPage {
   content: UserSummary[];
   page: number;
