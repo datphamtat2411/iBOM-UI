@@ -8,6 +8,7 @@ import { MemberDashboardStats } from './models/dashboard.models';
 import { DashboardService } from './services/dashboard.service';
 import { ProfileDetail, ProfileSummary } from '../profile/models/profile.models';
 import { ProfileContextService } from '../profile/services/profile-context.service';
+import { ProfileService } from '../profile/services/profile.service';
 import { DashboardComponent } from './dashboard.component';
 
 describe('DashboardComponent', () => {
@@ -21,6 +22,7 @@ describe('DashboardComponent', () => {
     detail: WritableSignal<ProfileDetail | null>;
     detailLoading: WritableSignal<boolean>;
     detailError: WritableSignal<unknown | null>;
+    clearManagedContext: jasmine.Spy;
     loadSummariesAndResolveSelection: jasmine.Spy;
     loadDetail: jasmine.Spy;
     beginSelection: jasmine.Spy;
@@ -82,6 +84,7 @@ describe('DashboardComponent', () => {
       detail: signal<ProfileDetail | null>(null),
       detailLoading: signal(false),
       detailError: signal<unknown | null>(null),
+      clearManagedContext: jasmine.createSpy('clearManagedContext'),
       loadSummariesAndResolveSelection: jasmine.createSpy('loadSummariesAndResolveSelection'),
       loadDetail: jasmine.createSpy('loadDetail'),
       beginSelection: jasmine.createSpy('beginSelection').and.callFake((profileId: string | null) => {
@@ -276,5 +279,117 @@ describe('DashboardComponent', () => {
     expect(dashboardService.getMemberStats).toHaveBeenCalledTimes(1);
     expect(dashboardService.getMemberStats).toHaveBeenCalledWith('1');
     expect(profileContext.loadDetail).not.toHaveBeenCalled();
+  });
+});
+
+describe('DashboardComponent Profile context boundary', () => {
+  let profiles: { list: jasmine.Spy; listForMember: jasmine.Spy; get: jasmine.Spy };
+  let dashboardService: { getMemberStats: jasmine.Spy };
+  let context: ProfileContextService;
+  let fixture: ComponentFixture<DashboardComponent>;
+
+  const ownSummaries: ProfileSummary[] = [
+    { id: 1, profileName: 'Own Backend CV', firstName: 'Own', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-08-18T06:42:00Z' },
+    { id: 2, profileName: 'Own Frontend CV', firstName: 'Own', lastName: 'User', jobTitle: 'Frontend Engineer', updatedAt: '2026-08-18T06:42:00Z' },
+  ];
+  const managedSummary: ProfileSummary = { ...ownSummaries[0], id: 99, profileName: 'Managed CV' };
+
+  function detailFor(summary: ProfileSummary, hasPreviewed = false): ProfileDetail {
+    return {
+      ...summary,
+      yearsOfExperience: 5,
+      personality: null,
+      technicalSummary: null,
+      hasPreviewed,
+      version: 1,
+      createdAt: '2026-01-01',
+      lastExportedAt: null,
+      preferredFileNameFormatId: null,
+    };
+  }
+
+  function statsFor(profile: ProfileSummary): MemberDashboardStats {
+    return {
+      selectedProfile: profile,
+      completeness: { percentage: 80, completed: true, sections: [] },
+      latestExportedAt: null,
+    };
+  }
+
+  function createFixture(): void {
+    fixture = TestBed.createComponent(DashboardComponent);
+    fixture.detectChanges();
+    fixture.detectChanges();
+  }
+
+  beforeEach(async () => {
+    const sessionEnded = new Subject<void>();
+    profiles = {
+      list: jasmine.createSpy('list').and.returnValue(of(ownSummaries)),
+      listForMember: jasmine.createSpy('listForMember').and.returnValue(of([managedSummary])),
+      get: jasmine.createSpy('get').and.callFake((profileId: string) => {
+        if (profileId === '99') return of(detailFor(managedSummary));
+        const ownProfile = ownSummaries.find((summary) => String(summary.id) === profileId);
+        return of(detailFor(ownProfile ?? ownSummaries[0], profileId === '1'));
+      }),
+    };
+    dashboardService = {
+      getMemberStats: jasmine.createSpy('getMemberStats').and.callFake((profileId: string) => {
+        const profile = ownSummaries.find((summary) => String(summary.id) === profileId) ?? ownSummaries[0];
+        return of(statsFor(profile));
+      }),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [DashboardComponent],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: { user: signal({ id: 10, email: 'manager@example.com', username: 'manager', role: 'MANAGER' }), sessionEnded$: () => sessionEnded.asObservable() } },
+        { provide: DashboardService, useValue: dashboardService },
+        { provide: ProfileService, useValue: profiles },
+        ProfileContextService,
+      ],
+    }).compileComponents();
+    context = TestBed.inject(ProfileContextService);
+  });
+
+  it('clears managed Member context before resolving the retained own Profile and uses its detail for Preview', () => {
+    context.summaries.set(ownSummaries);
+    context.beginSelection('1');
+    context.loadManagedMember({ id: 'managed-member', username: 'managed-user' }, '99');
+
+    expect(context.managedMember()?.id).toBe('managed-member');
+    expect(context.managedDetail()?.id).toBe(99);
+
+    createFixture();
+
+    expect(context.managedMember()).toBeNull();
+    expect(context.managedSummaries()).toEqual([]);
+    expect(context.managedSelectedId()).toBeNull();
+    expect(context.selectedId()).toBe('1');
+    expect(profiles.get.calls.allArgs().map(([profileId]) => profileId)).toEqual(['99', '1']);
+    expect(context.detail()).toEqual(detailFor(ownSummaries[0], true));
+    expect(fixture.componentInstance.selectedDetail()).toEqual(detailFor(ownSummaries[0], true));
+    expect(fixture.componentInstance.previewState()).toBe('valid');
+    expect(fixture.nativeElement.querySelector('.status.valid')?.textContent).toContain('Preview valid');
+
+    (fixture.nativeElement.querySelectorAll('.profile-summary')[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(context.selectedId()).toBe('2');
+    expect(context.detail()?.id).toBe(2);
+    expect(fixture.componentInstance.previewState()).toBe('required');
+    expect(profiles.get.calls.allArgs().map(([profileId]) => profileId)).toEqual(['99', '1', '2']);
+  });
+
+  it('loads the first own Profile on direct Dashboard entry when no selection exists', () => {
+    createFixture();
+
+    expect(context.managedMember()).toBeNull();
+    expect(context.selectedId()).toBe('1');
+    expect(profiles.list).toHaveBeenCalledTimes(1);
+    expect(profiles.get).toHaveBeenCalledOnceWith('1');
+    expect(context.detail()?.id).toBe(1);
+    expect(fixture.componentInstance.previewState()).toBe('valid');
   });
 });

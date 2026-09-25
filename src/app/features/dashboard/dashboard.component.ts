@@ -50,6 +50,7 @@ export class DashboardComponent implements OnDestroy {
   private statsProfileId: string | null = null;
 
   constructor() {
+    this.context.clearManagedContext();
     this.context.loadSummariesAndResolveSelection();
     effect(() => {
       const selectedId = this.context.selectedId();
