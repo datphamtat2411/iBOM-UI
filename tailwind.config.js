@@ -1,0 +1,125 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ['./src/**/*.{html,ts}'],
+  corePlugins: {
+    preflight: false,
+  },
+  theme: {
+    colors: {
+      transparent: 'transparent',
+      current: 'currentColor',
+      inherit: 'inherit',
+      canvas: 'var(--ibom-color-canvas)',
+      surface: 'var(--ibom-color-surface)',
+      'surface-muted': 'var(--ibom-color-surface-muted)',
+      text: 'var(--ibom-color-text)',
+      'text-muted': 'var(--ibom-color-text-muted)',
+      border: 'var(--ibom-color-border)',
+      'border-subtle': 'var(--ibom-color-border-subtle)',
+      focus: 'var(--ibom-color-focus)',
+      accent: {
+        DEFAULT: 'var(--ibom-color-accent)',
+        hover: 'var(--ibom-color-accent-hover)',
+        pressed: 'var(--ibom-color-accent-pressed)',
+        foreground: 'var(--ibom-color-on-accent)',
+      },
+      success: {
+        DEFAULT: 'var(--ibom-color-success)',
+        surface: 'var(--ibom-color-success-surface)',
+        text: 'var(--ibom-color-success-text)',
+      },
+      warning: {
+        DEFAULT: 'var(--ibom-color-warning)',
+        surface: 'var(--ibom-color-warning-surface)',
+        text: 'var(--ibom-color-warning-text)',
+      },
+      error: {
+        DEFAULT: 'var(--ibom-color-error)',
+        surface: 'var(--ibom-color-error-surface)',
+        text: 'var(--ibom-color-error-text)',
+      },
+      information: {
+        DEFAULT: 'var(--ibom-color-information)',
+        surface: 'var(--ibom-color-information-surface)',
+        text: 'var(--ibom-color-information-text)',
+      },
+    },
+    fontFamily: {
+      sans: ['var(--ibom-font-sans)'],
+      mono: ['var(--ibom-font-mono)'],
+    },
+    fontSize: {
+      xs: ['var(--ibom-font-size-xs)', { lineHeight: 'var(--ibom-line-height-tight)' }],
+      sm: ['var(--ibom-font-size-sm)', { lineHeight: 'var(--ibom-line-height-normal)' }],
+      base: ['var(--ibom-font-size-base)', { lineHeight: 'var(--ibom-line-height-normal)' }],
+      lg: ['var(--ibom-font-size-lg)', { lineHeight: 'var(--ibom-line-height-snug)' }],
+      xl: ['var(--ibom-font-size-xl)', { lineHeight: 'var(--ibom-line-height-snug)' }],
+      '2xl': ['var(--ibom-font-size-2xl)', { lineHeight: 'var(--ibom-line-height-snug)' }],
+    },
+    fontWeight: {
+      normal: 'var(--ibom-font-weight-regular)',
+      medium: 'var(--ibom-font-weight-medium)',
+      semibold: 'var(--ibom-font-weight-semibold)',
+      bold: 'var(--ibom-font-weight-bold)',
+    },
+    lineHeight: {
+      tight: 'var(--ibom-line-height-tight)',
+      snug: 'var(--ibom-line-height-snug)',
+      normal: 'var(--ibom-line-height-normal)',
+      relaxed: 'var(--ibom-line-height-relaxed)',
+    },
+    spacing: {
+      0: '0px',
+      1: 'var(--ibom-space-1)',
+      2: 'var(--ibom-space-2)',
+      3: 'var(--ibom-space-3)',
+      4: 'var(--ibom-space-4)',
+      5: 'var(--ibom-space-5)',
+      6: 'var(--ibom-space-6)',
+      8: 'var(--ibom-space-8)',
+      10: 'var(--ibom-space-10)',
+      12: 'var(--ibom-space-12)',
+      16: 'var(--ibom-space-16)',
+    },
+    borderRadius: {
+      none: '0',
+      sm: 'var(--ibom-radius-sm)',
+      DEFAULT: 'var(--ibom-radius-md)',
+      md: 'var(--ibom-radius-md)',
+      lg: 'var(--ibom-radius-lg)',
+      full: '9999px',
+    },
+    borderWidth: {
+      0: '0',
+      DEFAULT: '1px',
+      2: '2px',
+    },
+    borderColor: {
+      DEFAULT: 'var(--ibom-color-border)',
+      subtle: 'var(--ibom-color-border-subtle)',
+      strong: 'var(--ibom-color-border-strong)',
+      focus: 'var(--ibom-color-focus)',
+    },
+    boxShadow: {
+      none: 'none',
+      overlay: 'var(--ibom-shadow-overlay)',
+    },
+    ringColor: {
+      DEFAULT: 'var(--ibom-color-focus)',
+      focus: 'var(--ibom-color-focus)',
+    },
+    ringOffsetColor: {
+      DEFAULT: 'var(--ibom-color-surface)',
+      surface: 'var(--ibom-color-surface)',
+    },
+    transitionDuration: {
+      DEFAULT: 'var(--ibom-motion-fast)',
+      fast: 'var(--ibom-motion-fast)',
+      normal: 'var(--ibom-motion-normal)',
+    },
+    transitionTimingFunction: {
+      DEFAULT: 'var(--ibom-motion-ease)',
+      standard: 'var(--ibom-motion-ease)',
+    },
+  },
+};

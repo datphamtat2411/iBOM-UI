@@ -1,5 +1,6 @@
 import { APP_INITIALIZER, ApplicationConfig } from '@angular/core';
 import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@angular/common/http';
+import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
@@ -12,6 +13,7 @@ function restoreSession(authService: AuthService): () => Promise<void> {
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideAnimations(),
     provideRouter(routes),
     provideHttpClient(
       withXsrfConfiguration({

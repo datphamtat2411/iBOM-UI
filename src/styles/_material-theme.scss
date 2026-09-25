@@ -1,0 +1,107 @@
+@use 'sass:map';
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+$ibom-primary-source: map.merge(
+  mat.$orange-palette,
+  (
+    300: var(--ibom-color-accent-hover),
+    500: var(--ibom-color-accent),
+    700: var(--ibom-color-accent-pressed),
+    contrast: map.merge(
+      map.get(mat.$orange-palette, contrast),
+      (
+        300: var(--ibom-color-on-accent),
+        500: var(--ibom-color-on-accent),
+        700: var(--ibom-color-on-accent),
+      )
+    ),
+  )
+);
+$ibom-accent-source: map.merge(
+  mat.$blue-palette,
+  (
+    300: var(--ibom-color-information-surface),
+    500: var(--ibom-color-information),
+    700: var(--ibom-color-information-text),
+    contrast: map.merge(
+      map.get(mat.$blue-palette, contrast),
+      (
+        300: var(--ibom-color-information-text),
+        500: #fff,
+        700: #fff,
+      )
+    ),
+  )
+);
+$ibom-warn-source: map.merge(
+  mat.$red-palette,
+  (
+    300: #d75b51,
+    500: var(--ibom-color-error),
+    700: var(--ibom-color-error-text),
+    contrast: map.merge(
+      map.get(mat.$red-palette, contrast),
+      (
+        300: #fff,
+        500: #fff,
+        700: #fff,
+      )
+    ),
+  )
+);
+
+$ibom-primary: mat.define-palette($ibom-primary-source, 500, 300, 700);
+$ibom-accent: mat.define-palette($ibom-accent-source, 500, 300, 700);
+$ibom-warn: mat.define-palette($ibom-warn-source, 500, 300, 700);
+$ibom-typography: mat.define-typography-config($font-family: var(--ibom-font-sans));
+
+$ibom-background-palette: (
+  status-bar: var(--ibom-color-surface-muted),
+  app-bar: var(--ibom-color-surface),
+  background: var(--ibom-color-canvas),
+  hover: rgb(38 35 31 / 4%),
+  card: var(--ibom-color-surface),
+  dialog: var(--ibom-color-surface),
+  disabled-button: rgb(38 35 31 / 12%),
+  raised-button: var(--ibom-color-surface),
+  focused-button: var(--ibom-color-focus-ring),
+  selected-button: var(--ibom-color-surface-muted),
+  selected-disabled-button: #d9d4cb,
+  disabled-button-toggle: #e5e0d7,
+);
+$ibom-foreground-palette: (
+  base: var(--ibom-color-text),
+  divider: var(--ibom-color-border),
+  dividers: var(--ibom-color-border),
+  disabled: var(--ibom-color-text-disabled),
+  disabled-button: var(--ibom-color-text-disabled),
+  disabled-text: var(--ibom-color-text-disabled),
+  elevation: #191714,
+  hint-text: var(--ibom-color-text-muted),
+  secondary-text: var(--ibom-color-text-muted),
+  icon: var(--ibom-color-text-muted),
+  icons: var(--ibom-color-text-muted),
+  text: var(--ibom-color-text),
+  slider-min: var(--ibom-color-text),
+  slider-off: var(--ibom-color-text-disabled),
+  slider-off-active: var(--ibom-color-text-muted),
+);
+
+$ibom-theme: mat.define-light-theme(
+  (
+    color: (
+      primary: $ibom-primary,
+      accent: $ibom-accent,
+      warn: $ibom-warn,
+      background: $ibom-background-palette,
+      foreground: $ibom-foreground-palette,
+    ),
+    typography: $ibom-typography,
+  )
+);
+
+@include mat.dialog-theme($ibom-theme);
+@include mat.menu-theme($ibom-theme);
+@include mat.tooltip-theme($ibom-theme);

@@ -1,3 +1,11 @@
+@use './styles/design-tokens';
+@use './styles/material-theme';
+@use './app/shared/ui/primitives';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --fpt-orange: #d85a18;
   --fpt-blue: #1e4785;

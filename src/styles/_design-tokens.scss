@@ -1,0 +1,73 @@
+:root {
+  --ibom-font-sans: var(--font-sans);
+  --ibom-font-mono: var(--font-mono);
+  --ibom-font-size-xs: 0.75rem;
+  --ibom-font-size-sm: 0.875rem;
+  --ibom-font-size-base: 1rem;
+  --ibom-font-size-lg: 1.125rem;
+  --ibom-font-size-xl: 1.25rem;
+  --ibom-font-size-2xl: 1.5rem;
+  --ibom-font-weight-regular: 400;
+  --ibom-font-weight-medium: 500;
+  --ibom-font-weight-semibold: 600;
+  --ibom-font-weight-bold: 700;
+  --ibom-line-height-tight: 1.25;
+  --ibom-line-height-snug: 1.375;
+  --ibom-line-height-normal: 1.5;
+  --ibom-line-height-relaxed: 1.625;
+
+  --ibom-color-canvas: var(--paper-bg);
+  --ibom-color-surface: #fffefa;
+  --ibom-color-surface-muted: #f1ede4;
+  --ibom-color-text: var(--fpt-black);
+  --ibom-color-text-muted: var(--ink-muted);
+  --ibom-color-text-disabled: #77736c;
+  --ibom-color-border: var(--grid-border);
+  --ibom-color-border-subtle: #e8e3d9;
+  --ibom-color-border-strong: #bcb5a8;
+  --ibom-color-accent: var(--fpt-orange);
+  --ibom-color-accent-hover: #bd4d15;
+  --ibom-color-accent-pressed: #a34212;
+  --ibom-color-on-accent: #fff;
+  --ibom-color-focus: #b94b13;
+  --ibom-color-focus-ring: rgb(216 90 24 / 28%);
+  --ibom-color-success: var(--fpt-green);
+  --ibom-color-success-surface: #edf5ef;
+  --ibom-color-success-text: #225c39;
+  --ibom-color-warning: #8b5d08;
+  --ibom-color-warning-surface: #fbf3df;
+  --ibom-color-warning-text: #714a05;
+  --ibom-color-error: #b42318;
+  --ibom-color-error-surface: #fceeed;
+  --ibom-color-error-text: #8f1d15;
+  --ibom-color-information: var(--fpt-blue);
+  --ibom-color-information-surface: #edf2f8;
+  --ibom-color-information-text: #183a6c;
+
+  --ibom-space-1: 0.25rem;
+  --ibom-space-2: 0.5rem;
+  --ibom-space-3: 0.75rem;
+  --ibom-space-4: 1rem;
+  --ibom-space-5: 1.25rem;
+  --ibom-space-6: 1.5rem;
+  --ibom-space-8: 2rem;
+  --ibom-space-10: 2.5rem;
+  --ibom-space-12: 3rem;
+  --ibom-space-16: 4rem;
+
+  --ibom-radius-sm: 0.25rem;
+  --ibom-radius-md: 0.375rem;
+  --ibom-radius-lg: 0.625rem;
+  --ibom-shadow-overlay: 0 1.25rem 3rem rgb(32 26 18 / 18%);
+
+  --ibom-motion-fast: 140ms;
+  --ibom-motion-normal: 180ms;
+  --ibom-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ibom-motion-fast: 0ms;
+    --ibom-motion-normal: 0ms;
+  }
+}
