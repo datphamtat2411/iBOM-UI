@@ -28,14 +28,8 @@ Carry forward only task-critical rules and decisions.
 PLAN owns discovery and task-specific decisions.
 Inspect only task-relevant source, tests, configuration, package metadata, documentation, and design references.
 
-For UI work, PLAN must use `docs/DESIGN.md` to identify the relevant
-page-specific design reference.
-
-Follow that reference into the approved prototype:
-`design/ibom-core-prototype.html`
-
-Inspect only the prototype regions routed by the relevant design reference.
-Do not inspect the full prototype or unrelated pages by default.
+For UI work, PLAN must read docs/DESIGN.md as the stable shared design direction.
+Page-specific visual, layout, interaction, and motion decisions come from the active task and current production UI.
 
 Keep `plan.md` concise.
 Prefer:
@@ -43,18 +37,11 @@ Prefer:
 * Relevant Code
 * Proposed Changes
 * Implementation Context
-* Prototype Route when UI fidelity depends on the prototype
 
 Add Risks or Verification only when useful.
 
 PLAN must carry forward the context BUILD needs.
 Do not require BUILD to rediscover project documentation.
-
-When UI work depends on the prototype, `plan.md` must identify the
-smallest exact prototype regions BUILD should inspect.
-
-Do not replace routed prototype evidence with prose alone.
-BUILD must be able to revisit the same prototype regions during implementation.
 
 Do not modify implementation files unless explicitly requested.
 
@@ -67,19 +54,6 @@ Do not repeat PLAN discovery.
 
 Do not reread project documentation by default.
 Use the task-specific rules and decisions already carried forward in `plan.md`.
-
-For frontend UI work, the approved prototype is a required visual implementation
-reference when `plan.md` provides a Prototype Route.
-
-Inspect the exact prototype regions routed by `plan.md` before implementing
-the corresponding UI.
-
-This is not rediscovery.
-Use those regions to preserve visual fidelity, composition, hierarchy,
-spacing, and interaction behavior.
-
-Do not scan the full prototype or inspect unrelated pages.
-Expand beyond routed regions only when affected source requires it or `plan.md` explicitly allows it.
 
 Expand other context only when:
 * additional source is required to implement the change; or
@@ -106,7 +80,6 @@ If focused verification fails:
 Do not by default:
 * scan or rediscover the repository;
 * reread project docs during BUILD;
-* read the full design prototype;
 * run the full frontend test suite or production build;
 * start the development server or browser automation;
 * investigate unrelated environment failures or dependency internals;
