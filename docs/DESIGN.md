@@ -2,11 +2,11 @@
 
 iBOM is an internal enterprise CV/Profile Management application.
 
-The redesign goal is not to replace the product with a new visual identity or imitate another application. It is to make the existing iBOM experience feel substantially more refined, coherent, responsive, and intentionally designed while preserving its product behavior.
+The redesign goal is to make the existing product substantially more refined, coherent, responsive, and intentionally designed while preserving its business behavior.
 
-This document defines the stable design direction shared across the frontend.
+This document defines only the **stable design rules shared across redesign tasks**.
 
-Detailed composition and page-specific redesign decisions belong to individual redesign tasks.
+Detailed page composition, workflow-specific interaction, and task-specific visual decisions belong to the active Task Specification and `plan.md`.
 
 ---
 
@@ -16,39 +16,27 @@ The target experience is:
 
 **clean + calm + precise + restrained + modern + trustworthy + slightly premium + interaction-aware**
 
-The interface should feel simple without feeling empty, polished without becoming decorative, and structured without becoming rigid.
-
 Functional richness is allowed.
 
 Visual noise is not.
 
+The interface should feel simple without feeling empty, structured without feeling boxed, and polished without becoming decorative.
+
 The interface should feel **alive, not animated**.
 
-Every visual treatment and every noticeable animation must earn its place.
+Every visual treatment and noticeable animation must earn its place.
 
 ---
 
 ## 2. Redesign Scope
 
-All product surfaces may be visually redesigned except the existing **HomePage**, which remains unchanged unless explicitly authorized by a future task.
+All product surfaces may be redesigned except the existing **HomePage**, which remains unchanged unless explicitly authorized.
 
-This includes:
+Redesign is not a functional rewrite.
 
-- authentication surfaces;
-- application shell;
-- dashboard;
-- Profile management and Profile sections;
-- CV Preview and Export;
-- Member Management and search;
-- Master Data;
-- User Management;
-- dialogs, overlays, tables, forms, filters, states, and supporting workflows.
+Preserve working compositions when they already serve the workflow well.
 
-Redesign does not imply rewriting every layout.
-
-Preserve a composition when it already works.
-
-Restructure only when the current composition materially limits clarity, usability, responsiveness, or visual quality.
+Restructure only when doing so materially improves clarity, usability, responsiveness, interaction quality, or visual coherence.
 
 ---
 
@@ -56,425 +44,229 @@ Restructure only when the current composition materially limits clarity, usabili
 
 Visual redesign must not silently change product behavior.
 
-Unless an active task explicitly authorizes otherwise, preserve:
+Unless explicitly authorized by the active task, preserve:
 
 - routes and navigation meaning;
 - business workflows;
 - backend contracts;
-- validation rules;
+- validation and confirmation rules;
 - RBAC and permission visibility;
 - sorting, filtering, and pagination semantics;
-- confirmation requirements;
-- form meaning and requirement-sensitive ordering;
-- loading, empty, success, and error behavior;
-- stable selectors and integration contracts where applicable.
+- requirement-sensitive form meaning;
+- integration and stable behavior relied on by the product.
 
-The current production application is the primary source of truth for existing behavior.
+The current production application is the source of truth for existing behavior.
 
 ---
 
 ## 4. Reference Philosophy
 
-External products and design references are evidence of taste, not implementation targets.
+External products and design systems are **taste and system references**, not implementation targets.
 
-Do not remake iBOM to look like SME Meeting Assistant, shadcn, Material examples, or another product.
+Learn from their strengths in:
 
-When references are provided:
+- hierarchy;
+- spacing;
+- typography;
+- composition;
+- density;
+- interaction states;
+- motion;
+- restraint;
+- component consistency.
 
-- identify why they feel good;
-- extract hierarchy, spacing, geometry, restraint, interaction, and composition principles;
-- translate those principles into iBOM;
-- preserve iBOM's own product identity and workflows.
+Do not clone another product or allow a reference library to become iBOM's visual identity.
 
-Reference implementation stacks must not drive architectural changes.
+Translate useful principles into iBOM's own workflows and character.
 
 ---
 
-## 5. Visual Hierarchy
+## 5. Shared Design Grammar
+
+The redesign is governed by:
+
+**tokens + spacing + typography + composition + restraint + states + motion + consistency**
+
+Different workflows may use different compositions, but every surface must feel built from the same underlying system.
+
+The same intent should normally produce the same visual pattern.
+
+The same semantic state should use the same treatment.
+
+Prefer system-level solutions when the same problem appears across multiple screens.
+
+---
+
+## 6. Visual Hierarchy and Composition
 
 Users should quickly understand:
 
 1. where they are;
 2. the main task;
 3. the primary action;
-4. the current state or context;
+4. current context or state;
 5. supporting information;
 6. secondary and destructive actions.
 
 Prefer hierarchy through:
 
-**position → grouping → spacing → typography → text contrast → surface → accent color**
+**position → grouping → spacing → typography → contrast → surface → accent**
 
-Do not use color, borders, cards, or bold text as substitutes for weak hierarchy.
+Do not compensate for weak hierarchy with excessive borders, cards, color, bold text, or decoration.
 
----
+Structure should generally be **felt rather than visually announced everywhere**.
 
-## 6. Visual Language
+Prefer open composition, whitespace, alignment, and subtle separation over unnecessary enclosure.
 
-The product should feel:
-
-- light without feeling empty;
-- structured without feeling boxed;
-- modern without chasing trends;
-- polished without looking decorative;
-- professional without feeling bureaucratic;
-- dense enough for productive work without feeling cramped.
-
-Avoid:
-
-- generic card-heavy SaaS composition;
-- excessive nested containers;
-- strong borders around every region;
-- decorative gradients;
-- glassmorphism as a default;
-- oversized radii;
-- excessive shadows;
-- giant application headings;
-- decorative icon tiles everywhere;
-- visually loud active states.
+Cards and elevated surfaces should communicate real hierarchy or interaction, not act as the default grouping mechanism.
 
 ---
 
-## 7. Typography
+## 7. Typography and Color
 
-Typography should carry a meaningful part of the visual hierarchy.
+Use one coherent, highly legible typography system with strong Vietnamese support.
 
-Use one coherent, highly legible UI type system with strong Vietnamese support.
+Typography should carry hierarchy so borders and color can remain quieter.
 
-Keep the number of font families and weights limited.
+Keep font families, weights, and sizes deliberately limited.
 
-Prefer restrained application typography:
-
-- page titles are clear but not oversized;
-- section titles remain visibly secondary;
-- body text stays highly readable;
-- labels use regular or medium emphasis;
-- helper and metadata text are quieter but still readable;
-- numerical metrics may use tabular figures where comparison benefits.
-
-Do not use decorative typography throughout operational screens.
-
-Exact font decisions may be refined by a dedicated redesign task.
-
----
-
-## 8. Color
+Use technical or monospaced typography only where its role is meaningful rather than as the default treatment for operational labels.
 
 Structural UI should remain mostly neutral.
 
-Brand and interaction colors should create emphasis, not dominate the entire interface.
+Use a restrained primary interaction accent and reserve semantic colors for actual meaning such as success, warning, information, and destructive/error states.
 
-Use one primary interaction accent consistently for important actions, focus emphasis, navigation state, and selected interactive elements where appropriate.
-
-Semantic colors are reserved for real meaning:
-
-- success;
-- warning;
-- information;
-- destructive/error;
-- domain status.
-
-Prefer subtle tinted semantic surfaces over large saturated blocks for passive states.
-
-Do not invent unrelated feature-specific color systems.
+Passive semantic states should generally use subtle treatment rather than large saturated surfaces.
 
 ---
 
-## 9. Geometry, Borders, and Elevation
+## 8. Geometry, Surface, and Elevation
 
-Use a small, coherent radius vocabulary.
+Use a small, coherent vocabulary for:
 
-Controls should generally use restrained rounding.
+- radius;
+- border strength;
+- surface treatment;
+- elevation.
 
-Panels and dialogs may use slightly larger radii when appropriate.
+Borders should be low-contrast and structural.
 
-Full pills are reserved for components whose semantics justify them.
+Elevation should represent actual layering.
 
-Borders should be structural and low contrast.
+Menus, popovers, dialogs, and necessary floating or sticky layers may use stronger separation than normal page content.
 
-Prefer:
+Avoid repeatedly combining:
 
-- subtle separators;
-- whitespace;
-- alignment;
-- restrained enclosure.
+**strong border + shadow + tinted background + nested container**
 
-Avoid:
-
-- heavy outlines;
-- repeated boxed cells;
-- border + shadow + tinted background on the same low-priority surface;
-- deeply nested card structures.
-
-Shadows represent real elevation and should primarily appear on floating layers such as menus, popovers, dialogs, and necessary sticky surfaces.
+when spacing and hierarchy already communicate the relationship.
 
 ---
 
-## 10. Surfaces and Cards
+## 9. Interaction States
 
-Cards are not the default answer to grouping.
-
-Use a card when it represents:
-
-- a distinct entity;
-- an actionable unit;
-- meaningful hierarchy;
-- an interactive object;
-- a genuinely separated information surface.
-
-Otherwise prefer open composition, spacing, alignment, section headings, and dividers.
-
-Flatten visual hierarchy when additional containers do not add meaning.
-
----
-
-## 11. Application Shell
-
-The authenticated shell should support the workflow without dominating it.
-
-The redesign may introduce a refined **collapsible/expandable sidebar**.
-
-Collapsed navigation must preserve location awareness and provide understandable access to navigation items.
-
-Navigation should use:
-
-- consistent icon size and weight;
-- restrained active states;
-- compact spacing;
-- clear grouping;
-- smooth but subtle state transitions.
-
-Header and global chrome should remain compact.
-
-Profile context and managed Member context must stay unmistakable.
-
-The shell should feel stable while page content changes.
-
----
-
-## 12. Actions and Controls
-
-Do not render every action with equal emphasis.
-
-Use a clear hierarchy:
-
-1. primary;
-2. secondary;
-3. tertiary / ghost / text;
-4. destructive when necessary.
-
-A local task area should normally have one visually dominant primary action.
-
-All important interactive controls should have coherent:
+Important controls must have coherent and understandable:
 
 - default;
 - hover;
-- focus;
+- focus-visible;
 - pressed;
 - selected;
 - disabled;
-- loading states.
+- loading;
+- success;
+- error states where applicable.
 
-Interactions should feel immediate and tactile without feeling playful.
+Interactions should feel immediate and tactile without becoming playful.
 
----
+Disabled states must remain readable.
 
-## 13. Forms
+Keyboard focus must remain visible and intentional.
 
-Forms are a primary iBOM surface.
-
-Keep labels persistent and visible.
-
-Group fields by business meaning.
-
-Use spacing and hierarchy before adding containers.
-
-Prefer simple reading/editing flows over visually compressed multi-column layouts.
-
-Use progressive disclosure for advanced or conditional content when appropriate.
-
-Validation stays close to the affected field.
-
-Saving, saved, failed, dirty, and duplicate-submit states should be clearly understandable.
+State changes should not depend on color alone.
 
 ---
 
-## 14. Tables, Lists, and Filters
+## 10. Motion Grammar
 
-Tables remain first-class enterprise UI.
-
-Do not replace useful tabular layouts with cards merely to appear modern.
-
-Prefer:
-
-- compact but readable row density;
-- subtle headers;
-- simple dividers;
-- restrained hover and selected states;
-- clear sorting;
-- visually secondary pagination;
-- filters subordinate to the result data.
-
-Large filter areas should not become a second form page.
-
-Progressively disclose advanced filters when useful.
-
----
-
-## 15. Motion and Micro-interaction
-
-Motion should improve:
+Motion exists to improve:
 
 - feedback;
 - state understanding;
 - spatial continuity;
-- attention;
+- orientation;
 - perceived responsiveness.
 
-Good candidates include:
+Prefer short, restrained transitions.
 
-- button feedback;
-- menu and popover transitions;
-- dialogs and overlays;
-- sidebar collapse/expand;
-- tabs and selection indicators;
-- accordions;
-- contextual insertion/removal;
-- relevant loading and processing states;
-- purposeful scroll or temporary target highlight.
+Use motion where relationships between before and after states benefit from continuity.
 
-Avoid motion that exists only to make the product look premium.
+Avoid motion used primarily as decoration, including excessive page entrances, card staggers, parallax, bouncing elements, perpetual effects, or unnecessary cinematic transitions.
 
-Do not default to:
+Prefer:
 
-- page-wide staggered entrances;
-- animated cards on every load;
-- parallax;
-- bouncing elements;
-- animated gradients;
-- perpetual decorative loops;
-- elaborate 3D interactions.
+1. CSS and Tailwind transitions;
+2. Angular/CDK capabilities when coordination is required;
+3. GSAP only when simpler mechanisms cannot provide clear product value.
 
-Prefer CSS transitions and lightweight platform capabilities.
-
-Prefer `transform` and `opacity` for animation.
+Prefer `transform` and `opacity` when appropriate.
 
 Respect `prefers-reduced-motion`.
 
----
-
-## 16. Floating and Sticky UI
-
-Floating or sticky controls may be introduced when they improve a real workflow.
-
-Appropriate uses may include:
-
-- contextual actions;
-- persistent save/action areas;
-- compact utilities;
-- temporary workflow controls;
-- overlays or navigation aids.
-
-Floating UI must solve an interaction problem.
-
-Do not add floating elements purely as decoration.
-
-They must not obscure content, compete with primary actions, or create mobile usability issues.
+Animation must never delay the underlying action.
 
 ---
 
-## 17. Loading, Empty, Error, and Success
+## 11. Technical UI Foundation
 
-Non-happy-path states are part of the final design.
+### Styling and system layers
 
-Use the smallest meaningful loading treatment for the affected region.
+- **Tailwind CSS** is the primary styling language for layout, spacing, typography, color usage, geometry, responsive behavior, interaction states, and lightweight transitions.
+- **Design tokens** are the semantic source of truth for color roles, surfaces, typography, spacing, radius, borders, elevation, focus treatment, and motion.
+- **Angular Material** may be used selectively where mature component behavior and accessibility provide clear value. Its default visual language is not the iBOM design target.
+- **Angular CDK** is the preferred foundation for behavior-oriented primitives such as overlays, focus management, accessibility, portals, keyboard interaction, and related infrastructure.
+- **Shared iBOM primitives** should provide the reusable product-facing language for controls and patterns such as buttons, fields, dialogs, menus, tooltips, badges, tabs, tables, notices, and common states.
+- **Motion grammar** should prefer CSS and Tailwind transitions first, use Angular/CDK when interaction requires coordination, and reserve GSAP for cases with clear product value that simpler mechanisms cannot provide.
+- **Page composition** should compose from the shared system instead of inventing an independent visual language for each feature.
 
-Prefer stable layouts and contextual feedback.
+Implementation tools may differ underneath, but equivalent user intent must produce equivalent visual and interaction behavior.
 
-Differentiate between:
+Material, CDK, Tailwind, or any other library is implementation infrastructure rather than product identity.
 
-- no data;
-- no search results;
-- insufficient permission;
-- loading;
-- operation failure;
-- unavailable data.
+**iBOM owns the appearance.**
 
-Success feedback should be calm and proportionate to the action.
+### System coherence
 
-Routine CRUD should not receive excessive celebration or animation.
+Shared decisions should be established once and reused.
 
----
+Do not independently redefine common values or behaviors inside feature pages when an appropriate shared token, primitive, or pattern exists.
 
-## 18. Product UX Invariants
+A redesign task may introduce a new shared pattern when the workflow genuinely requires one, but it must extend the existing system rather than create a competing local design language.
 
-Redesign must preserve these product-level UX truths:
+Prefer system-level improvements when the same visual or interaction problem appears across multiple surfaces.
 
-- selected Profile context is always unambiguous;
-- Profile switching must not leak previous Profile data;
-- all Profiles retain equivalent editing capability;
-- completeness guides users but does not remove sections;
-- empty sections expose an appropriate next action;
-- Profile mutations invalidate Preview when required by product behavior;
-- Export remains unavailable until the current Profile has a valid Preview when required;
-- managed Member context stays explicit while navigating that Member's Profiles;
-- generated CV content belongs only to the current Profile.
+## 12. Responsive, Accessibility, and Performance
 
-Visual changes must reinforce these invariants rather than obscure them.
+Responsive design must preserve task completion and information hierarchy rather than merely shrink desktop layouts.
 
----
-
-## 19. Responsive Design
-
-Responsive behavior must preserve task completion, not merely shrink desktop UI.
-
-Layouts should intentionally adapt when space decreases.
-
-Ensure:
-
-- forms reduce columns before fields become cramped;
-- action bars wrap intentionally;
-- primary actions remain discoverable;
-- dialogs fit smaller screens;
-- tables use an appropriate responsive strategy;
-- sidebar collapse preserves orientation;
-- page-level horizontal overflow is avoided.
-
-Do not reduce readable typography simply to make a layout fit.
-
----
-
-## 20. Accessibility
-
-Accessibility remains a design requirement.
+Accessibility is part of visual quality.
 
 Preserve or improve:
 
-- visible keyboard focus;
-- logical keyboard navigation;
+- keyboard navigation;
+- visible focus;
 - accessible labels;
-- meaningful form errors;
+- meaningful validation;
 - adequate contrast;
-- reasonable interaction targets;
-- correct dialog focus behavior;
-- reduced-motion support;
-- meaning beyond color alone.
-
-Visual polish must never remove working accessibility behavior.
-
----
-
-## 21. Performance
+- appropriate interaction targets;
+- dialog and overlay focus behavior;
+- reduced-motion support.
 
 Performance is part of perceived design quality.
 
-Do not add heavy dependencies for decorative effects.
+Avoid heavy dependencies or expensive visual effects for decoration.
 
-Avoid expensive persistent blur, filter, shadow, scroll, or layout animation.
-
-Large tables and data-heavy pages must remain responsive.
-
-Immediate feedback may improve perceived responsiveness but must never delay actual work.
+Data-heavy workflows must remain responsive.
 
 When visual polish and responsiveness conflict:
 
@@ -482,60 +274,49 @@ When visual polish and responsiveness conflict:
 
 ---
 
-## 22. Cross-product Consistency
+## 13. Design Authority
 
-Every redesigned page must still feel like the same product.
+This document defines stable cross-product design direction.
 
-The same intent should normally use the same visual pattern.
+It intentionally does not define:
 
-The same semantic state should use the same treatment.
-
-Shared primitives should be improved before repeatedly solving the same problem inside individual pages.
-
-Local redesign must not create a competing design system.
-
-At the same time, pages do not need identical compositions.
-
-Their layout should reflect their actual workflow.
-
----
-
-## 23. Design Authority
-
-This document defines the stable shared design direction.
-
-It intentionally does not specify exact page layouts, detailed measurements, exact component composition, or task-specific motion.
+- exact page layouts;
+- task-specific component composition;
+- exact measurements;
+- workflow-specific sticky or floating controls;
+- detailed responsive behavior;
+- individual animation decisions.
 
 For redesign work, authority is:
 
-1. active task requirements;
+1. active Task Specification;
 2. current product behavior and source;
 3. this `DESIGN.md`;
 4. applicable product and integration documentation;
 5. supplied references as taste evidence.
 
-Page-specific redesign decisions belong in the active task and `plan.md`.
+The Task Specification owns detailed design intent.
 
-There is no required prototype or page-specific design-reference routing.
+`plan.md` resolves that intent into implementation decisions.
 
-Do not rediscover or reproduce obsolete prototype composition.
+BUILD implements the approved plan rather than redesigning during implementation.
 
 ---
 
-## 24. Final Design Principle
+## 14. Final Principle
 
-iBOM should not look refined because it contains more decoration.
+iBOM should not feel refined because it contains more decoration.
 
 It should feel refined because:
 
 - hierarchy is obvious;
 - spacing is deliberate;
+- typography is coherent;
 - surfaces are quiet;
 - controls respond naturally;
 - states are complete;
 - motion explains rather than performs;
-- complex workflows remain understandable;
-- the interface remains fast;
+- workflows remain understandable;
 - every page feels like part of one product.
 
 **The beauty of iBOM should come from simplicity, precision, consistency, and interaction quality.**
