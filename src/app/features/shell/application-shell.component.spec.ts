@@ -81,10 +81,10 @@ describe('ApplicationShellComponent', () => {
 
     expect(groups[0].textContent).toContain('01Dashboard');
     expect(groups[0].textContent).toContain('02Profile Workspace');
-     expect(groups[1].textContent).toContain('03Manager Dashboard');
-     expect(groups[1].textContent).toContain('04Member Management');
-     expect(groups[1].textContent).toContain('05User Management');
-     expect(groups[1].textContent).toContain('06Master Data');
+      expect(groups[1].textContent).toContain('01Manager Dashboard');
+      expect(groups[1].textContent).toContain('02Member Management');
+      expect(groups[1].textContent).toContain('03User Management');
+      expect(groups[1].textContent).toContain('04Master Data');
   });
 
   it('links Member and User Management from the role-aware Management navigation', () => {

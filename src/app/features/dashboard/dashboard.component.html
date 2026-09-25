@@ -21,126 +21,128 @@
       <h1 id="dashboard-title">Loading Profile</h1>
       <p>Resolving the selected Profile dashboard.</p>
     </div>
-  } @else if (selectedProfile(); as profile) {
-    <div class="page-heading">
-      <div>
-        <h1 id="dashboard-title">Welcome, {{ user()?.username }}</h1>
-        <p>Continue the selected Profile or prepare its current document.</p>
-      </div>
-      <div class="heading-actions">
-        <button class="btn" type="button" (click)="openWorkspace()">Open Workspace</button>
-        <button class="btn primary" type="button" (click)="openPreview()">Preview CV</button>
-      </div>
-    </div>
-
-    @if (statsError()) {
-      <div class="notice error" role="alert" aria-live="polite">
-        <span><strong>Dashboard unavailable.</strong> We could not load the selected Profile statistics.</span>
-        <button class="btn text" type="button" (click)="retryStats()" [disabled]="statsLoading()">Retry</button>
-      </div>
-    } @else if (statsLoading() || !stats()) {
-      <div class="notice info" role="status" aria-live="polite">
-        <span><strong>Loading Dashboard.</strong> Loading completeness for {{ profile.profileName }}.</span>
-      </div>
-    } @else if (previewState() === 'valid') {
-      <div class="notice success" role="status" aria-live="polite">
-        <span><strong>Document current.</strong> This Profile has a successful Preview and is ready for export.</span>
-        <button class="btn text" type="button" (click)="openPreview()">Open document</button>
-      </div>
-    } @else if (previewState() === 'required') {
-      <div class="notice warning" role="status" aria-live="polite">
-        <span><strong>Preview required.</strong> Preview this Profile before exporting its current document.</span>
-        <button class="btn text" type="button" (click)="openPreview()">Preview now</button>
-      </div>
-    } @else if (previewState() === 'loading') {
-      <div class="notice info" role="status" aria-live="polite">
-        <span><strong>Checking Preview state.</strong> Loading the selected Profile detail.</span>
-      </div>
-    } @else {
-      <div class="notice warning" role="status" aria-live="polite">
-        <span><strong>Preview unavailable.</strong> The selected Profile detail could not be loaded.</span>
-      </div>
-    }
-
-    <div class="context-band" data-od-id="profile-context-band">
-      <div class="band-cell">
-        <label>Selected Profile</label>
-        <h2>{{ profile.profileName }}</h2>
-        <span class="small muted">{{ profileIdentity(profile) }}</span>
-      </div>
-      <div class="band-cell">
-        <label>Completeness</label>
-        @if (stats(); as dashboard) {
-          <p class="metric">{{ formatPercentage(dashboard.completeness.percentage) }}</p>
-          <span class="small muted">{{ dashboard.completeness.completed ? 'All required sections present' : 'Some sections need attention' }}</span>
-        } @else {
-          <p class="metric">&mdash;</p>
-          <span class="small muted">Loading completeness</span>
-        }
-      </div>
-      <div class="band-cell">
-        <label>Preview state</label>
-        <span class="status" [class.valid]="previewState() === 'valid'" [class.required]="previewState() === 'required'" [class.loading]="previewState() === 'loading'" [class.unavailable]="previewState() === 'unavailable'">{{ previewStateLabel() }}</span>
-      </div>
-      <div class="band-cell">
-        <label>Latest export</label>
-        @if (stats(); as dashboard) {
-          <p class="mono small">{{ formatLatestExport(dashboard.latestExportedAt) }}</p>
-        } @else {
-          <p class="mono small">Loading...</p>
-        }
-      </div>
-    </div>
-
-    <div class="dashboard-grid">
-      <section class="section-block" aria-labelledby="completeness-heading">
-        <div class="section-title">
-          <h2 id="completeness-heading">Completeness by section</h2>
-          <button class="btn text" type="button" (click)="openWorkspace()">Review Profile</button>
+  } @else {
+    @if (selectedProfile(); as profile) {
+      <div class="page-heading">
+        <div>
+          <h1 id="dashboard-title">Welcome, {{ user()?.username }}</h1>
+          <p>Continue the selected Profile or prepare its current document.</p>
         </div>
-        @if (statsError()) {
-          <div class="inline-state error" role="alert"><p>Section completeness is unavailable.</p><button class="btn text" type="button" (click)="retryStats()">Retry</button></div>
-        } @else if (statsLoading() || !stats()) {
-          <div class="contribution-list" role="status" aria-live="polite">
-            <div class="contribution-row"><strong>Loading completeness</strong><span class="muted">Please wait</span><span class="mono">...</span></div>
-            <div class="contribution-row"><strong>Loading section status</strong><span class="muted">Please wait</span><span class="mono">...</span></div>
-          </div>
-        } @else if (stats()?.completeness?.sections?.length) {
-          <div class="contribution-list">
-            @for (section of stats()!.completeness.sections; track section.key) {
-              <div class="contribution-row">
-                <strong>{{ sectionLabel(section) }}</strong>
-                <span class="section-detail">
-                  <span class="section-status" [class.done]="section.completed" [class.missing]="!section.completed">{{ section.completed ? 'Complete' : 'Needs attention' }}</span>
-                  @if (sectionCount(section); as count) { <span class="section-count">{{ count }}</span> }
-                </span>
-                <span class="mono">{{ formatPercentage(section.weight) }}</span>
-              </div>
-            }
-          </div>
-        } @else {
-          <div class="inline-state"><p>No completeness sections were returned for this Profile.</p></div>
-        }
-      </section>
-
-      <section class="section-block" aria-labelledby="profiles-heading">
-        <div class="section-title">
-          <h2 id="profiles-heading">My Profiles</h2>
-          <button class="btn text" type="button" (click)="createProfile()">Create</button>
+        <div class="heading-actions">
+          <button class="btn" type="button" (click)="openWorkspace()">Open Workspace</button>
+          <button class="btn primary" type="button" (click)="openPreview()">Preview CV</button>
         </div>
-        <div class="profile-summary-list">
-          @for (summary of context.summaries(); track summary.id) {
-            <button class="profile-summary" type="button" [class.selected]="isSelectedProfile(summary.id)" [attr.aria-current]="isSelectedProfile(summary.id) ? 'true' : null" (click)="selectProfile(summary.id)">
-              <span>
-                <strong>{{ summary.profileName }}</strong>
-                <small>{{ profileIdentity(summary) }}</small>
-                <small>Updated: <time [attr.datetime]="summary.updatedAt">{{ formatTimestamp(summary.updatedAt) }}</time></small>
-              </span>
-              @if (isSelectedProfile(summary.id)) { <span class="mono selected-label">Selected</span> }
-            </button>
+      </div>
+
+      @if (statsError()) {
+        <div class="notice error" role="alert" aria-live="polite">
+          <span><strong>Dashboard unavailable.</strong> We could not load the selected Profile statistics.</span>
+          <button class="btn text" type="button" (click)="retryStats()" [disabled]="statsLoading()">Retry</button>
+        </div>
+      } @else if (statsLoading() || !stats()) {
+        <div class="notice info" role="status" aria-live="polite">
+          <span><strong>Loading Dashboard.</strong> Loading completeness for {{ profile.profileName }}.</span>
+        </div>
+      } @else if (previewState() === 'valid') {
+        <div class="notice success" role="status" aria-live="polite">
+          <span><strong>Document current.</strong> This Profile has a successful Preview and is ready for export.</span>
+          <button class="btn text" type="button" (click)="openPreview()">Open document</button>
+        </div>
+      } @else if (previewState() === 'required') {
+        <div class="notice warning" role="status" aria-live="polite">
+          <span><strong>Preview required.</strong> Preview this Profile before exporting its current document.</span>
+          <button class="btn text" type="button" (click)="openPreview()">Preview now</button>
+        </div>
+      } @else if (previewState() === 'loading') {
+        <div class="notice info" role="status" aria-live="polite">
+          <span><strong>Checking Preview state.</strong> Loading the selected Profile detail.</span>
+        </div>
+      } @else {
+        <div class="notice warning" role="status" aria-live="polite">
+          <span><strong>Preview unavailable.</strong> The selected Profile detail could not be loaded.</span>
+        </div>
+      }
+
+      <div class="context-band" data-od-id="profile-context-band">
+        <div class="band-cell">
+          <label>Selected Profile</label>
+          <h2>{{ profile.profileName }}</h2>
+          <span class="small muted">{{ profileIdentity(profile) }}</span>
+        </div>
+        <div class="band-cell">
+          <label>Completeness</label>
+          @if (stats(); as dashboard) {
+            <p class="metric">{{ formatPercentage(dashboard.completeness.percentage) }}</p>
+            <span class="small muted">{{ dashboard.completeness.completed ? 'All required sections present' : 'Some sections need attention' }}</span>
+          } @else {
+            <p class="metric">&mdash;</p>
+            <span class="small muted">Loading completeness</span>
           }
         </div>
-      </section>
-    </div>
+        <div class="band-cell">
+          <label>Preview state</label>
+          <span class="status" [class.valid]="previewState() === 'valid'" [class.required]="previewState() === 'required'" [class.loading]="previewState() === 'loading'" [class.unavailable]="previewState() === 'unavailable'">{{ previewStateLabel() }}</span>
+        </div>
+        <div class="band-cell">
+          <label>Latest export</label>
+          @if (stats(); as dashboard) {
+            <p class="mono small">{{ formatLatestExport(dashboard.latestExportedAt) }}</p>
+          } @else {
+            <p class="mono small">Loading...</p>
+          }
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <section class="section-block" aria-labelledby="completeness-heading">
+          <div class="section-title">
+            <h2 id="completeness-heading">Completeness by section</h2>
+            <button class="btn text" type="button" (click)="openWorkspace()">Review Profile</button>
+          </div>
+          @if (statsError()) {
+            <div class="inline-state error" role="alert"><p>Section completeness is unavailable.</p><button class="btn text" type="button" (click)="retryStats()">Retry</button></div>
+          } @else if (statsLoading() || !stats()) {
+            <div class="contribution-list" role="status" aria-live="polite">
+              <div class="contribution-row"><strong>Loading completeness</strong><span class="muted">Please wait</span><span class="mono">...</span></div>
+              <div class="contribution-row"><strong>Loading section status</strong><span class="muted">Please wait</span><span class="mono">...</span></div>
+            </div>
+          } @else if (stats()?.completeness?.sections?.length) {
+            <div class="contribution-list">
+              @for (section of stats()!.completeness.sections; track section.key) {
+                <div class="contribution-row">
+                  <strong>{{ sectionLabel(section) }}</strong>
+                  <span class="section-detail">
+                    <span class="section-status" [class.done]="section.completed" [class.missing]="!section.completed">{{ section.completed ? 'Complete' : 'Needs attention' }}</span>
+                    @if (sectionCount(section); as count) { <span class="section-count">{{ count }}</span> }
+                  </span>
+                  <span class="mono">{{ formatSectionPercentage(section) }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="inline-state"><p>No completeness sections were returned for this Profile.</p></div>
+          }
+        </section>
+
+        <section class="section-block" aria-labelledby="profiles-heading">
+          <div class="section-title">
+            <h2 id="profiles-heading">My Profiles</h2>
+            <button class="btn text" type="button" (click)="createProfile()">Create</button>
+          </div>
+          <div class="profile-summary-list">
+            @for (summary of context.summaries(); track summary.id) {
+              <button class="profile-summary" type="button" [class.selected]="isSelectedProfile(summary.id)" [attr.aria-current]="isSelectedProfile(summary.id) ? 'true' : null" (click)="selectProfile(summary.id)">
+                <span>
+                  <strong>{{ summary.profileName }}</strong>
+                  <small>{{ profileIdentity(summary) }}</small>
+                  <small>Updated: <time [attr.datetime]="summary.updatedAt">{{ formatTimestamp(summary.updatedAt) }}</time></small>
+                </span>
+                @if (isSelectedProfile(summary.id)) { <span class="mono selected-label">Selected</span> }
+              </button>
+            }
+          </div>
+        </section>
+      </div>
+    }
   }
 </section>

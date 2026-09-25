@@ -42,6 +42,9 @@ export class DashboardComponent implements OnDestroy {
     minute: '2-digit',
     timeZone: 'Asia/Ho_Chi_Minh',
   });
+  private readonly percentageFormatter = new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 2,
+  });
   private statsSubscription: Subscription | null = null;
   private statsGeneration = 0;
   private statsProfileId: string | null = null;
@@ -78,7 +81,7 @@ export class DashboardComponent implements OnDestroy {
   }
 
   formatPercentage(value: number | null | undefined): string {
-    return value === null || value === undefined || !Number.isFinite(value) ? '—' : `${Math.round(value)}%`;
+    return value === null || value === undefined || !Number.isFinite(value) ? '—' : `${this.percentageFormatter.format(value)}%`;
   }
 
   formatTimestamp(value: string | null | undefined): string {
@@ -98,6 +101,18 @@ export class DashboardComponent implements OnDestroy {
 
   sectionLabel(section: DashboardCompletenessSection): string {
     return this.sectionLabels[section.key] ?? section.key;
+  }
+
+  sectionPercentage(section: DashboardCompletenessSection): number {
+    if (section.validFieldCount !== undefined && section.fieldCount !== undefined) {
+      return section.fieldCount > 0 ? (section.validFieldCount / section.fieldCount) * section.weight : 0;
+    }
+    if (section.hasQualifyingRecord !== undefined) return section.hasQualifyingRecord ? section.weight : 0;
+    return section.completed ? section.weight : 0;
+  }
+
+  formatSectionPercentage(section: DashboardCompletenessSection): string {
+    return `${this.percentageFormatter.format(this.sectionPercentage(section))}%`;
   }
 
   sectionCount(section: DashboardCompletenessSection): string | null {

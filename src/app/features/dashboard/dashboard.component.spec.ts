@@ -57,9 +57,9 @@ describe('DashboardComponent', () => {
         percentage: 0,
         completed: false,
         sections: [
-          { key: 'aboutMe', weight: 20, completed: false, validFieldCount: 0, fieldCount: 2 },
-          { key: 'education', weight: 15, completed: true, hasQualifyingRecord: true },
-          { key: 'skills', weight: 20, completed: false, hasQualifyingRecord: false },
+          { key: 'aboutMe', weight: 20, completed: false, validFieldCount: 0, fieldCount: 6 },
+          { key: 'education', weight: 20, completed: true, hasQualifyingRecord: true },
+          { key: 'skills', weight: 10, completed: false, hasQualifyingRecord: false },
         ],
       },
       latestExportedAt,
@@ -133,10 +133,53 @@ describe('DashboardComponent', () => {
     expect(element.querySelector('.metric')?.textContent).toContain('0%');
     expect(element.querySelector('.context-band')?.textContent).toContain('Never exported');
     expect(element.querySelector('.contribution-list')?.textContent).toContain('About Me');
-    expect(element.querySelector('.contribution-list')?.textContent).toContain('0 / 2 fields');
+    expect(element.querySelector('.contribution-list')?.textContent).toContain('0 / 6 fields');
     expect(element.querySelector('.contribution-list')?.textContent).toContain('Qualifying record present');
     expect(element.querySelector('.contribution-list')?.textContent).toContain('No qualifying record');
     expect(element.querySelector('.status.valid')?.textContent).toContain('Preview valid');
+  });
+
+  it('renders each section contribution from its actual completion', () => {
+    const stats = statsFor(firstSummary);
+    stats.completeness.percentage = 68;
+    stats.completeness.sections = [
+      { key: 'aboutMe', weight: 20, completed: false, validFieldCount: 4, fieldCount: 6 },
+      { key: 'education', weight: 20, completed: false, hasQualifyingRecord: false },
+      { key: 'language', weight: 15, completed: true, hasQualifyingRecord: true },
+      { key: 'certificate', weight: 15, completed: false, hasQualifyingRecord: false },
+      { key: 'project', weight: 20, completed: true, hasQualifyingRecord: true },
+      { key: 'skills', weight: 10, completed: false, hasQualifyingRecord: false },
+    ];
+    dashboardService.getMemberStats.and.returnValue(of(stats));
+    profileContext.summaries.set([firstSummary]);
+    profileContext.selectedId.set('1');
+    profileContext.detail.set(detailFor(firstSummary));
+    createFixture();
+
+    const rows = fixture.nativeElement.querySelectorAll('.contribution-row') as NodeListOf<HTMLElement>;
+    const percentages = Array.from(rows)
+      .map((row) => row.querySelector('strong')?.textContent?.trim() + ': ' + row.querySelector('.mono')?.textContent?.trim());
+
+    expect(percentages).toEqual([
+      'About Me: 13.33%',
+      'Education: 0%',
+      'Languages: 15%',
+      'Certificates: 0%',
+      'Projects: 20%',
+      'Skills: 0%',
+    ]);
+  });
+
+  it('renders API completeness with up to two decimal places', () => {
+    const stats = statsFor(firstSummary);
+    stats.completeness.percentage = 13.33;
+    dashboardService.getMemberStats.and.returnValue(of(stats));
+    profileContext.summaries.set([firstSummary]);
+    profileContext.selectedId.set('1');
+    profileContext.detail.set(detailFor(firstSummary));
+    createFixture();
+
+    expect(fixture.nativeElement.querySelector('.metric')?.textContent).toContain('13.33%');
   });
 
   it('uses selected Profile detail for Preview state and formats an export in ICT', () => {
