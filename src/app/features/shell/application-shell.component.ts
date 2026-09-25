@@ -183,16 +183,25 @@ export class ApplicationShellComponent {
     if (this.isManagedProfileRoute()) return;
     this.closeProfileMenu();
     const source = this.currentCopySource();
-    if (!source) return;
+    const sourceRouteUrl = this.router.url;
+    if (!source || !this.isCopySourceRoute(source.id, sourceRouteUrl)) return;
 
-    this.profileEditSession.requestNavigation(`/profiles/${source.id}`).then((allow) => {
+    const openWorkflow = (allow: boolean): void => {
       const routeUrl = this.router.url;
-      if (!allow || !this.currentCopySource() || this.currentCopySource()?.id !== source.id || !this.isCurrentProfileRoute(source.id, routeUrl)) return;
+      const currentSource = this.currentCopySource();
+      if (!allow || routeUrl !== sourceRouteUrl || currentSource?.id !== source.id || !this.isCopySourceRoute(source.id, routeUrl)) return;
       const generation = ++this.copyWorkflowGeneration;
       this.activeCopyWorkflow = { generation, sourceId: source.id, routeUrl };
       this.copySource = source;
       this.copyModalOpen = true;
-    });
+    };
+
+    if (this.isDashboardRoute(sourceRouteUrl)) {
+      openWorkflow(true);
+      return;
+    }
+
+    this.profileEditSession.requestNavigation(`/profiles/${source.id}`).then(openWorkflow);
   }
   closeCopyProfile(): void {
     this.invalidateCopyWorkflow();
@@ -296,6 +305,10 @@ export class ApplicationShellComponent {
   private isCurrentProfileRoute(profileId: string, routeUrl: string): boolean {
     const path = routeUrl.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
     return path === `/profiles/${profileId}`;
+  }
+
+  private isCopySourceRoute(profileId: string, routeUrl: string): boolean {
+    return this.isDashboardRoute(routeUrl) || this.isCurrentProfileRoute(profileId, routeUrl);
   }
 
   private managedMemberId(url = this.router.url): string | null {

@@ -40,7 +40,7 @@ interface CategoryRow extends DistributionRow {
 export class ManagerDashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
   private readonly dashboardService = inject(DashboardService);
   private readonly countFormatter = new Intl.NumberFormat('en-US');
-  private readonly percentageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+  private readonly percentageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
   private readonly timestampFormatter = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',

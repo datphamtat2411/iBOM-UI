@@ -98,7 +98,33 @@ describe('ManagerDashboardComponent', () => {
     expect(categoryRows[0].textContent).toContain('11%');
     expect(categoryRows[1].textContent).toContain('Uncategorized');
     expect(categoryRows[1].textContent).toContain('89%');
-    expect(categoryRows[2].textContent).toContain('16.7%');
+    expect(component.otherCategoryPercentage).toBeCloseTo(16.67, 2);
+    expect(categoryRows[2].textContent).toContain('17%');
+    expect(categoryRows[2].textContent).not.toContain('10%');
+  });
+
+  it('formats zero and malformed percentages safely as whole numbers', () => {
+    expect(component.formatPercentage(0)).toBe('0%');
+    expect(component.formatPercentage(Number.NaN)).toBe('0%');
+    expect(component.formatPercentage(Number.POSITIVE_INFINITY)).toBe('0%');
+  });
+
+  it('shows the canonical empty-state message for both skill distributions', () => {
+    fixture.detectChanges();
+    response$.next({
+      ...stats,
+      primarySkillDistribution: { items: [], otherProfileCount: 0 },
+      skillCategoryDistribution: { items: [], otherProfileCount: 0 },
+    });
+    response$.complete();
+    fixture.detectChanges();
+
+    const emptyStates = Array.from(fixture.nativeElement.querySelectorAll('.analytics-panel .empty-state')) as HTMLElement[];
+    expect(emptyStates.length).toBe(2);
+    expect(emptyStates.map((state) => state.textContent?.trim())).toEqual([
+      'No skill data available.',
+      'No skill data available.',
+    ]);
   });
 
   it('prevents duplicate refreshes, retains data after refresh failure, and timestamps only successful responses', () => {

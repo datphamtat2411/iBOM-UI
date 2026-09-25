@@ -1,10 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { By } from '@angular/platform-browser';
 import { NavigationEnd, provideRouter, Router } from '@angular/router';
 import { signal } from '@angular/core';
 import { of, Subject, throwError } from 'rxjs';
 
 import { NotificationService } from '../../core/notifications/notification.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { ProfileCopyComponent } from '../profile/components/profile-copy/profile-copy.component';
 import { ProfileContextService } from '../profile/services/profile-context.service';
 import { ProfileEditSessionService } from '../profile/services/profile-edit-session.service';
 import { ApplicationShellComponent } from './application-shell.component';
@@ -26,7 +29,7 @@ describe('ApplicationShellComponent', () => {
     };
     await TestBed.configureTestingModule({
       imports: [ApplicationShellComponent],
-      providers: [provideRouter([]), { provide: AuthService, useValue: auth }, { provide: ProfileContextService, useValue: profileContext }],
+      providers: [provideRouter([]), provideHttpClient(), { provide: AuthService, useValue: auth }, { provide: ProfileContextService, useValue: profileContext }],
     }).compileComponents();
     fixture = TestBed.createComponent(ApplicationShellComponent);
     editSession = TestBed.inject(ProfileEditSessionService);
@@ -455,6 +458,73 @@ describe('ApplicationShellComponent', () => {
     expect(profileContext.selectedId()).toBe('1');
   });
 
+  it('opens Copy Profile from Dashboard for the selected own Profile without navigating', () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/dashboard');
+    profileContext.summaries.set([
+      { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+      { id: 2, profileName: 'Frontend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+    ]);
+    profileContext.selectedId.set('2');
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('.profile-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const copyButtons = fixture.nativeElement.querySelectorAll('.profile-menu-actions button') as NodeListOf<HTMLButtonElement>;
+    const copyAction = Array.from(copyButtons).find((button) => button.textContent?.includes('Copy Profile')) as HTMLButtonElement;
+    copyAction.click();
+    fixture.detectChanges();
+
+    const modal = fixture.debugElement.query(By.directive(ProfileCopyComponent));
+    expect(modal).not.toBeNull();
+    expect(modal.componentInstance.sourceProfileId).toBe('2');
+    expect(modal.componentInstance.sourceProfileName).toBe('Frontend CV');
+    expect(fixture.componentInstance.copySource).toEqual({ id: '2', name: 'Frontend CV' });
+    expect(router.url).toBe('/dashboard');
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('closes the Dashboard Copy workflow when the selected source Profile changes', async () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/dashboard');
+    profileContext.summaries.set([
+      { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+      { id: 2, profileName: 'Frontend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' },
+    ]);
+    profileContext.selectedId.set('2');
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    component.openCopyProfile();
+    fixture.detectChanges();
+    expect(component.copyModalOpen).toBeTrue();
+
+    profileContext.selectedId.set('1');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.copyModalOpen).toBeFalse();
+    expect(component.copySource).toBeNull();
+    expect(fixture.debugElement.query(By.directive(ProfileCopyComponent))).toBeNull();
+  });
+
+  it('does not start own-Profile Copy from a managed Member route', async () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/members/10/profiles/2');
+    profileContext.summaries.set([{ id: 1, profileName: 'My CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.selectedId.set('1');
+    profileContext.managedMember.set({ id: '10', username: 'managed-user' });
+    fixture.detectChanges();
+
+    fixture.componentInstance.openCopyProfile();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.copyModalOpen).toBeFalse();
+    expect(fixture.componentInstance.copySource).toBeNull();
+    expect(fixture.debugElement.query(By.directive(ProfileCopyComponent))).toBeNull();
+  });
+
   it('refreshes summaries, selects, navigates, and notifies after a successful Copy', async () => {
     const router = TestBed.inject(Router);
     spyOn(router, 'navigate').and.resolveTo(true);
@@ -531,6 +601,8 @@ describe('ApplicationShellComponent', () => {
   });
 
   it('coordinates dirty state before opening Copy and does not open when changes are kept', async () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
     const component = fixture.componentInstance;
     profileContext.summaries.set([{ id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
     profileContext.selectedId.set('1');

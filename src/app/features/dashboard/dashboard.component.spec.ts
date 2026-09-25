@@ -170,7 +170,7 @@ describe('DashboardComponent', () => {
     ]);
   });
 
-  it('renders API completeness with up to two decimal places', () => {
+  it('renders API completeness rounded to the nearest whole percent', () => {
     const stats = statsFor(firstSummary);
     stats.completeness.percentage = 13.33;
     dashboardService.getMemberStats.and.returnValue(of(stats));
@@ -179,7 +179,26 @@ describe('DashboardComponent', () => {
     profileContext.detail.set(detailFor(firstSummary));
     createFixture();
 
-    expect(fixture.nativeElement.querySelector('.metric')?.textContent).toContain('13.33%');
+    const metric = fixture.nativeElement.querySelector('.metric') as HTMLElement;
+    expect(metric.textContent?.trim()).toBe('13%');
+
+    const renderPercentage = (percentage: number): string => {
+      fixture.componentInstance.stats.update((current) => current && ({
+        ...current,
+        completeness: { ...current.completeness, percentage },
+      }));
+      fixture.detectChanges();
+      return metric.textContent?.trim() ?? '';
+    };
+
+    expect(renderPercentage(83.4)).toBe('83%');
+    expect(renderPercentage(83.5)).toBe('84%');
+    expect(renderPercentage(0)).toBe('0%');
+    expect(renderPercentage(100)).toBe('100%');
+    expect(fixture.componentInstance.formatPercentage(null)).toBe('—');
+    expect(fixture.componentInstance.formatPercentage(undefined)).toBe('—');
+    expect(fixture.componentInstance.formatPercentage(Number.NaN)).toBe('—');
+    expect(fixture.componentInstance.formatPercentage(Number.POSITIVE_INFINITY)).toBe('—');
   });
 
   it('uses selected Profile detail for Preview state and formats an export in ICT', () => {

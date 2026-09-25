@@ -81,7 +81,7 @@ export class DashboardComponent implements OnDestroy {
   }
 
   formatPercentage(value: number | null | undefined): string {
-    return value === null || value === undefined || !Number.isFinite(value) ? '—' : `${this.percentageFormatter.format(value)}%`;
+    return value === null || value === undefined || !Number.isFinite(value) ? '—' : `${this.percentageFormatter.format(Math.round(value))}%`;
   }
 
   formatTimestamp(value: string | null | undefined): string {
