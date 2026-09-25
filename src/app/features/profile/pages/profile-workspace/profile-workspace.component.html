@@ -23,9 +23,9 @@
        @if (isManagedContext) { <div class="notice info" role="status"><strong>Managed Member Profile:</strong> Viewing {{ managedMemberLabel() }}. Profile management actions are limited to the selected Member context.</div> }
        <div class="workspace-grid">
         <nav class="section-nav" aria-label="Profile sections">
-          @for (section of sections; track section[0]) {
-            <button type="button" [class.active]="activeSection === section[0]" [attr.aria-current]="activeSection === section[0] ? 'true' : null" (click)="scrollToSection(section[0])">{{ section[1] }}</button>
-          }
+           @for (section of sections; track section[0]) {
+             <button type="button" [class.active]="activeSection === section[0]" [attr.aria-current]="activeSection === section[0] ? 'true' : null" (click)="scrollToSection(section[0])"><span>{{ section[1] }}</span><span class="section-score mono" [attr.aria-label]="section[1] + ' completeness contribution'">{{ sectionScore(section[0]) }}</span></button>
+           }
         </nav>
         <div class="workspace-sections">
           <app-about-me-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('about')" (interactionActiveChange)="mutationInteractionChanged('about', $event)"></app-about-me-section>

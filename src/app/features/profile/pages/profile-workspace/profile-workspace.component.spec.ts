@@ -6,6 +6,8 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, Subject, of, throwError } from 'rxjs';
 
 import { NotificationService } from '../../../../core/notifications/notification.service';
+import { DashboardService } from '../../../dashboard/services/dashboard.service';
+import { MemberDashboardStats } from '../../../dashboard/models/dashboard.models';
 import { ProfileDetail, ProfileSummary } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
@@ -21,6 +23,7 @@ describe('ProfileWorkspaceComponent', () => {
   let fixture: ComponentFixture<ProfileWorkspaceComponent>;
   let params: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
   let router: { navigate: jasmine.Spy };
+  let dashboardService: { getMemberStats: jasmine.Spy };
   let context: {
     summaries: ReturnType<typeof signal>;
     summariesLoading: ReturnType<typeof signal>;
@@ -56,9 +59,29 @@ describe('ProfileWorkspaceComponent', () => {
   const summary: ProfileSummary = { id: 1, profileName: 'Backend CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' };
   const detail: ProfileDetail = { ...summary, yearsOfExperience: 5, personality: 'Methodical', technicalSummary: 'Angular and Java', hasPreviewed: true, version: 3, createdAt: '2026-01-01', lastExportedAt: null, preferredFileNameFormatId: null };
 
+  function statsFor(profile: ProfileSummary): MemberDashboardStats {
+    return {
+      selectedProfile: profile,
+      completeness: {
+        percentage: 68.33,
+        completed: false,
+        sections: [
+          { key: 'aboutMe', weight: 20, completed: false, validFieldCount: 4, fieldCount: 6 },
+          { key: 'education', weight: 20, completed: true, hasQualifyingRecord: true },
+          { key: 'language', weight: 15, completed: true, hasQualifyingRecord: true },
+          { key: 'certificate', weight: 15, completed: false, hasQualifyingRecord: false },
+          { key: 'project', weight: 20, completed: true, hasQualifyingRecord: true },
+          { key: 'skills', weight: 10, completed: false, hasQualifyingRecord: false },
+        ],
+      },
+      latestExportedAt: null,
+    };
+  }
+
   beforeEach(async () => {
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
     router = { navigate: jasmine.createSpy('navigate') };
+    dashboardService = { getMemberStats: jasmine.createSpy('getMemberStats').and.returnValue(of(statsFor(summary))) };
     profiles = {
       delete: jasmine.createSpy('delete'),
       listEducations: jasmine.createSpy('listEducations').and.returnValue(of([])),
@@ -102,6 +125,7 @@ describe('ProfileWorkspaceComponent', () => {
       imports: [ProfileWorkspaceComponent],
       providers: [
         { provide: ProfileService, useValue: profiles },
+        { provide: DashboardService, useValue: dashboardService },
         { provide: ProfileContextService, useValue: context },
         { provide: ActivatedRoute, useValue: { paramMap: params } },
         { provide: Router, useValue: router },
@@ -109,6 +133,7 @@ describe('ProfileWorkspaceComponent', () => {
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(ProfileWorkspaceComponent);
+    fixture.detectChanges();
     fixture.detectChanges();
   });
 
@@ -211,11 +236,71 @@ describe('ProfileWorkspaceComponent', () => {
     context.detail.set({ ...detail, id: 2, profileName: 'Frontend CV' });
     params.next(convertToParamMap({ profileId: '2' }));
     fixture.detectChanges();
+    fixture.detectChanges();
 
     expect(context.loadDetail).toHaveBeenCalledWith('2');
     expect(fixture.componentInstance.activeSection).toBe('about');
     expect(fixture.componentInstance.mutationOwner).toBeNull();
     expect(about().profile.id).toBe(2);
+  });
+
+  it('renders each completeness contribution beside its Workspace section', () => {
+    const scores = Array.from(fixture.nativeElement.querySelectorAll('.section-score') as NodeListOf<Element>)
+      .map((score) => score.textContent?.trim());
+
+    expect(dashboardService.getMemberStats).toHaveBeenCalledWith('1');
+    expect(scores).toEqual(['13.33 / 20', '20 / 20', '15 / 15', '0 / 15', '20 / 20', '0 / 10']);
+  });
+
+  it('clears the previous contribution while a switched Profile score loads and replaces it with the new score', () => {
+    const pendingStats = new Subject<MemberDashboardStats>();
+    dashboardService.getMemberStats.and.returnValue(pendingStats);
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2, profileName: 'Frontend CV' });
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
+
+    expect(Array.from(fixture.nativeElement.querySelectorAll('.section-score') as NodeListOf<Element>)
+      .every((score) => score.textContent?.trim() === '—')).toBeTrue();
+
+    pendingStats.next(statsFor({ ...summary, id: 2, profileName: 'Frontend CV' }));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.section-score')?.textContent?.trim()).toBe('13.33 / 20');
+  });
+
+  it('uses placeholders when Workspace completeness cannot be loaded', () => {
+    dashboardService.getMemberStats.and.returnValue(throwError(() => new Error('Dashboard unavailable')));
+    context.selectedId.set('2');
+    context.detail.set({ ...detail, id: 2, profileName: 'Unavailable CV' });
+    params.next(convertToParamMap({ profileId: '2' }));
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    expect(Array.from(fixture.nativeElement.querySelectorAll('.section-score') as NodeListOf<Element>)
+      .every((score) => score.textContent?.trim() === '—')).toBeTrue();
+  });
+
+  it('loads the same contribution scores for a managed Member Profile', () => {
+    const managedProfile = { ...detail, id: 2, profileName: 'Managed CV' };
+    dashboardService.getMemberStats.and.callFake((profileId: string | number) => of(statsFor({ ...summary, id: profileId, profileName: 'Managed CV' })));
+    context.loadManagedMember.and.callFake((member: { id: string }, profileId: string | null) => {
+      context.managedMember.set(member);
+      context.managedSummaries.set([{ ...summary, id: 2, profileName: 'Managed CV' }]);
+      context.managedSummariesLoading.set(false);
+      context.managedSummariesError.set(null);
+      context.managedSelectedId.set(profileId);
+      context.managedDetail.set(managedProfile);
+      context.managedDetailLoading.set(false);
+      context.managedDetailError.set(null);
+    });
+
+    params.next(convertToParamMap({ memberId: '10', profileId: '2' }));
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    expect(dashboardService.getMemberStats).toHaveBeenCalledWith('2');
+    expect(fixture.nativeElement.querySelector('.section-score')?.textContent?.trim()).toBe('13.33 / 20');
   });
 
   it('navigates to Preview using the selected Profile ID', () => {

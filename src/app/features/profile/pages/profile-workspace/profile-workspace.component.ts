@@ -1,8 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject } from '@angular/core';
+import { Component, effect, inject, OnDestroy, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { DashboardCompletenessSection, MemberDashboardStats } from '../../../dashboard/models/dashboard.models';
+import { DashboardService } from '../../../dashboard/services/dashboard.service';
 import { ManagedMemberContext, ProfileDetail, ProfileSummary } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
@@ -22,12 +25,16 @@ import { SkillSectionComponent } from './sections/skill-section/skill-section.co
   templateUrl: './profile-workspace.component.html',
   styleUrl: './profile-workspace.component.scss',
 })
-export class ProfileWorkspaceComponent {
+export class ProfileWorkspaceComponent implements OnDestroy {
+  private readonly dashboardService = inject(DashboardService);
   private readonly profileService = inject(ProfileService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly context = inject(ProfileContextService);
   readonly editSession = inject(ProfileEditSessionService);
+  readonly workspaceStats = signal<MemberDashboardStats | null>(null);
+  readonly workspaceStatsLoading = signal(false);
+  readonly workspaceStatsError = signal<unknown | null>(null);
 
   readonly sections: ReadonlyArray<readonly [ProfileWorkspaceSection, string]> = [
     ['about', 'About Me'],
@@ -50,10 +57,26 @@ export class ProfileWorkspaceComponent {
   private activeProfileId: string | null = null;
   private activeMemberId: string | null = null;
   private profileDeleteGeneration = 0;
+  private workspaceStatsSubscription: Subscription | null = null;
+  private workspaceStatsGeneration = 0;
+  private workspaceStatsProfileId: string | null = null;
+  private readonly workspaceRouteGeneration = signal(0);
   isManagedContext = false;
+
+  readonly completenessKeys: Readonly<Record<ProfileWorkspaceSection, string>> = {
+    about: 'aboutMe',
+    education: 'education',
+    languages: 'language',
+    certificates: 'certificate',
+    projects: 'project',
+    skills: 'skills',
+  };
+
+  private readonly percentageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
   constructor() {
     this.route.paramMap.subscribe((params) => {
+      this.workspaceRouteGeneration.update((generation) => generation + 1);
       this.profileDeleteGeneration++;
       this.isDeleting = false;
       this.mutationOwner = null;
@@ -73,6 +96,17 @@ export class ProfileWorkspaceComponent {
         else this.context.beginSelection(null);
       }
     });
+    effect(() => {
+      this.workspaceRouteGeneration();
+      const selectedId = this.workspaceSelectedId();
+      const summariesLoading = this.workspaceSummariesLoading();
+      const summariesError = this.workspaceSummariesError();
+      if (!selectedId || summariesLoading || summariesError) {
+        this.clearWorkspaceStats();
+        return;
+      }
+      this.observeWorkspaceStats(selectedId);
+    }, { allowSignalWrites: true });
     effect(() => {
       if (this.isManagedContext) {
         const member = this.context.managedMember();
@@ -113,6 +147,11 @@ export class ProfileWorkspaceComponent {
         },
       });
     }, { allowSignalWrites: true });
+  }
+
+  ngOnDestroy(): void {
+    this.workspaceStatsGeneration++;
+    this.workspaceStatsSubscription?.unsubscribe();
   }
 
   selectProfile(profileId: number | string): void {
@@ -215,6 +254,18 @@ export class ProfileWorkspaceComponent {
 
   workspaceDetailError(): unknown | null {
     return this.isManagedContext ? this.context.managedDetailError() : this.context.detailError();
+  }
+
+  sectionScore(section: ProfileWorkspaceSection): string {
+    const stats = this.workspaceStats();
+    if (!stats || this.workspaceStatsLoading() || this.workspaceStatsError()) return '—';
+
+    const completenessSection = stats.completeness?.sections?.find(
+      (candidate) => candidate.key === this.completenessKeys[section],
+    );
+    if (!completenessSection) return '—';
+
+    return `${this.percentageFormatter.format(this.sectionPercentage(completenessSection))} / ${this.percentageFormatter.format(completenessSection.weight)}`;
   }
 
   managedMemberLabel(): string {
@@ -337,6 +388,61 @@ export class ProfileWorkspaceComponent {
     const state = typeof history !== 'undefined' ? history.state?.managedMember : null;
     if (!state || String(state.id) !== memberId) return { id: memberId };
     return { id: memberId, username: state.username, email: state.email };
+  }
+
+  private observeWorkspaceStats(profileId: string): void {
+    if (this.workspaceStatsProfileId === profileId) return;
+
+    const generation = ++this.workspaceStatsGeneration;
+    this.workspaceStatsSubscription?.unsubscribe();
+    this.workspaceStatsProfileId = profileId;
+    this.workspaceStats.set(null);
+    this.workspaceStatsError.set(null);
+    this.workspaceStatsLoading.set(true);
+
+    this.workspaceStatsSubscription = this.dashboardService.getMemberStats(profileId).subscribe({
+      next: (stats) => {
+        if (!this.isCurrentWorkspaceStatsRequest(profileId, generation)) return;
+        if (!stats?.selectedProfile || String(stats.selectedProfile.id) !== profileId) {
+          this.workspaceStatsLoading.set(false);
+          this.workspaceStatsError.set(new Error('Dashboard statistics did not match the selected Profile.'));
+          return;
+        }
+        this.workspaceStats.set(stats);
+        this.workspaceStatsLoading.set(false);
+        this.workspaceStatsError.set(null);
+      },
+      error: (error: unknown) => {
+        if (!this.isCurrentWorkspaceStatsRequest(profileId, generation)) return;
+        this.workspaceStatsLoading.set(false);
+        this.workspaceStatsError.set(error);
+      },
+    });
+  }
+
+  private clearWorkspaceStats(): void {
+    if (this.workspaceStatsProfileId === null && !this.workspaceStats() && !this.workspaceStatsLoading() && !this.workspaceStatsError()) return;
+    this.workspaceStatsGeneration++;
+    this.workspaceStatsSubscription?.unsubscribe();
+    this.workspaceStatsSubscription = null;
+    this.workspaceStatsProfileId = null;
+    this.workspaceStats.set(null);
+    this.workspaceStatsLoading.set(false);
+    this.workspaceStatsError.set(null);
+  }
+
+  private isCurrentWorkspaceStatsRequest(profileId: string, generation: number): boolean {
+    return this.workspaceStatsGeneration === generation
+      && this.workspaceStatsProfileId === profileId
+      && this.workspaceSelectedId() === profileId;
+  }
+
+  private sectionPercentage(section: DashboardCompletenessSection): number {
+    if (section.validFieldCount !== undefined && section.fieldCount !== undefined) {
+      return section.fieldCount > 0 ? (section.validFieldCount / section.fieldCount) * section.weight : 0;
+    }
+    if (section.hasQualifyingRecord !== undefined) return section.hasQualifyingRecord ? section.weight : 0;
+    return section.completed ? section.weight : 0;
   }
 
   private apiError(error: unknown): ApiErrorResponse | undefined {
