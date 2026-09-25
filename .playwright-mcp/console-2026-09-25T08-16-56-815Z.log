@@ -1,0 +1,2 @@
+[     186ms] [LOG] Angular is running in development mode. @ http://localhost:4200/chunk-5JONPCAR.js:17947
+[ 1093851ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4200/api/master/file-name-formats?page=0&size=10:0

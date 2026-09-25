@@ -1,0 +1,125 @@
+- generic [ref=f2e76]:
+  - complementary "Application sidebar" [ref=f2e77]:
+    - link "iBOM Homepage" [ref=f2e78] [cursor=pointer]:
+      - /url: /
+      - generic [ref=f2e83]:
+        - strong [ref=f2e84]: iBOM
+        - generic [ref=f2e85]: Workspace
+    - navigation "Application navigation" [ref=f2e86]:
+      - generic [ref=f2e87]:
+        - paragraph [ref=f2e88]: Workspace
+        - link "01 Dashboard" [ref=f2e89] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=f2e90]: "01"
+          - generic [ref=f2e91]: Dashboard
+        - link "02 Profile Workspace" [ref=f2e92] [cursor=pointer]:
+          - /url: /profiles
+          - generic [ref=f2e93]: "02"
+          - generic [ref=f2e94]: Profile Workspace
+      - generic [ref=f2e95]:
+        - paragraph [ref=f2e96]: Management
+        - link "01 Manager Dashboard" [ref=f2e97] [cursor=pointer]:
+          - /url: /dashboard/manager
+          - generic [ref=f2e98]: "01"
+          - generic [ref=f2e99]: Manager Dashboard
+        - link "02 Member Management" [ref=f2e100] [cursor=pointer]:
+          - /url: /members
+          - generic [ref=f2e101]: "02"
+          - generic [ref=f2e102]: Member Management
+        - link "03 User Management" [ref=f2e103] [cursor=pointer]:
+          - /url: /users
+          - generic [ref=f2e104]: "03"
+          - generic [ref=f2e105]: User Management
+        - button "04 Master Data" [ref=f2e106] [cursor=pointer]:
+          - generic [ref=f2e107]: "04"
+          - generic [ref=f2e108]: Master Data
+    - generic "Current account" [ref=f2e110]:
+      - button "T test01 ADMIN" [ref=f2e111] [cursor=pointer]:
+        - generic [ref=f2e112]: T
+        - generic [ref=f2e113]:
+          - strong [ref=f2e114]: test01
+          - generic [ref=f2e115]: ADMIN
+  - main [ref=f2e116]:
+    - generic [ref=f2e117]: Member Management
+    - region [ref=f2e122]:
+      - generic [ref=f2e124]:
+        - paragraph [ref=f2e125]: Management / Members
+        - heading "Member Management" [level=1] [ref=f2e126]
+        - paragraph [ref=f2e127]: Find Members by account fields or conditions that match within the same Profile.
+      - region [ref=f2e128]:
+        - generic [ref=f2e129]:
+          - generic [ref=f2e130]:
+            - heading "Match all filters" [level=2] [ref=f2e131]
+            - paragraph [ref=f2e132]: Account fields and Profile conditions are applied together. Profile conditions match within the same Profile.
+          - generic [ref=f2e133]: AND · SAME PROFILE
+        - generic [ref=f2e134]:
+          - generic [ref=f2e135]:
+            - generic [ref=f2e136]: Username or email
+            - searchbox "Username or email" [ref=f2e137]
+          - generic [ref=f2e138]:
+            - generic [ref=f2e139]: Account status
+            - combobox "Account status" [ref=f2e140]:
+              - option "All statuses" [selected]
+              - option "ACTIVE"
+              - option "INACTIVE"
+        - generic [ref=f2e141]:
+          - tablist "Profile condition type" [ref=f2e142]:
+            - tab "Languages 0" [selected] [ref=f2e143] [cursor=pointer]:
+              - generic [ref=f2e144]: Languages
+              - generic [ref=f2e145]: "0"
+            - tab "Skills 0" [ref=f2e146] [cursor=pointer]:
+              - generic [ref=f2e147]: Skills
+              - generic [ref=f2e148]: "0"
+          - tabpanel "Languages 0" [ref=f2e149]:
+            - generic [ref=f2e151]:
+              - heading "Add Language" [level=3] [ref=f2e152]
+              - paragraph [ref=f2e153]: Choose a Language and proficiency before adding it to the filters.
+            - generic [ref=f2e154]:
+              - generic [ref=f2e155]:
+                - generic [ref=f2e156]: Language
+                - combobox "Select a Language..." [ref=f2e159] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f2e161]: ▾
+              - generic [ref=f2e162]:
+                - generic [ref=f2e163]: Level (optional)
+                - combobox "Level (optional)" [ref=f2e164]:
+                  - option "Any Level" [selected]
+                  - option "Beginner"
+                  - option "Intermediate"
+                  - option "Upper Intermediate"
+                  - option "Advanced"
+                  - option "Native"
+              - button "Add Language" [disabled] [ref=f2e165]
+        - region [ref=f2e166]:
+          - generic [ref=f2e167]:
+            - heading "Selected conditions" [level=3] [ref=f2e168]
+            - generic [ref=f2e169]: 0 selected
+          - paragraph [ref=f2e170]: No Language or Skill conditions selected.
+        - generic [ref=f2e171]:
+          - generic [ref=f2e172]: Apply account filters and Profile conditions together.
+          - button "Apply filters" [ref=f2e174] [cursor=pointer]
+      - generic [ref=f2e175]:
+        - heading "1 Member" [level=2] [ref=f2e176]
+        - generic [ref=f2e177]: Backend-ordered Member list
+      - table "1 Member" [ref=f2e179]:
+        - caption [ref=f2e180]: Member records
+        - rowgroup [ref=f2e181]:
+          - row [ref=f2e182]:
+            - columnheader "Username" [ref=f2e183]
+            - columnheader "Email" [ref=f2e184]
+            - columnheader "Account status" [ref=f2e185]
+            - columnheader "Active Profiles" [ref=f2e186]
+            - columnheader "Last updated" [ref=f2e187]
+            - columnheader "Matching Profile evidence" [ref=f2e188]
+            - columnheader "Actions" [ref=f2e189]
+        - rowgroup [ref=f2e190]:
+          - row [ref=f2e191]:
+            - cell [ref=f2e192]:
+              - strong [ref=f2e193]: datphamtat19
+            - cell "datphamtat19@gmail.com" [ref=f2e194]
+            - cell "ACTIVE" [ref=f2e195]
+            - cell "1" [ref=f2e197]
+            - cell [ref=f2e198]:
+              - time [ref=f2e199]: Sep 22, 2026, 3:32 PM
+            - cell "—" [ref=f2e200]
+            - cell [ref=f2e201]:
+              - button "Manage Profiles for datphamtat19" [ref=f2e202] [cursor=pointer]: Manage Profiles

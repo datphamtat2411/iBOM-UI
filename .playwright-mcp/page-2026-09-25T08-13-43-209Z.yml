@@ -1,0 +1,198 @@
+- generic [ref=f1e150]:
+  - complementary "Application sidebar" [ref=f1e151]:
+    - link "iBOM Homepage" [ref=f1e152] [cursor=pointer]:
+      - /url: /
+      - generic [ref=f1e157]:
+        - strong [ref=f1e158]: iBOM
+        - generic [ref=f1e159]: Workspace
+    - navigation "Application navigation" [ref=f1e160]:
+      - generic [ref=f1e161]:
+        - paragraph [ref=f1e162]: Workspace
+        - link "01 Dashboard" [ref=f1e163] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=f1e164]: "01"
+          - generic [ref=f1e165]: Dashboard
+        - link "02 Profile Workspace" [ref=f1e166] [cursor=pointer]:
+          - /url: /profiles
+          - generic [ref=f1e167]: "02"
+          - generic [ref=f1e168]: Profile Workspace
+      - generic [ref=f1e169]:
+        - paragraph [ref=f1e170]: Management
+        - link "01 Manager Dashboard" [ref=f1e171] [cursor=pointer]:
+          - /url: /dashboard/manager
+          - generic [ref=f1e172]: "01"
+          - generic [ref=f1e173]: Manager Dashboard
+        - link "02 Member Management" [ref=f1e174] [cursor=pointer]:
+          - /url: /members
+          - generic [ref=f1e175]: "02"
+          - generic [ref=f1e176]: Member Management
+        - link "03 User Management" [ref=f1e177] [cursor=pointer]:
+          - /url: /users
+          - generic [ref=f1e178]: "03"
+          - generic [ref=f1e179]: User Management
+        - button "04 Master Data" [ref=f1e180] [cursor=pointer]:
+          - generic [ref=f1e181]: "04"
+          - generic [ref=f1e182]: Master Data
+    - generic "Current account" [ref=f1e184]:
+      - button "T test01 ADMIN" [ref=f1e185] [cursor=pointer]:
+        - generic [ref=f1e186]: T
+        - generic [ref=f1e187]:
+          - strong [ref=f1e188]: test01
+          - generic [ref=f1e189]: ADMIN
+  - main [ref=f1e190]:
+    - button "My Profile java" [ref=f1e384] [cursor=pointer]:
+      - generic [ref=f1e195]:
+        - generic [ref=f1e196]: My Profile
+        - strong [ref=f1e197]: java
+      - generic [aria-hidden] [ref=f1e198]: ⌄
+    - region [ref=f1e201]:
+      - generic [ref=f1e385]:
+        - generic [ref=f1e386]:
+          - heading "Profile Workspace" [level=1] [ref=f1e387]
+          - paragraph [ref=f1e388]: java · About Me and Profile-specific content
+        - generic [ref=f1e389]:
+          - button "Preview CV" [ref=f1e390] [cursor=pointer]
+          - button "Delete Profile" [disabled] [ref=f1e391]
+      - generic [ref=f1e392]:
+        - navigation "Profile sections" [ref=f1e393]:
+          - button "About Me About Me completeness contribution" [ref=f1e394] [cursor=pointer]:
+            - generic [ref=f1e395]: About Me
+            - generic "About Me completeness contribution" [ref=f1e396]: 20 / 20
+          - button "Education Education completeness contribution" [ref=f1e397] [cursor=pointer]:
+            - generic [ref=f1e398]: Education
+            - generic "Education completeness contribution" [ref=f1e399]: 20 / 20
+          - button "Languages Languages completeness contribution" [ref=f1e400] [cursor=pointer]:
+            - generic [ref=f1e401]: Languages
+            - generic "Languages completeness contribution" [ref=f1e402]: 15 / 15
+          - button "Certificates Certificates completeness contribution" [ref=f1e403] [cursor=pointer]:
+            - generic [ref=f1e404]: Certificates
+            - generic "Certificates completeness contribution" [ref=f1e405]: 0 / 15
+          - button "Projects Projects completeness contribution" [ref=f1e406] [cursor=pointer]:
+            - generic [ref=f1e407]: Projects
+            - generic "Projects completeness contribution" [ref=f1e408]: 20 / 20
+          - button "Skills Skills completeness contribution" [ref=f1e409] [cursor=pointer]:
+            - generic [ref=f1e410]: Skills
+            - generic "Skills completeness contribution" [ref=f1e411]: 0 / 10
+        - generic [ref=f1e412]:
+          - region [ref=f1e414]:
+            - generic [ref=f1e415]:
+              - generic [ref=f1e416]:
+                - heading "About Me" [level=2] [ref=f1e417]
+                - paragraph [ref=f1e418]: Identity and narrative details for this Profile.
+              - button "Edit" [disabled] [ref=f1e419]
+            - generic [ref=f1e420]:
+              - generic [ref=f1e421]:
+                - generic [ref=f1e422]: Profile Name
+                - paragraph [ref=f1e423]: java
+              - generic [ref=f1e424]:
+                - generic [ref=f1e425]: First Name
+                - paragraph [ref=f1e426]: Minh Anh
+              - generic [ref=f1e427]:
+                - generic [ref=f1e428]: Last Name
+                - paragraph [ref=f1e429]: Nguyen
+            - generic "Professional context" [ref=f1e430]:
+              - generic [ref=f1e431]:
+                - generic [ref=f1e432]: Job Title
+                - paragraph [ref=f1e433]: Senior Java Backend Engineer
+              - generic [ref=f1e434]:
+                - generic [ref=f1e435]: Years of Experience
+                - paragraph [ref=f1e436]: "7.5"
+            - generic [ref=f1e437]:
+              - heading "Personality / Characteristic Description" [level=3] [ref=f1e438]
+              - paragraph [ref=f1e439]: Methodical and dependable engineer who enjoys turning ambiguous operational problems into clear technical plans. Communicates trade-offs early, documents decisions, and supports teammates through practical reviews and pairing. Comfortable owning production incidents while remaining calm and evidence-led.
+              - heading "Technical Summary" [level=3] [ref=f1e440]
+              - paragraph [ref=f1e441]: Backend engineer specializing in Java and Spring Boot services for high-volume enterprise platforms. Experienced with event-driven architecture, API design, relational data modeling, containerized delivery, observability, and production performance tuning. Has led service decomposition and migration work across distributed teams, with hands-on responsibility from discovery and design through release support.
+          - region [ref=f1e443]:
+            - generic [ref=f1e444]:
+              - generic [ref=f1e445]:
+                - heading "Education" [level=2] [ref=f1e446]
+                - paragraph [ref=f1e447]: Academic background records for this Profile.
+              - button "Add education" [disabled] [ref=f1e448]
+            - generic [ref=f1e449]:
+              - generic [ref=f1e450]:
+                - generic [ref=f1e451]:
+                  - heading "Master of Science, Information Systems" [level=3] [ref=f1e452]
+                  - paragraph [ref=f1e453]: University of Engineering and Technology, VNU Hanoi
+                - generic [ref=f1e454]:
+                  - generic [ref=f1e455]: COMPLETED
+                  - generic [ref=f1e456]: 1999-02-04 - 2005-02-04
+                  - generic [ref=f1e457]:
+                    - button "Edit" [disabled] [ref=f1e458]
+                    - button "Delete Master of Science, Information Systems at University of Engineering and Technology, VNU Hanoi" [disabled] [ref=f1e459]:
+                      - generic [aria-hidden] [ref=f1e460]: −
+              - generic [ref=f1e461]:
+                - generic [ref=f1e462]:
+                  - heading "Bachelor of Engineering, Computer Science" [level=3] [ref=f1e463]
+                  - paragraph [ref=f1e464]: Ho Chi Minh City University of Technology
+                - generic [ref=f1e465]:
+                  - generic [ref=f1e466]: COMPLETED
+                  - generic [ref=f1e467]: 1996-02-04 - 1999-02-04
+                  - generic [ref=f1e468]:
+                    - button "Edit" [disabled] [ref=f1e469]
+                    - button "Delete Bachelor of Engineering, Computer Science at Ho Chi Minh City University of Technology" [disabled] [ref=f1e470]:
+                      - generic [aria-hidden] [ref=f1e471]: −
+          - region [ref=f1e473]:
+            - generic [ref=f1e474]:
+              - generic [ref=f1e475]:
+                - heading "Languages" [level=2] [ref=f1e476]
+                - paragraph [ref=f1e477]: Profile-specific language records and controlled proficiency levels.
+              - button "Add language" [disabled] [ref=f1e478]
+            - generic [ref=f1e480]:
+              - generic [ref=f1e481]:
+                - heading "English" [level=3] [ref=f1e482]
+                - paragraph [ref=f1e483]: Upper Intermediate
+              - generic [ref=f1e484]:
+                - generic [ref=f1e485]: LANGUAGE
+                - generic [ref=f1e486]:
+                  - button "Edit" [disabled] [ref=f1e487]
+                  - button "Delete English (Upper Intermediate)" [disabled] [ref=f1e488]:
+                    - generic [aria-hidden] [ref=f1e489]: −
+          - region [ref=f1e491]:
+            - generic [ref=f1e492]:
+              - generic [ref=f1e493]:
+                - heading "Certificates" [level=2] [ref=f1e494]
+                - paragraph [ref=f1e495]: Profile-specific certificate records for this CV version.
+              - button "Add certificate" [active] [ref=f1e496] [cursor=pointer]
+            - generic [ref=f1e531]:
+              - generic [ref=f1e532]:
+                - heading "Certificate details" [level=3] [ref=f1e533]
+                - generic [ref=f1e534]:
+                  - generic [ref=f1e535]:
+                    - generic [ref=f1e536]: Certificate Name
+                    - textbox "Certificate Name" [ref=f1e537]
+                  - generic [ref=f1e538]:
+                    - generic [ref=f1e539]: Issue Date
+                    - textbox "Issue Date" [ref=f1e540]
+              - generic [ref=f1e541]:
+                - status [ref=f1e542]: No changes
+                - generic [ref=f1e543]:
+                  - button "Cancel" [ref=f1e544] [cursor=pointer]
+                  - button "Save & add another" [disabled] [ref=f1e545]
+                  - button "Add Certificate" [disabled] [ref=f1e546]
+          - region [ref=f1e501]:
+            - generic [ref=f1e502]:
+              - generic [ref=f1e503]:
+                - heading "Projects" [level=2] [ref=f1e504]
+                - paragraph [ref=f1e505]: Long-form project records prove role, scope, responsibility, and technology depth.
+              - button "Add project" [disabled] [ref=f1e506]
+            - article [ref=f1e508]:
+              - generic [ref=f1e509]:
+                - generic [ref=f1e510]:
+                  - heading "Global Order Orchestration Platform" [level=3] [ref=f1e511]
+                  - generic [ref=f1e512]: ONGOING
+                - paragraph [ref=f1e513]: Backend Technical Lead · 11 people
+                - paragraph [ref=f1e514]: Feb 2025 – Present
+              - generic [ref=f1e516]:
+                - button "Show details" [ref=f1e517] [cursor=pointer]
+                - button "Edit" [disabled] [ref=f1e518]
+                - button "Delete Global Order Orchestration Platform (Backend Technical Lead)" [disabled] [ref=f1e519]:
+                  - generic [aria-hidden] [ref=f1e520]: −
+          - region [ref=f1e522]:
+            - generic [ref=f1e523]:
+              - generic [ref=f1e524]:
+                - heading "Skills" [level=2] [ref=f1e525]
+                - paragraph [ref=f1e526]: Profile-specific skills with controlled Master Data classification.
+              - button "Add skill" [disabled] [ref=f1e527]
+            - generic [ref=f1e528]:
+              - paragraph [ref=f1e529]: No Skills exist in this Profile. Skills from another Profile are not inherited automatically.
+              - button "Add skill" [disabled] [ref=f1e530]

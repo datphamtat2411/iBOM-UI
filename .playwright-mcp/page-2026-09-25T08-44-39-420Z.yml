@@ -1,0 +1,191 @@
+- generic [ref=f7e4]:
+  - complementary "Application sidebar" [ref=f7e5]:
+    - link "iBOM Homepage" [ref=f7e6] [cursor=pointer]:
+      - /url: /
+    - navigation "Application navigation" [ref=f7e11]:
+      - generic [ref=f7e12]:
+        - link "01" [ref=f7e13] [cursor=pointer]:
+          - /url: /dashboard
+        - link "02" [ref=f7e15] [cursor=pointer]:
+          - /url: /profiles
+      - generic [ref=f7e17]:
+        - link "01" [ref=f7e18] [cursor=pointer]:
+          - /url: /dashboard/manager
+        - link "02" [ref=f7e20] [cursor=pointer]:
+          - /url: /members
+        - link "03" [ref=f7e22] [cursor=pointer]:
+          - /url: /users
+        - button "04" [ref=f7e24] [cursor=pointer]
+    - generic "Current account" [ref=f7e26]:
+      - button "T" [ref=f7e27] [cursor=pointer]
+  - main [ref=f7e29]:
+    - button "My Profile Java Backend CV_2" [ref=f7e33] [cursor=pointer]:
+      - generic [ref=f7e34]:
+        - generic [ref=f7e35]: My Profile
+        - strong [ref=f7e36]: Java Backend CV_2
+      - generic [aria-hidden] [ref=f7e37]: ⌄
+    - region [ref=f7e40]:
+      - generic [ref=f7e41]:
+        - generic [ref=f7e42]:
+          - heading "Profile Workspace" [level=1] [ref=f7e43]
+          - paragraph [ref=f7e44]: Java Backend CV_2 · About Me and Profile-specific content
+        - generic [ref=f7e45]:
+          - button "Preview CV" [ref=f7e46] [cursor=pointer]
+          - button "Delete Profile" [ref=f7e47] [cursor=pointer]
+      - generic [ref=f7e48]:
+        - navigation "Profile sections" [ref=f7e49]:
+          - button "About Me About Me completeness contribution" [ref=f7e50] [cursor=pointer]:
+            - generic [ref=f7e51]: About Me
+            - generic "About Me completeness contribution" [ref=f7e52]: 20 / 20
+          - button "Education Education completeness contribution" [ref=f7e53] [cursor=pointer]:
+            - generic [ref=f7e54]: Education
+            - generic "Education completeness contribution" [ref=f7e55]: 20 / 20
+          - button "Languages Languages completeness contribution" [ref=f7e56] [cursor=pointer]:
+            - generic [ref=f7e57]: Languages
+            - generic "Languages completeness contribution" [ref=f7e58]: 15 / 15
+          - button "Certificates Certificates completeness contribution" [ref=f7e59] [cursor=pointer]:
+            - generic [ref=f7e60]: Certificates
+            - generic "Certificates completeness contribution" [ref=f7e61]: 0 / 15
+          - button "Projects Projects completeness contribution" [ref=f7e62] [cursor=pointer]:
+            - generic [ref=f7e63]: Projects
+            - generic "Projects completeness contribution" [ref=f7e64]: 20 / 20
+          - button "Skills Skills completeness contribution" [ref=f7e65] [cursor=pointer]:
+            - generic [ref=f7e66]: Skills
+            - generic "Skills completeness contribution" [ref=f7e67]: 10 / 10
+        - generic [ref=f7e68]:
+          - region [ref=f7e70]:
+            - generic [ref=f7e71]:
+              - generic [ref=f7e72]:
+                - heading "About Me" [level=2] [ref=f7e73]
+                - paragraph [ref=f7e74]: Identity and narrative details for this Profile.
+              - button "Edit" [ref=f7e237] [cursor=pointer]
+            - generic [ref=f7e238]:
+              - generic [ref=f7e239]:
+                - generic [ref=f7e240]: Profile Name
+                - paragraph [ref=f7e241]: Java Backend CV_2
+              - generic [ref=f7e242]:
+                - generic [ref=f7e243]: First Name
+                - paragraph [ref=f7e244]: Minh Anh
+              - generic [ref=f7e245]:
+                - generic [ref=f7e246]: Last Name
+                - paragraph [ref=f7e247]: Nguyen
+            - generic "Professional context" [ref=f7e248]:
+              - generic [ref=f7e249]:
+                - generic [ref=f7e250]: Job Title
+                - paragraph [ref=f7e251]: Senior Java Backend Engineer
+              - generic [ref=f7e252]:
+                - generic [ref=f7e253]: Years of Experience
+                - paragraph [ref=f7e254]: "7.5"
+            - generic [ref=f7e255]:
+              - heading "Personality / Characteristic Description" [level=3] [ref=f7e256]
+              - paragraph [ref=f7e257]: Methodical and dependable engineer who enjoys turning ambiguous operational problems into clear technical plans. Communicates trade-offs early, documents decisions, and supports teammates through practical reviews and pairing. Comfortable owning production incidents while remaining calm and evidence-led
+              - heading "Technical Summary" [level=3] [ref=f7e258]
+              - paragraph [ref=f7e259]: Backend engineer specializing in Java and Spring Boot services for high-volume enterprise platforms. Experienced with event-driven architecture, API design, relational data modeling, containerized delivery, observability, and production performance tuning. Has led service decomposition and migration work across distributed teams, with hands-on responsibility from discovery and design through release support.
+          - region [ref=f7e99]:
+            - generic [ref=f7e100]:
+              - generic [ref=f7e101]:
+                - heading "Education" [level=2] [ref=f7e102]
+                - paragraph [ref=f7e103]: Academic background records for this Profile.
+              - button "Add education" [ref=f7e104] [cursor=pointer]
+            - generic [ref=f7e105]:
+              - generic [ref=f7e106]:
+                - generic [ref=f7e107]:
+                  - heading "Master of Science, Information Systems" [level=3] [ref=f7e108]
+                  - paragraph [ref=f7e109]: University of Engineering and Technology, VNU Hanoi
+                - generic [ref=f7e110]:
+                  - generic [ref=f7e111]: COMPLETED
+                  - generic [ref=f7e112]: 1999-02-04 - 2005-02-04
+                  - generic [ref=f7e113]:
+                    - button "Edit" [ref=f7e114] [cursor=pointer]
+                    - button "Delete Master of Science, Information Systems at University of Engineering and Technology, VNU Hanoi" [ref=f7e115] [cursor=pointer]:
+                      - generic [aria-hidden] [ref=f7e116]: −
+              - generic [ref=f7e117]:
+                - generic [ref=f7e118]:
+                  - heading "Bachelor of Engineering, Computer Science" [level=3] [ref=f7e119]
+                  - paragraph [ref=f7e120]: Ho Chi Minh City University of Technology
+                - generic [ref=f7e121]:
+                  - generic [ref=f7e122]: COMPLETED
+                  - generic [ref=f7e123]: 1996-02-04 - 1999-02-04
+                  - generic [ref=f7e124]:
+                    - button "Edit" [ref=f7e125] [cursor=pointer]
+                    - button "Delete Bachelor of Engineering, Computer Science at Ho Chi Minh City University of Technology" [ref=f7e126] [cursor=pointer]:
+                      - generic [aria-hidden] [ref=f7e127]: −
+          - region [ref=f7e129]:
+            - generic [ref=f7e130]:
+              - generic [ref=f7e131]:
+                - heading "Languages" [level=2] [ref=f7e132]
+                - paragraph [ref=f7e133]: Profile-specific language records and controlled proficiency levels.
+              - button "Add language" [ref=f7e134] [cursor=pointer]
+            - generic [ref=f7e136]:
+              - generic [ref=f7e137]:
+                - heading "English" [level=3] [ref=f7e138]
+                - paragraph [ref=f7e139]: Upper Intermediate
+              - generic [ref=f7e140]:
+                - generic [ref=f7e141]: LANGUAGE
+                - generic [ref=f7e142]:
+                  - button "Edit" [ref=f7e143] [cursor=pointer]
+                  - button "Delete English (Upper Intermediate)" [ref=f7e144] [cursor=pointer]:
+                    - generic [aria-hidden] [ref=f7e145]: −
+          - region [ref=f7e147]:
+            - generic [ref=f7e148]:
+              - generic [ref=f7e149]:
+                - heading "Certificates" [level=2] [ref=f7e150]
+                - paragraph [ref=f7e151]: Profile-specific certificate records for this CV version.
+              - button "Add certificate" [ref=f7e152] [cursor=pointer]
+            - generic [ref=f7e153]:
+              - paragraph [ref=f7e154]: No Certificates exist in this Profile. Add one when it is relevant to this CV version.
+              - button "Add certificate" [ref=f7e155] [cursor=pointer]
+          - region [ref=f7e157]:
+            - generic [ref=f7e158]:
+              - generic [ref=f7e159]:
+                - heading "Projects" [level=2] [ref=f7e160]
+                - paragraph [ref=f7e161]: Long-form project records prove role, scope, responsibility, and technology depth.
+              - button "Add project" [ref=f7e162] [cursor=pointer]
+            - article [ref=f7e164]:
+              - generic [ref=f7e165]:
+                - generic [ref=f7e166]:
+                  - heading "Global Order Orchestration Platform" [level=3] [ref=f7e167]
+                  - generic [ref=f7e168]: ONGOING
+                - paragraph [ref=f7e169]: Backend Technical Lead · 11 people
+                - paragraph [ref=f7e170]: Feb 2025 – Present
+                - generic [ref=f7e260]:
+                  - generic [ref=f7e261]:
+                    - strong [ref=f7e262]: Description
+                    - paragraph [ref=f7e263]: Ongoing modernization of a regional order orchestration platform serving retail and partner channels in six markets. The program replaces tightly coupled batch integrations with independently deployable services and event-driven workflows while maintaining compatibility with warehouse, payment, and customer-service systems.
+                  - generic [ref=f7e264]:
+                    - strong [ref=f7e265]: Responsibilities
+                    - paragraph [ref=f7e266]: Define service boundaries, integration contracts, and migration slices with product, architecture, and operations stakeholders. Lead implementation of order-state and fulfillment services, including idempotency, retry behavior, and distributed tracing. Review performance tests and production telemetry; coordinate remediation for database contention and consumer lag.
+                  - generic [ref=f7e267]:
+                    - strong [ref=f7e268]: Technology
+                    - paragraph [ref=f7e269]: "Programming Languages: Java 21, SQL, Python"
+                    - paragraph [ref=f7e270]: "Tools / Technologies: Spring Boot 3, Apache Kafka, PostgreSQL, Redis, Kubernetes, Helm, OpenTelemetry, Grafana, GitLab CI"
+              - generic [ref=f7e172]:
+                - button "Hide details" [expanded] [active] [ref=f7e271] [cursor=pointer]
+                - button "Edit" [ref=f7e174] [cursor=pointer]
+                - button "Delete Global Order Orchestration Platform (Backend Technical Lead)" [ref=f7e175] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f7e176]: −
+          - region [ref=f7e178]:
+            - generic [ref=f7e179]:
+              - generic [ref=f7e180]:
+                - heading "Skills" [level=2] [ref=f7e181]
+                - paragraph [ref=f7e182]: Profile-specific skills with controlled Master Data classification.
+              - button "Add skill" [ref=f7e183] [cursor=pointer]
+            - table [ref=f7e185]:
+              - rowgroup [ref=f7e186]:
+                - row [ref=f7e187]:
+                  - columnheader "Skill" [ref=f7e188]
+                  - columnheader "Category" [ref=f7e189]
+                  - columnheader "Experience" [ref=f7e190]
+                  - columnheader "Last Used" [ref=f7e191]
+                  - columnheader "Actions" [ref=f7e192]
+              - rowgroup [ref=f7e193]:
+                - row [ref=f7e194]:
+                  - cell "C#" [ref=f7e195]
+                  - cell "Programming Language" [ref=f7e196]
+                  - cell "2" [ref=f7e197]
+                  - cell "Feb 1999" [ref=f7e198]
+                  - cell [ref=f7e199]:
+                    - generic [ref=f7e200]:
+                      - button "Edit" [ref=f7e201] [cursor=pointer]
+                      - button "Delete C# (2 years)" [ref=f7e202] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=f7e203]: −

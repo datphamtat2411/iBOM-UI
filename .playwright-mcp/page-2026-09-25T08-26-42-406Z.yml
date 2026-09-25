@@ -1,0 +1,180 @@
+- generic [ref=f2e76]:
+  - complementary "Application sidebar" [ref=f2e77]:
+    - link "iBOM Homepage" [ref=f2e78] [cursor=pointer]:
+      - /url: /
+      - generic [ref=f2e83]:
+        - strong [ref=f2e84]: iBOM
+        - generic [ref=f2e85]: Workspace
+    - navigation "Application navigation" [ref=f2e86]:
+      - generic [ref=f2e87]:
+        - paragraph [ref=f2e88]: Workspace
+        - link "01 Dashboard" [ref=f2e89] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=f2e90]: "01"
+          - generic [ref=f2e91]: Dashboard
+        - link "02 Profile Workspace" [ref=f2e92] [cursor=pointer]:
+          - /url: /profiles
+          - generic [ref=f2e93]: "02"
+          - generic [ref=f2e94]: Profile Workspace
+      - generic [ref=f2e95]:
+        - paragraph [ref=f2e96]: Management
+        - link "01 Manager Dashboard" [ref=f2e97] [cursor=pointer]:
+          - /url: /dashboard/manager
+          - generic [ref=f2e98]: "01"
+          - generic [ref=f2e99]: Manager Dashboard
+        - link "02 Member Management" [ref=f2e100] [cursor=pointer]:
+          - /url: /members
+          - generic [ref=f2e101]: "02"
+          - generic [ref=f2e102]: Member Management
+        - link "03 User Management" [ref=f2e103] [cursor=pointer]:
+          - /url: /users
+          - generic [ref=f2e104]: "03"
+          - generic [ref=f2e105]: User Management
+        - button "04 Master Data" [ref=f2e106] [cursor=pointer]:
+          - generic [ref=f2e107]: "04"
+          - generic [ref=f2e108]: Master Data
+    - generic "Current account" [ref=f2e110]:
+      - button "T test01 ADMIN" [ref=f2e111] [cursor=pointer]:
+        - generic [ref=f2e112]: T
+        - generic [ref=f2e113]:
+          - strong [ref=f2e114]: test01
+          - generic [ref=f2e115]: ADMIN
+  - main [ref=f2e116]:
+    - generic [ref=f2e118]:
+      - generic [ref=f2e241]: "Viewing Member: datphamtat19"
+      - generic "Managed Member Profile context" [ref=f2e242]:
+        - generic [ref=f2e243]:
+          - generic [ref=f2e244]: Managed Member Profiles
+          - strong [ref=f2e245]: Java Backend CV
+          - generic [ref=f2e246]:
+            - text: "Last updated:"
+            - time [ref=f2e247]: Sep 10, 2026, 8:56 AM
+      - button "Back to My Profiles" [ref=f2e248]
+    - region [ref=f2e250]:
+      - generic [ref=f2e251]:
+        - generic [ref=f2e252]:
+          - heading "Managed Profile Workspace" [level=1] [ref=f2e253]
+          - paragraph [ref=f2e254]: datphamtat19 · Java Backend CV · Managed Member Profile
+        - generic [ref=f2e255]:
+          - button "Preview CV" [ref=f2e256] [cursor=pointer]
+          - button "Delete Profile" [ref=f2e257] [cursor=pointer]
+      - status [ref=f2e258]:
+        - strong [ref=f2e259]: "Managed Member Profile:"
+        - text: Viewing datphamtat19. Profile management actions are limited to the selected Member context.
+      - generic [ref=f2e260]:
+        - navigation "Profile sections" [ref=f2e261]:
+          - button "About Me About Me completeness contribution" [ref=f2e262] [cursor=pointer]:
+            - generic [ref=f2e263]: About Me
+            - generic "About Me completeness contribution" [ref=f2e264]: 13.33 / 20
+          - button "Education Education completeness contribution" [ref=f2e265] [cursor=pointer]:
+            - generic [ref=f2e266]: Education
+            - generic "Education completeness contribution" [ref=f2e267]: 0 / 20
+          - button "Languages Languages completeness contribution" [ref=f2e268] [cursor=pointer]:
+            - generic [ref=f2e269]: Languages
+            - generic "Languages completeness contribution" [ref=f2e270]: 15 / 15
+          - button "Certificates Certificates completeness contribution" [ref=f2e271] [cursor=pointer]:
+            - generic [ref=f2e272]: Certificates
+            - generic "Certificates completeness contribution" [ref=f2e273]: 0 / 15
+          - button "Projects Projects completeness contribution" [ref=f2e274] [cursor=pointer]:
+            - generic [ref=f2e275]: Projects
+            - generic "Projects completeness contribution" [ref=f2e276]: 0 / 20
+          - button "Skills Skills completeness contribution" [ref=f2e277] [cursor=pointer]:
+            - generic [ref=f2e278]: Skills
+            - generic "Skills completeness contribution" [ref=f2e279]: 10 / 10
+        - generic [ref=f2e280]:
+          - region [ref=f2e282]:
+            - generic [ref=f2e283]:
+              - generic [ref=f2e284]:
+                - heading "About Me" [level=2] [ref=f2e285]
+                - paragraph [ref=f2e286]: Identity and narrative details for this Profile.
+              - button "Edit" [ref=f2e287] [cursor=pointer]
+            - generic [ref=f2e288]:
+              - generic [ref=f2e289]:
+                - generic [ref=f2e290]: Profile Name
+                - paragraph [ref=f2e291]: Java Backend CV
+              - generic [ref=f2e292]:
+                - generic [ref=f2e293]: First Name
+                - paragraph [ref=f2e294]: Tat Dat
+              - generic [ref=f2e295]:
+                - generic [ref=f2e296]: Last Name
+                - paragraph [ref=f2e297]: Pham
+            - generic "Professional context" [ref=f2e298]:
+              - generic [ref=f2e299]:
+                - generic [ref=f2e300]: Job Title
+                - paragraph [ref=f2e301]: Intern Java Backend Engineer
+              - generic [ref=f2e302]:
+                - generic [ref=f2e303]: Years of Experience
+                - paragraph [ref=f2e304]: "0"
+            - generic [ref=f2e305]:
+              - heading "Personality / Characteristic Description" [level=3] [ref=f2e306]
+              - paragraph [ref=f2e307]: Not provided.
+              - heading "Technical Summary" [level=3] [ref=f2e308]
+              - paragraph [ref=f2e309]: Not provided.
+          - region [ref=f2e311]:
+            - generic [ref=f2e312]:
+              - generic [ref=f2e313]:
+                - heading "Education" [level=2] [ref=f2e314]
+                - paragraph [ref=f2e315]: Academic background records for this Profile.
+              - button "Add education" [ref=f2e316] [cursor=pointer]
+            - generic [ref=f2e317]:
+              - paragraph [ref=f2e318]: No Education records exist in this Profile.
+              - button "Add education" [ref=f2e319] [cursor=pointer]
+          - region [ref=f2e321]:
+            - generic [ref=f2e322]:
+              - generic [ref=f2e323]:
+                - heading "Languages" [level=2] [ref=f2e324]
+                - paragraph [ref=f2e325]: Profile-specific language records and controlled proficiency levels.
+              - button "Add language" [ref=f2e326] [cursor=pointer]
+            - generic [ref=f2e328]:
+              - generic [ref=f2e329]:
+                - heading "English" [level=3] [ref=f2e330]
+                - paragraph [ref=f2e331]: Beginner
+              - generic [ref=f2e332]:
+                - generic [ref=f2e333]: LANGUAGE
+                - generic [ref=f2e334]:
+                  - button "Edit" [ref=f2e335] [cursor=pointer]
+                  - button "Delete English (Beginner)" [ref=f2e336] [cursor=pointer]:
+                    - generic [aria-hidden] [ref=f2e337]: −
+          - region [ref=f2e339]:
+            - generic [ref=f2e340]:
+              - generic [ref=f2e341]:
+                - heading "Certificates" [level=2] [ref=f2e342]
+                - paragraph [ref=f2e343]: Profile-specific certificate records for this CV version.
+              - button "Add certificate" [ref=f2e344] [cursor=pointer]
+            - generic [ref=f2e345]:
+              - paragraph [ref=f2e346]: No Certificates exist in this Profile. Add one when it is relevant to this CV version.
+              - button "Add certificate" [ref=f2e347] [cursor=pointer]
+          - region [ref=f2e349]:
+            - generic [ref=f2e350]:
+              - generic [ref=f2e351]:
+                - heading "Projects" [level=2] [ref=f2e352]
+                - paragraph [ref=f2e353]: Long-form project records prove role, scope, responsibility, and technology depth.
+              - button "Add project" [ref=f2e354] [cursor=pointer]
+            - generic [ref=f2e355]:
+              - paragraph [ref=f2e356]: No Project records exist in this Profile.
+              - button "Add project" [ref=f2e357] [cursor=pointer]
+          - region [ref=f2e359]:
+            - generic [ref=f2e360]:
+              - generic [ref=f2e361]:
+                - heading "Skills" [level=2] [ref=f2e362]
+                - paragraph [ref=f2e363]: Profile-specific skills with controlled Master Data classification.
+              - button "Add skill" [ref=f2e364] [cursor=pointer]
+            - table [ref=f2e366]:
+              - rowgroup [ref=f2e367]:
+                - row [ref=f2e368]:
+                  - columnheader "Skill" [ref=f2e369]
+                  - columnheader "Category" [ref=f2e370]
+                  - columnheader "Experience" [ref=f2e371]
+                  - columnheader "Last Used" [ref=f2e372]
+                  - columnheader "Actions" [ref=f2e373]
+              - rowgroup [ref=f2e374]:
+                - row [ref=f2e375]:
+                  - cell "C#" [ref=f2e376]
+                  - cell "Programming Language" [ref=f2e377]
+                  - cell "2" [ref=f2e378]
+                  - cell "Feb 2005" [ref=f2e379]
+                  - cell [ref=f2e380]:
+                    - generic [ref=f2e381]:
+                      - button "Edit" [ref=f2e382] [cursor=pointer]
+                      - button "Delete C# (2 years)" [ref=f2e383] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=f2e384]: −

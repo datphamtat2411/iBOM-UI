@@ -1,0 +1,95 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - banner [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: "SYS_STATUS: ONLINE"
+        - generic [aria-hidden] [ref=e11]: "|"
+        - generic [ref=e12]: FPT SOFTWARE (EST. 1988)
+        - generic [aria-hidden] [ref=e13]: "|"
+        - generic [ref=e14]: "ARCHIVE ID: iBOM-2026.V1"
+      - generic [ref=e15]:
+        - generic [ref=e16]: "LOCAL TIME:"
+        - time [ref=e18]: 15:06:54
+    - navigation "Primary navigation" [ref=e19]:
+      - link "iBOM homepage" [ref=e20] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - strong [ref=e27]: iBOM
+            - generic [ref=e28]: CV-MOD
+          - generic [ref=e29]: CV Management System
+      - button "T test01" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]: T
+        - generic [ref=e33]: test01
+  - main [ref=e34]:
+    - region [ref=e36]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - generic [ref=e40]:
+            - generic [ref=e42]: Profile workspace
+            - generic [ref=e43]: MULTI-CV
+          - heading [level=1] [ref=e44]:
+            - text: Enter once.
+            - generic [ref=e45]:
+              - text: Create
+              - emphasis [ref=e46]: Multiple profiles
+            - text: Standardized for FPT Corp.
+          - paragraph [ref=e47]: FPT's workforce competency profile management platform lets every engineer maintain multiple independent CV versions, track each version's completion state, preview it, and prepare standardized PDF or DOCX documents.
+          - generic [ref=e48]:
+            - generic [ref=e49]:
+              - generic [ref=e50]: "Framework:"
+              - strong [ref=e51]: Angular 17+
+            - generic [aria-hidden] [ref=e52]: "|"
+            - generic [ref=e53]:
+              - generic [ref=e54]: "Feature:"
+              - strong [ref=e55]: CV Consistency
+        - article [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]:
+              - generic [ref=e62]: "ID: CV-2024-1256"
+              - generic [ref=e65]: • ACTIVE PROFILE
+            - generic [ref=e66]:
+              - generic [aria-hidden] [ref=e67]: NMA
+              - generic [ref=e68]:
+                - heading "Nguyen Minh Anh" [level=2] [ref=e69]
+                - paragraph [ref=e70]: Senior Software Engineer
+                - paragraph [ref=e71]: FPT Software / HCM Campus
+            - tablist "Profile details" [ref=e72]:
+              - tab "overview" [selected] [ref=e73] [cursor=pointer]
+              - tab "skills" [ref=e74] [cursor=pointer]
+              - tab "export" [ref=e75] [cursor=pointer]
+            - tabpanel "overview" [ref=e76]:
+              - generic [ref=e77]:
+                - generic [ref=e78]: "Experience:"
+                - strong [ref=e79]: 5.5 Years
+              - generic [ref=e80]:
+                - generic [ref=e81]: "Completion:"
+                - generic [ref=e82]: 100% READY
+              - generic [ref=e83]:
+                - generic [ref=e84]: "Standard filename:"
+                - strong [ref=e85]: AnhNM_Dev_2026.pdf
+          - generic "Profile demo actions" [ref=e86]:
+            - button "Preview PDF" [disabled] [ref=e87]
+            - button "Duplicate profile ↗" [disabled] [ref=e88]
+      - generic [ref=e90]:
+        - generic [ref=e91]: ✦100% profile independence
+        - generic [ref=e92]: ✦independent profile versions
+        - generic [ref=e93]: ✦preview-before-export
+        - generic [ref=e94]: ✦PDF and DOCX output
+        - generic [ref=e95]: ✦completion status tracking
+        - generic [aria-hidden] [ref=e96]: ✦100% profile independence
+        - generic [aria-hidden] [ref=e97]: ✦independent profile versions
+        - generic [aria-hidden] [ref=e98]: ✦preview-before-export
+        - generic [aria-hidden] [ref=e99]: ✦PDF and DOCX output
+        - generic [aria-hidden] [ref=e100]: ✦completion status tracking
+  - contentinfo [ref=e101]:
+    - generic [ref=e102]:
+      - generic [ref=e103]:
+        - generic [ref=e104]:
+          - strong [ref=e105]: iBOM - CV Management System
+          - generic [ref=e106]: EST. 1988
+        - paragraph [ref=e107]: © 1988-2026 FPT Corporation. For internal corporate distribution.
+      - generic "Resource areas" [ref=e108]:
+        - generic [ref=e109]: SSO Privacy Policy
+        - generic [ref=e110]: CV Profile Standards
+        - generic [ref=e111]: IT Helpdesk Support

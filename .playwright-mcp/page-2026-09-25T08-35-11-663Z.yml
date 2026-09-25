@@ -1,0 +1,86 @@
+- generic [ref=f2e556]:
+  - complementary "Application sidebar" [ref=f2e557]:
+    - link "iBOM Homepage" [ref=f2e558] [cursor=pointer]:
+      - /url: /
+      - generic [ref=f2e563]:
+        - strong [ref=f2e564]: iBOM
+        - generic [ref=f2e565]: Workspace
+    - navigation "Application navigation" [ref=f2e566]:
+      - generic [ref=f2e567]:
+        - paragraph [ref=f2e568]: Workspace
+        - link "01 Dashboard" [ref=f2e569] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=f2e570]: "01"
+          - generic [ref=f2e571]: Dashboard
+        - link "02 Profile Workspace" [ref=f2e572] [cursor=pointer]:
+          - /url: /profiles
+          - generic [ref=f2e573]: "02"
+          - generic [ref=f2e574]: Profile Workspace
+      - generic [ref=f2e575]:
+        - paragraph [ref=f2e576]: Management
+        - link "01 Manager Dashboard" [ref=f2e577] [cursor=pointer]:
+          - /url: /dashboard/manager
+          - generic [ref=f2e578]: "01"
+          - generic [ref=f2e579]: Manager Dashboard
+        - link "02 Member Management" [ref=f2e580] [cursor=pointer]:
+          - /url: /members
+          - generic [ref=f2e581]: "02"
+          - generic [ref=f2e582]: Member Management
+        - link "03 User Management" [ref=f2e583] [cursor=pointer]:
+          - /url: /users
+          - generic [ref=f2e584]: "03"
+          - generic [ref=f2e585]: User Management
+        - button "04 Master Data" [expanded] [ref=f2e586] [cursor=pointer]:
+          - generic [ref=f2e587]: "04"
+          - generic [ref=f2e588]: Master Data
+        - generic [ref=f2e590]:
+          - link "Skills" [ref=f2e591] [cursor=pointer]:
+            - /url: /master-data/skills
+          - link "Seniority" [ref=f2e592] [cursor=pointer]:
+            - /url: /master-data/seniority
+          - link "Languages" [ref=f2e593] [cursor=pointer]:
+            - /url: /master-data/languages
+          - link "File Name Formats" [active] [ref=f2e594] [cursor=pointer]:
+            - /url: /master-data/file-name-formats
+    - generic "Current account" [ref=f2e595]:
+      - button "T test01 ADMIN" [ref=f2e596] [cursor=pointer]:
+        - generic [ref=f2e597]: T
+        - generic [ref=f2e598]:
+          - strong [ref=f2e599]: test01
+          - generic [ref=f2e600]: ADMIN
+  - main [ref=f2e601]:
+    - generic [ref=f2e602]: Master Data
+    - region [ref=f2e660]:
+      - generic [ref=f2e661]:
+        - generic [ref=f2e662]:
+          - paragraph [ref=f2e663]: Management / Master Data
+          - heading "File Name Formats" [level=1] [ref=f2e664]
+          - paragraph [ref=f2e665]: Control the filename patterns used by Profile exports.
+        - button "Create Format" [ref=f2e667] [cursor=pointer]
+      - table [ref=f2e669]:
+        - rowgroup [ref=f2e670]:
+          - row [ref=f2e671]:
+            - columnheader "Format Name" [ref=f2e672]
+            - columnheader "Format Pattern" [ref=f2e673]
+            - columnheader "Created Date" [ref=f2e674]
+            - columnheader "Updated Date" [ref=f2e675]
+            - columnheader "Actions" [ref=f2e676]
+        - rowgroup [ref=f2e677]:
+          - row [ref=f2e678]:
+            - cell "System Default System default" [ref=f2e679]:
+              - strong [ref=f2e680]: System Default
+              - generic [ref=f2e681]: System default
+            - cell [ref=f2e682]:
+              - code [ref=f2e683]: "{FirstName}_{LastName}_{Role}_{Date}_"
+            - cell "Sep 21, 2026, 12:50 AM" [ref=f2e684]
+            - cell "Sep 23, 2026, 5:45 PM" [ref=f2e685]
+            - cell [ref=f2e686]:
+              - generic [ref=f2e687]:
+                - button "Edit" [ref=f2e688] [cursor=pointer]
+                - button "Delete System Default" [disabled] [ref=f2e689]: Delete
+      - generic [ref=f2e690]:
+        - generic [ref=f2e691]: 1 format
+        - generic "File Name Format pages" [ref=f2e692]:
+          - button "Previous" [disabled] [ref=f2e693]
+          - generic [ref=f2e694]: Page 1 of 1
+          - button "Next" [disabled] [ref=f2e695]

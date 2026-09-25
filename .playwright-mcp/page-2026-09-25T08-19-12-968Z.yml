@@ -1,0 +1,32 @@
+- region [ref=e4]:
+  - generic [ref=e5]:
+    - link "Return to iBOM Homepage" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e11]:
+        - strong [ref=e12]: iBOM
+        - generic [ref=e13]: CV Management System
+    - generic [ref=e14]:
+      - paragraph [ref=e15]: Profile workspace · secure access
+      - heading "One identity. Several precise CVs." [level=1] [ref=e16]
+      - paragraph [ref=e17]: Maintain independent professional Profiles, verify each document, and prepare standardized exports for the work ahead.
+  - generic [ref=e19]:
+    - heading "Sign in to iBOM" [level=2] [ref=e20]
+    - paragraph [ref=e21]: Use your organization account to continue.
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]: Email
+        - textbox "Email" [ref=e25]
+      - generic [ref=e26]:
+        - generic [ref=e27]: Password
+        - generic [ref=e28]:
+          - textbox "Password" [ref=e29]
+          - button "Show password" [ref=e30] [cursor=pointer]: Show
+      - generic [ref=e31]:
+        - link "Forgot password?" [ref=e32] [cursor=pointer]:
+          - /url: /forgot-password
+        - button "Sign in" [ref=e33] [cursor=pointer]
+    - generic [ref=e34]:
+      - link "Create member account" [ref=e35] [cursor=pointer]:
+        - /url: /registration
+      - link "Return to Homepage" [ref=e36] [cursor=pointer]:
+        - /url: /
