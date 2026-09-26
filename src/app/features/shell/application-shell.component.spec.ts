@@ -53,6 +53,7 @@ describe('ApplicationShellComponent', () => {
   };
 
   beforeEach(async () => {
+    spyOnProperty(window, 'innerWidth', 'get').and.returnValue(1440);
     localStorage.setItem(SHELL_SIDEBAR_COLLAPSED_STORAGE_KEY, 'false');
     auth = {
       user: signal({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'MEMBER' }),
