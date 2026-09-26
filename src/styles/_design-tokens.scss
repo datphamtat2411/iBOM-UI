@@ -44,6 +44,23 @@
   --ibom-color-information-surface: #edf2f8;
   --ibom-color-information-text: #183a6c;
 
+  --ibom-color-shell-sidebar: #20272e;
+  --ibom-color-shell-sidebar-text: #edf1f3;
+  --ibom-color-shell-sidebar-muted: #aeb8be;
+  --ibom-color-shell-sidebar-hover: rgb(255 255 255 / 8%);
+  --ibom-color-shell-sidebar-active: rgb(216 90 24 / 15%);
+  --ibom-color-shell-sidebar-active-text: #fff;
+  --ibom-color-shell-topbar: rgb(255 254 250 / 94%);
+  --ibom-color-shell-backdrop: rgb(18 19 22 / 46%);
+  --ibom-color-shell-divider: var(--ibom-color-border-subtle);
+  --ibom-color-shell-avatar: #3a454d;
+  --ibom-color-shell-avatar-border: #72808a;
+
+  --ibom-shell-sidebar-width-expanded: 15.5rem;
+  --ibom-shell-sidebar-width-collapsed: 4.5rem;
+  --ibom-shell-sidebar-width-mobile: min(18rem, calc(100vw - 2rem));
+  --ibom-shell-topbar-height: 4rem;
+
   --ibom-space-1: 0.25rem;
   --ibom-space-2: 0.5rem;
   --ibom-space-3: 0.75rem;
@@ -63,6 +80,13 @@
   --ibom-motion-fast: 140ms;
   --ibom-motion-normal: 180ms;
   --ibom-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  // Compatibility aliases used by feature styles that still predate the shared token layer.
+  --shell-ink: var(--ibom-color-text);
+  --shell-paper: var(--ibom-color-canvas);
+  --shell-border: var(--ibom-color-border);
+  --shell-muted: var(--ibom-color-text-muted);
+  --shell-accent: var(--ibom-color-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {

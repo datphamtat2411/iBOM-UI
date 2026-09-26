@@ -1,64 +1,268 @@
-<div class="application-shell">
-  <aside class="sidebar" aria-label="Application sidebar">
-    <a class="brand" routerLink="/" aria-label="iBOM Homepage">
-      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span class="brand-copy"><strong>iBOM</strong><small>Workspace</small></span>
+<div
+  class="application-shell"
+  [class.sidebar-collapsed]="sidebarCollapsed()"
+  [class.mobile-drawer-open]="navigationOpen()"
+>
+  <mat-menu #accountMenu="matMenu" class="ibom-menu-panel" aria-label="Account menu">
+    <div class="menu-heading">{{ user()?.email }}</div>
+    <a class="menu-item" mat-menu-item routerLink="/dashboard/account-settings" (click)="closeAccountMenu()">
+      <app-shell-icon name="account" />
+      <span>Account Settings</span>
     </a>
-
     <button
-      class="mobile-nav-toggle"
+      class="menu-item"
+      mat-menu-item
       type="button"
-      [attr.aria-expanded]="navigationOpen"
-      aria-controls="sidebar-nav"
-      (click)="toggleNavigation()"
+      [disabled]="logoutInProgress"
+      [attr.aria-busy]="logoutInProgress"
+      (click)="signOut()"
     >
-      Menu
+      <app-shell-icon name="close" />
+      <span>Sign out</span>
     </button>
+  </mat-menu>
 
-    <nav id="sidebar-nav" class="sidebar-nav" [class.open]="navigationOpen" aria-label="Application navigation">
-      <div class="nav-group">
+  <mat-menu #masterDataRailMenu="matMenu" class="ibom-menu-panel" aria-label="Master Data navigation">
+    <a mat-menu-item routerLink="/master-data/skills" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="closeNavigation()">
+      <span>Skills</span>
+    </a>
+    <a mat-menu-item routerLink="/master-data/seniority" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="closeNavigation()">
+      <span>Seniority</span>
+    </a>
+    <a mat-menu-item routerLink="/master-data/languages" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="closeNavigation()">
+      <span>Languages</span>
+    </a>
+    <a mat-menu-item routerLink="/master-data/file-name-formats" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="closeNavigation()">
+      <span>File Name Formats</span>
+    </a>
+  </mat-menu>
+
+  <mat-menu
+    #profileMenu="matMenu"
+    class="ibom-menu-panel profile-menu"
+    [attr.aria-label]="isManagedProfileRoute() ? 'Select managed Member Profile' : 'Select Profile'"
+  >
+    <div class="profile-menu-head">
+      <strong>{{ isManagedProfileRoute() ? 'Managed Member Profiles' : 'My Profiles' }}</strong>
+      <span>{{ isManagedProfileRoute() ? 'Switch Profiles for ' + managedMemberLabel() + '. Member context stays fixed.' : 'Switch between your Profiles.' }}</span>
+    </div>
+
+    @if (isManagedProfileRoute()) {
+      @for (profile of managedProfiles(); track profile.id) {
+        <button
+          class="profile-option"
+          mat-menu-item
+          type="button"
+          role="menuitemradio"
+          [class.selected]="isSelectedProfile(profile.id)"
+          [attr.aria-checked]="isSelectedProfile(profile.id)"
+          [attr.aria-label]="profile.profileName + (isSelectedProfile(profile.id) ? ', selected' : '')"
+          (click)="selectProfile(profile.id)"
+        >
+          <span class="profile-option-copy">
+            <strong>{{ profile.profileName }}</strong>
+            <small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small>
+            <small>Last updated: <time [attr.datetime]="profile.updatedAt">{{ formatTimestamp(profile.updatedAt) }}</time></small>
+          </span>
+          <span class="profile-option-state" aria-hidden="true">
+            @if (isSelectedProfile(profile.id)) { <app-shell-icon name="check" /> }
+          </span>
+        </button>
+      }
+    } @else {
+      @for (profile of profileContext.summaries(); track profile.id) {
+        <button
+          class="profile-option"
+          mat-menu-item
+          type="button"
+          role="menuitemradio"
+          [class.selected]="isSelectedProfile(profile.id)"
+          [attr.aria-checked]="isSelectedProfile(profile.id)"
+          [attr.aria-label]="profile.profileName + (isSelectedProfile(profile.id) ? ', selected' : '')"
+          (click)="selectProfile(profile.id)"
+        >
+          <span class="profile-option-copy">
+            <strong>{{ profile.profileName }}</strong>
+            <small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small>
+          </span>
+          <span class="profile-option-state">
+            @if (isSelectedProfile(profile.id)) { <app-shell-icon name="check" /> }
+            @if (profile.completeness !== undefined) { <span class="profile-completeness">{{ profile.completeness }}%</span> }
+          </span>
+        </button>
+      }
+      <div class="profile-menu-actions">
+        <button class="menu-action" mat-menu-item type="button" (click)="createProfile()">Create Profile</button>
+        <button class="menu-action" mat-menu-item type="button" (click)="openCopyProfile()">Copy Profile</button>
+      </div>
+    }
+  </mat-menu>
+
+  <aside
+    class="sidebar"
+    [class.sidebar-collapsed]="sidebarCollapsed()"
+    [class.mobile-open]="navigationOpen()"
+    [attr.aria-hidden]="mobileViewport() && !navigationOpen() ? 'true' : null"
+    [attr.inert]="mobileViewport() && !navigationOpen() ? '' : null"
+    [cdkTrapFocus]="mobileViewport() && navigationOpen()"
+    [cdkTrapFocusAutoCapture]="mobileViewport() && navigationOpen()"
+    aria-label="Application sidebar"
+  >
+    <div class="sidebar-head">
+      <a class="brand" routerLink="/" aria-label="iBOM Homepage" (click)="closeNavigation()">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="brand-copy"><strong>iBOM</strong><small>Workspace</small></span>
+      </a>
+      <button
+        class="sidebar-collapse"
+        type="button"
+        aria-controls="sidebar-nav"
+        [attr.aria-expanded]="mobileViewport() ? navigationOpen() : !sidebarCollapsed()"
+        [attr.aria-label]="mobileViewport() ? 'Close navigation' : (sidebarCollapsed() ? 'Expand navigation' : 'Collapse navigation')"
+        [matTooltip]="mobileViewport() ? 'Close navigation' : (sidebarCollapsed() ? 'Expand navigation' : 'Collapse navigation')"
+        matTooltipClass="ibom-tooltip"
+        matTooltipPosition="right"
+        (click)="mobileViewport() ? closeNavigation() : toggleSidebar()"
+      >
+        <app-shell-icon [name]="mobileViewport() ? 'close' : (sidebarCollapsed() ? 'expand' : 'collapse')" />
+      </button>
+    </div>
+
+    <nav id="sidebar-nav" class="sidebar-nav" aria-label="Application navigation">
+      <div class="nav-group" aria-label="Workspace">
         <p class="nav-label">Workspace</p>
-        <a class="nav-btn" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="navigationOpen = false">
-          <span class="nav-glyph">01</span><span>Dashboard</span>
+        <a
+          class="nav-btn"
+          routerLink="/dashboard"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          [attr.aria-label]="sidebarCollapsed() ? 'Dashboard' : null"
+          [matTooltip]="sidebarCollapsed() ? 'Dashboard' : ''"
+          [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
+          matTooltipClass="ibom-tooltip"
+          matTooltipPosition="right"
+          (click)="closeNavigation()"
+        >
+          <app-shell-icon name="dashboard" />
+          <span class="nav-text">Dashboard</span>
         </a>
-        <a class="nav-btn" routerLink="/profiles" routerLinkActive="active" (click)="navigationOpen = false">
-          <span class="nav-glyph">02</span><span>Profile Workspace</span>
+        <a
+          class="nav-btn"
+          routerLink="/profiles"
+          routerLinkActive="active"
+          [attr.aria-label]="sidebarCollapsed() ? 'Profile Workspace' : null"
+          [matTooltip]="sidebarCollapsed() ? 'Profile Workspace' : ''"
+          [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
+          matTooltipClass="ibom-tooltip"
+          matTooltipPosition="right"
+          (click)="closeNavigation()"
+        >
+          <app-shell-icon name="profile" />
+          <span class="nav-text">Profile Workspace</span>
         </a>
       </div>
+
       @if (managementVisible()) {
-        <div class="nav-group management-group">
-           <p class="nav-label">Management</p>
-           <a class="nav-btn" routerLink="/dashboard/manager" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">
-             <span class="nav-glyph">01</span><span>Manager Dashboard</span>
-           </a>
-           <a class="nav-btn" routerLink="/members" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">
-             <span class="nav-glyph">02</span><span>Member Management</span>
-           </a>
-           <a class="nav-btn" routerLink="/users" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">
-             <span class="nav-glyph">03</span><span>User Management</span>
-           </a>
+        <div class="nav-group management-group" aria-label="Management">
+          <p class="nav-label">Management</p>
+          <a
+            class="nav-btn"
+            routerLink="/dashboard/manager"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            ariaCurrentWhenActive="page"
+            [attr.aria-label]="sidebarCollapsed() ? 'Manager Dashboard' : null"
+            [matTooltip]="sidebarCollapsed() ? 'Manager Dashboard' : ''"
+            [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
+            matTooltipClass="ibom-tooltip"
+            matTooltipPosition="right"
+            (click)="closeNavigation()"
+          >
+            <app-shell-icon name="manager-dashboard" />
+            <span class="nav-text">Manager Dashboard</span>
+          </a>
+          <a
+            class="nav-btn"
+            routerLink="/members"
+            routerLinkActive="active"
+            ariaCurrentWhenActive="page"
+            [attr.aria-label]="sidebarCollapsed() ? 'Member Management' : null"
+            [matTooltip]="sidebarCollapsed() ? 'Member Management' : ''"
+            [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
+            matTooltipClass="ibom-tooltip"
+            matTooltipPosition="right"
+            (click)="closeNavigation()"
+          >
+            <app-shell-icon name="members" />
+            <span class="nav-text">Member Management</span>
+          </a>
+          <a
+            class="nav-btn"
+            routerLink="/users"
+            routerLinkActive="active"
+            ariaCurrentWhenActive="page"
+            [attr.aria-label]="sidebarCollapsed() ? 'User Management' : null"
+            [matTooltip]="sidebarCollapsed() ? 'User Management' : ''"
+            [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
+            matTooltipClass="ibom-tooltip"
+            matTooltipPosition="right"
+            (click)="closeNavigation()"
+          >
+            <app-shell-icon name="users" />
+            <span class="nav-text">User Management</span>
+          </a>
           <button
             class="nav-btn nav-parent"
             type="button"
             [class.active]="isMasterDataRoute()"
-            [attr.aria-expanded]="masterDataExpanded"
-            aria-controls="master-data-nav"
+            [class.is-menu-open]="masterDataMenuOpen"
+            [matMenuTriggerFor]="sidebarCollapsed() ? masterDataRailMenu : null"
+            [attr.aria-expanded]="sidebarCollapsed() ? masterDataMenuOpen : masterDataExpanded"
+            [attr.aria-controls]="sidebarCollapsed() ? null : 'master-data-nav'"
+            [attr.aria-current]="isMasterDataRoute() ? 'page' : null"
+            [attr.aria-label]="sidebarCollapsed() ? 'Master Data' : null"
+            [matTooltip]="sidebarCollapsed() ? 'Master Data' : ''"
+            [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
+            matTooltipClass="ibom-tooltip"
+            matTooltipPosition="right"
+            (menuOpened)="masterDataMenuOpen = true"
+            (menuClosed)="masterDataMenuOpen = false"
             (click)="toggleMasterData()"
           >
-              <span class="nav-glyph">04</span><span class="nav-parent-label">Master Data</span><span class="nav-chevron" aria-hidden="true"></span>
+            <app-shell-icon name="master-data" />
+            <span class="nav-text nav-parent-label">Master Data</span>
+            <app-shell-icon class="nav-chevron" name="chevron" />
           </button>
-          <div id="master-data-nav" class="nav-children" [hidden]="!masterDataExpanded">
-            <a class="nav-btn nav-child" routerLink="/master-data/skills" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">Skills</a>
-            <a class="nav-btn nav-child" routerLink="/master-data/seniority" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">Seniority</a>
-            <a class="nav-btn nav-child" routerLink="/master-data/languages" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">Languages</a>
-            <a class="nav-btn nav-child" routerLink="/master-data/file-name-formats" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="navigationOpen = false">File Name Formats</a>
+          <div
+            id="master-data-nav"
+            class="nav-children"
+            [class.is-open]="masterDataExpanded && !sidebarCollapsed()"
+            [attr.aria-hidden]="masterDataExpanded && !sidebarCollapsed() ? 'false' : 'true'"
+          >
+            <a class="nav-btn nav-child" routerLink="/master-data/skills" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="closeNavigation()">Skills</a>
+            <a class="nav-btn nav-child" routerLink="/master-data/seniority" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="closeNavigation()">Seniority</a>
+            <a class="nav-btn nav-child" routerLink="/master-data/languages" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="closeNavigation()">Languages</a>
+            <a class="nav-btn nav-child" routerLink="/master-data/file-name-formats" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="closeNavigation()">File Name Formats</a>
           </div>
         </div>
       }
     </nav>
 
     <div class="sidebar-foot" aria-label="Current account">
-      <button class="account-btn" type="button" aria-haspopup="menu" [attr.aria-expanded]="accountMenuOpen" (click)="toggleAccountMenu()">
+      <button
+        class="account-btn"
+        type="button"
+        aria-haspopup="menu"
+        aria-label="Account menu"
+        [attr.aria-expanded]="accountMenuOpen"
+        [matMenuTriggerFor]="accountMenu"
+        [matTooltip]="sidebarCollapsed() ? 'Account menu' : ''"
+        [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
+        matTooltipClass="ibom-tooltip"
+        matTooltipPosition="right"
+        (menuOpened)="onAccountMenuOpened()"
+        (menuClosed)="onAccountMenuClosed()"
+      >
         <span class="avatar">{{ avatarInitials() }}</span>
         <span class="account-copy">
           <strong>{{ user()?.username }}</strong>
@@ -66,70 +270,89 @@
         </span>
       </button>
       @if (logoutError()) { <p class="logout-error" role="alert">{{ logoutError() }}</p> }
-      @if (accountMenuOpen) {
-        <div class="account-menu" role="menu">
-          <p role="none">{{ user()?.email }}</p>
-          <a class="menu-item" routerLink="/dashboard/account-settings" role="menuitem" (click)="closeAccountMenu()">Account Settings</a>
-           <button class="menu-item" type="button" role="menuitem" [disabled]="logoutInProgress" [attr.aria-busy]="logoutInProgress" (click)="signOut()">Sign out</button>
-        </div>
-      }
     </div>
   </aside>
 
-    <main class="main">
-      <header class="topbar">
-        <div class="context-line">
+  @if (navigationOpen()) { <div class="drawer-backdrop" aria-hidden="true" (click)="closeNavigation()"></div> }
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-start">
+        <button
+          #mobileNavToggle
+          class="mobile-nav-toggle"
+          type="button"
+          [attr.aria-expanded]="navigationOpen()"
+          aria-controls="sidebar-nav"
+          [attr.aria-label]="navigationOpen() ? 'Close navigation' : 'Open navigation'"
+          (click)="toggleNavigation()"
+        >
+          <app-shell-icon name="menu" />
+        </button>
+        <a class="mobile-brand" routerLink="/" aria-label="iBOM Homepage">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <strong>iBOM</strong>
+        </a>
+      </div>
+
+      <div class="context-line">
+        <span class="context-label">{{ contextLabel }}</span>
         @if (isManagedProfileRoute()) {
           <span class="member-context">Viewing Member: {{ managedMemberLabel() }}</span>
           @if (managedProfiles().length > 1) {
             <div class="profile-switcher">
-              <button class="profile-trigger" type="button" aria-haspopup="menu" [attr.aria-expanded]="profileMenuOpen" aria-controls="managed-profile-menu" [disabled]="managedProfilesLoading() || !!managedProfilesError()" (click)="toggleProfileMenu()">
-                <span><small>Managed Member Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span><span aria-hidden="true">⌄</span>
+              <button
+                class="profile-trigger"
+                type="button"
+                aria-haspopup="menu"
+                [attr.aria-expanded]="profileMenuOpen"
+                aria-label="Select managed Member Profile"
+                [disabled]="managedProfilesLoading() || !!managedProfilesError()"
+                [matMenuTriggerFor]="profileMenu"
+                (menuOpened)="onProfileMenuOpened()"
+                (menuClosed)="onProfileMenuClosed()"
+              >
+                <span><small>Managed Member Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span>
+                <app-shell-icon name="chevron" />
               </button>
-              @if (profileMenuOpen) {
-                <div class="profile-menu" id="managed-profile-menu" role="menu" aria-label="Select managed Member Profile">
-                  <div class="profile-menu-head"><strong>Managed Member Profiles</strong><span>Switch Profiles for {{ managedMemberLabel() }}. Member context stays fixed.</span></div>
-                   @for (profile of managedProfiles(); track profile.id) {
-                     <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small><small>Last updated: <time [attr.datetime]="profile.updatedAt">{{ formatTimestamp(profile.updatedAt) }}</time></small></span><span class="mono"></span></button>
-                   }
-                </div>
-              }
             </div>
-           } @else {
-             <div class="profile-static-context managed-profile-static" aria-label="Managed Member Profile context">
-               <span><small>Managed Member Profiles</small>
-                 @if (managedProfilesLoading()) {
-                   <strong>Loading Profiles...</strong>
-                 } @else if (managedProfilesError()) {
-                   <strong>Profiles unavailable</strong>
-                 } @else if (!managedProfiles().length) {
-                   <strong>This member has no profiles.</strong>
-                 } @else {
-                   <strong>{{ selectedProfileName }}</strong>
-                   @if (selectedManagedSummary(); as profile) {
-                     <small>Last updated: <time [attr.datetime]="profile.updatedAt">{{ formatTimestamp(profile.updatedAt) }}</time></small>
-                   }
-                 }
-               </span>
-             </div>
-           }
+          } @else {
+            <div class="profile-static-context managed-profile-static" aria-label="Managed Member Profile context">
+              <span>
+                <small>Managed Member Profiles</small>
+                @if (managedProfilesLoading()) {
+                  <strong>Loading Profiles...</strong>
+                } @else if (managedProfilesError()) {
+                  <strong>Profiles unavailable</strong>
+                } @else if (!managedProfiles().length) {
+                  <strong>This member has no profiles.</strong>
+                } @else {
+                  <strong>{{ selectedProfileName }}</strong>
+                  @if (selectedManagedSummary(); as profile) {
+                    <small>Last updated: <time [attr.datetime]="profile.updatedAt">{{ formatTimestamp(profile.updatedAt) }}</time></small>
+                  }
+                }
+              </span>
+            </div>
+          }
           <button class="btn text managed-context-exit" type="button" (click)="exitManagedMember()">Back to My Profiles</button>
-         } @else if (contextTitle === 'Profile Workspace' || isDashboardRoute()) {
+        } @else if (isOwnProfileContext()) {
           @if (profileContext.summaries().length > 1) {
             <div class="profile-switcher">
-              <button class="profile-trigger" type="button" aria-haspopup="menu" [attr.aria-expanded]="profileMenuOpen" aria-controls="profile-menu" (click)="toggleProfileMenu()">
-                <span><small>My Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span><span aria-hidden="true">⌄</span>
+              <button
+                class="profile-trigger"
+                type="button"
+                aria-haspopup="menu"
+                [attr.aria-expanded]="profileMenuOpen"
+                aria-label="Select Profile"
+                [matMenuTriggerFor]="profileMenu"
+                (menuOpened)="onProfileMenuOpened()"
+                (menuClosed)="onProfileMenuClosed()"
+              >
+                <span><small>My Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span>
+                <app-shell-icon name="chevron" />
               </button>
-              @if (profileMenuOpen) {
-                <div class="profile-menu" id="profile-menu" role="menu" aria-label="Select Profile">
-                  <div class="profile-menu-head"><strong>My Profiles</strong><span>Switch between your Profiles.</span></div>
-                   @for (profile of profileContext.summaries(); track profile.id) {
-                     <button class="profile-option" type="button" role="menuitemradio" [class.selected]="isSelectedProfile(profile.id)" [attr.aria-checked]="isSelectedProfile(profile.id)" (click)="selectProfile(profile.id)"><span><strong>{{ profile.profileName }}</strong><small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small></span><span class="mono">{{ profile.completeness !== undefined ? profile.completeness + '%' : '' }}</span></button>
-                   }
-                    <div class="profile-menu-actions"><button class="btn text" type="button" role="menuitem" (click)="createProfile()">Create Profile</button><button class="btn text" type="button" role="menuitem" (click)="openCopyProfile()">Copy Profile</button></div>
-                 </div>
-               }
-             </div>
+            </div>
           } @else if (profileContext.summaries().length === 1) {
             <div class="profile-static-context" aria-label="Selected Profile">
               <span><small>My Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span>
@@ -141,12 +364,13 @@
           } @else {
             <button class="profile-create-cta" type="button" (click)="createProfile()">Create Profile</button>
           }
-        } @else { <span class="context-title">{{ contextTitle }}</span> }
+        }
       </div>
     </header>
     <div class="page-content"><router-outlet /></div>
   </main>
 </div>
+
 @if (notifications.notification(); as notification) {
   <div
     class="application-toast"
@@ -157,6 +381,7 @@
     aria-atomic="true"
   >{{ notification.message }}</div>
 }
+
 @if (copyModalOpen && copySource; as source) {
   <app-profile-copy [sourceProfileId]="source.id" [sourceProfileName]="source.name" (closed)="closeCopyProfile()" (copied)="copyCompleted($event)" (openCopied)="profileCopied($event)" />
 }

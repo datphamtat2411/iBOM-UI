@@ -220,6 +220,52 @@
   .cdk-overlay-backdrop.ibom-dialog-backdrop {
     background-color: rgb(27 24 20 / 54%);
   }
+
+  .cdk-overlay-pane .ibom-menu-panel {
+    max-width: min(28rem, calc(100vw - 1.5rem));
+    border: 1px solid var(--ibom-color-border);
+    border-radius: var(--ibom-radius-lg);
+    background-color: var(--ibom-color-surface);
+    box-shadow: var(--ibom-shadow-overlay);
+    color: var(--ibom-color-text);
+    overflow: hidden;
+  }
+
+  .ibom-menu-panel .mat-mdc-menu-content {
+    padding: var(--ibom-space-1);
+  }
+
+  .ibom-menu-panel .mat-mdc-menu-item {
+    min-height: 2.75rem;
+    border-radius: var(--ibom-radius-md);
+    color: var(--ibom-color-text);
+    transition:
+      color var(--ibom-motion-fast) var(--ibom-motion-ease),
+      background-color var(--ibom-motion-fast) var(--ibom-motion-ease);
+  }
+
+  .ibom-menu-panel .mat-mdc-menu-item:hover:not([disabled]),
+  .ibom-menu-panel .mat-mdc-menu-item.cdk-program-focused:not([disabled]),
+  .ibom-menu-panel .mat-mdc-menu-item.cdk-keyboard-focused:not([disabled]) {
+    background-color: var(--ibom-color-surface-muted);
+  }
+
+  .ibom-menu-panel .mat-mdc-menu-item:focus-visible {
+    outline: 3px solid var(--ibom-color-focus-ring);
+    outline-offset: -3px;
+  }
+
+  .cdk-overlay-pane .ibom-tooltip {
+    min-height: 2rem;
+    padding: var(--ibom-space-2) var(--ibom-space-3);
+    border: 1px solid var(--ibom-color-border-strong);
+    border-radius: var(--ibom-radius-md);
+    background-color: var(--ibom-color-text);
+    color: var(--ibom-color-surface);
+    font-family: var(--ibom-font-sans);
+    font-size: var(--ibom-font-size-xs);
+    line-height: var(--ibom-line-height-tight);
+  }
 }
 
 @keyframes ibom-skeleton-pulse {
@@ -230,7 +276,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ibom-button,
-  .ibom-field__control {
+  .ibom-field__control,
+  .ibom-menu-panel .mat-mdc-menu-item {
     transition: none;
   }
 

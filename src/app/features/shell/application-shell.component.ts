@@ -1,4 +1,7 @@
-import { Component, computed, effect, HostListener, inject } from '@angular/core';
+import { A11yModule } from '@angular/cdk/a11y';
+import { Component, computed, effect, ElementRef, HostListener, inject, QueryList, signal, ViewChild, ViewChildren } from '@angular/core';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
@@ -7,11 +10,13 @@ import { ProfileCopyComponent } from '../profile/components/profile-copy/profile
 import { ProfileResponse, ProfileSummary } from '../profile/models/profile.models';
 import { ProfileContextService } from '../profile/services/profile-context.service';
 import { ProfileEditSessionService } from '../profile/services/profile-edit-session.service';
+import { ShellPreferencesService } from './services/shell-preferences.service';
+import { ShellIconComponent } from './shell-icon.component';
 
 @Component({
   selector: 'app-application-shell',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, ProfileCopyComponent],
+  imports: [A11yModule, MatMenuModule, MatTooltipModule, RouterLink, RouterLinkActive, RouterOutlet, ProfileCopyComponent, ShellIconComponent],
   templateUrl: './application-shell.component.html',
   styleUrl: './application-shell.component.scss',
 })
@@ -19,10 +24,13 @@ export class ApplicationShellComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly profileEditSession = inject(ProfileEditSessionService);
+  private readonly shellPreferences = inject(ShellPreferencesService);
   readonly profileContext = inject(ProfileContextService);
   readonly notifications = inject(NotificationService);
 
   readonly user = this.authService.user;
+  readonly sidebarCollapsed = this.shellPreferences.sidebarCollapsed;
+  readonly mobileViewport = signal(this.shellPreferences.isMobileViewport());
   readonly managementVisible = computed(() => ['MANAGER', 'ADMIN'].includes(this.user()?.role ?? ''));
   readonly logoutError = this.authService.logoutError;
   private readonly timestampFormatter = new Intl.DateTimeFormat('en-US', {
@@ -39,14 +47,18 @@ export class ApplicationShellComponent {
     return words.slice(0, 2).map((word) => word[0]).join('').toUpperCase();
   });
 
-  navigationOpen = false;
+  navigationOpen = signal(false);
   masterDataExpanded = this.isMasterDataRoute();
+  masterDataMenuOpen = false;
   accountMenuOpen = false;
   logoutInProgress = false;
   copyModalOpen = false;
   copySource: { id: string; name: string } | null = null;
   private copyWorkflowGeneration = 0;
   private activeCopyWorkflow: { generation: number; sourceId: string; routeUrl: string } | null = null;
+
+  @ViewChild('mobileNavToggle', { read: ElementRef }) private mobileNavToggle?: ElementRef<HTMLButtonElement>;
+  @ViewChildren(MatMenuTrigger) private menuTriggers?: QueryList<MatMenuTrigger>;
 
   constructor() {
     let previousUrl = this.router.url;
@@ -58,7 +70,8 @@ export class ApplicationShellComponent {
     });
     this.router.events.subscribe((event) => {
       if (!(event instanceof NavigationEnd)) return;
-      this.accountMenuOpen = false;
+      this.closeAllMenus();
+      this.closeNavigation(false);
       if (this.isMasterDataRoute(event.urlAfterRedirects) && !this.isMasterDataRoute(previousUrl)) {
         this.masterDataExpanded = true;
       }
@@ -68,10 +81,40 @@ export class ApplicationShellComponent {
   }
 
   toggleNavigation(): void {
-    this.navigationOpen = !this.navigationOpen;
+    if (this.navigationOpen()) {
+      this.closeNavigation();
+      return;
+    }
+
+    this.navigationOpen.set(true);
   }
 
-  toggleMasterData(): void { this.masterDataExpanded = !this.masterDataExpanded; }
+  closeNavigation(restoreFocus = true): void {
+    const wasOpen = this.navigationOpen();
+    this.navigationOpen.set(false);
+    if (!restoreFocus || !wasOpen || !this.mobileViewport()) return;
+
+    queueMicrotask(() => this.mobileNavToggle?.nativeElement.focus());
+  }
+
+  toggleSidebar(): void {
+    if (this.mobileViewport()) return;
+    this.shellPreferences.toggleSidebar();
+  }
+
+  @HostListener('window:resize')
+  onViewportResize(): void {
+    this.shellPreferences.syncResponsiveDefault();
+    const isMobile = this.shellPreferences.isMobileViewport();
+    if (this.mobileViewport() === isMobile) return;
+    this.mobileViewport.set(isMobile);
+    if (!isMobile) this.closeNavigation(false);
+  }
+
+  toggleMasterData(): void {
+    if (this.sidebarCollapsed()) return;
+    this.masterDataExpanded = !this.masterDataExpanded;
+  }
 
   isMasterDataRoute(url = this.router.url): boolean {
     const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
@@ -98,7 +141,8 @@ export class ApplicationShellComponent {
     return /^\/members\/[^/]+\/profiles(?:\/[^/]+(?:\/preview|\/projects(?:\/[^/]+)?)?)?$/.test(path);
   }
 
-  toggleAccountMenu(): void { this.accountMenuOpen = !this.accountMenuOpen; }
+  onAccountMenuOpened(): void { this.accountMenuOpen = true; }
+  onAccountMenuClosed(): void { this.accountMenuOpen = false; }
   closeAccountMenu(): void { this.accountMenuOpen = false; }
   signOut(): void {
     if (this.logoutInProgress) return;
@@ -123,14 +167,20 @@ export class ApplicationShellComponent {
       error: () => { this.logoutInProgress = false; },
     });
   }
+  get contextLabel(): string {
+    if (this.router.url.includes('/account-settings')) return 'Account';
+    if (this.isManagedProfileRoute()) return 'Workspace';
+    if (this.isMemberManagementRoute() || this.isUserManagementRoute() || this.isMasterDataRoute()) return 'Management';
+    if (this.router.url.startsWith('/dashboard/manager')) return 'Management';
+    return 'Workspace';
+  }
+
   get contextTitle(): string {
-    if (this.isManagedProfileRoute()) return 'Profile Workspace';
-    if (this.isMemberManagementRoute()) return 'Member Management';
-    if (this.isUserManagementRoute()) return 'User Management';
-    if (this.isMasterDataRoute()) return 'Master Data';
-    if (this.router.url.startsWith('/profiles')) return 'Profile Workspace';
-    if (this.router.url.startsWith('/dashboard/manager')) return 'Manager Dashboard';
-    return this.router.url.includes('/account-settings') ? 'Account Settings' : 'Dashboard';
+    return this.contextLabel;
+  }
+
+  isOwnProfileContext(): boolean {
+    return !this.isManagedProfileRoute() && (this.isDashboardRoute() || this.router.url.startsWith('/profiles'));
   }
 
   get selectedProfileName(): string {
@@ -148,7 +198,8 @@ export class ApplicationShellComponent {
     return selected?.profileName ?? 'Select a Profile';
   }
 
-  toggleProfileMenu(): void { this.profileMenuOpen = !this.profileMenuOpen; }
+  onProfileMenuOpened(): void { this.profileMenuOpen = true; }
+  onProfileMenuClosed(): void { this.profileMenuOpen = false; }
   closeProfileMenu(): void { this.profileMenuOpen = false; }
   profileMenuOpen = false;
   selectProfile(id: number | string): void {
@@ -322,13 +373,23 @@ export class ApplicationShellComponent {
     return `/${commands.map((command) => encodeURIComponent(String(command))).join('/')}`;
   }
 
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    const target = event.target as HTMLElement;
-     if (this.accountMenuOpen && !target.closest('.account-menu') && !target.closest('.account-btn')) this.closeAccountMenu();
-     if (this.profileMenuOpen && !target.closest('.profile-menu') && !target.closest('.profile-trigger')) this.closeProfileMenu();
+  private closeAllMenus(): void {
+    this.accountMenuOpen = false;
+    this.profileMenuOpen = false;
+    this.masterDataMenuOpen = false;
+    this.menuTriggers?.forEach((trigger) => trigger.closeMenu());
   }
 
   @HostListener('document:keydown.escape')
-  onEscape(): void { if (this.accountMenuOpen) this.closeAccountMenu(); if (this.profileMenuOpen) this.closeProfileMenu(); }
+  onEscape(): void {
+    if (this.accountMenuOpen) {
+      this.accountMenuOpen = false;
+      return;
+    }
+    if (this.profileMenuOpen) {
+      this.profileMenuOpen = false;
+      return;
+    }
+    if (this.navigationOpen()) this.closeNavigation();
+  }
 }
