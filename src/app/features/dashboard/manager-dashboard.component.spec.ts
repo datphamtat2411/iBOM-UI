@@ -85,6 +85,8 @@ describe('ManagerDashboardComponent', () => {
 
     const rows = Array.from(fixture.nativeElement.querySelectorAll('.analytics-panel:first-child .distribution-row')) as HTMLElement[];
     expect(rows.map((row) => row.querySelector('.distribution-label')?.textContent?.trim())).toEqual(['Java', 'Angular', 'Others']);
+    expect(rows.map((row) => row.querySelector('strong')?.textContent?.trim())).toEqual(['4 Profiles', '2 Profiles', '3 Profiles']);
+    expect(rows.every((row) => row.querySelector('.distribution-swatch'))).toBeTrue();
     expect(rows[2].textContent).toContain('3 Profiles');
   });
 
@@ -95,6 +97,11 @@ describe('ManagerDashboardComponent', () => {
     fixture.detectChanges();
 
     const categoryRows = Array.from(fixture.nativeElement.querySelectorAll('.category-breakdown .distribution-row')) as HTMLElement[];
+    expect(categoryRows.map((row) => row.querySelector('strong')?.textContent?.trim())).toEqual([
+      '3 Profiles · 11%',
+      '2 Profiles · 89%',
+      '1 Profiles · 17%',
+    ]);
     expect(categoryRows[0].textContent).toContain('11%');
     expect(categoryRows[1].textContent).toContain('Uncategorized');
     expect(categoryRows[1].textContent).toContain('89%');
@@ -164,6 +171,7 @@ describe('ManagerDashboardComponent', () => {
     const categoryChart = (component as unknown as { skillCategoryChart: Chart<'doughnut'> | null }).skillCategoryChart;
     expect(primaryChart).not.toBeNull();
     expect(categoryChart).not.toBeNull();
+    expect(component.primaryChartHeight).toBe(200);
     expect(fixture.nativeElement.querySelector('.primary-skills-chart')?.getAttribute('aria-label')).toContain('Java');
     expect(fixture.nativeElement.querySelector('.skill-categories-chart')?.getAttribute('aria-label')).toContain('Uncategorized');
 

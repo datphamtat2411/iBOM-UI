@@ -31,6 +31,22 @@ interface CategoryRow extends DistributionRow {
   percentage: number;
 }
 
+interface ChartTheme {
+  text: string;
+  muted: string;
+  canvas: string;
+  border: string;
+  borderSubtle: string;
+  information: string;
+  accent: string;
+  success: string;
+  warning: string;
+  error: string;
+  focus: string;
+  fontSans: string;
+  fontMono: string;
+}
+
 @Component({
   selector: 'app-manager-dashboard',
   standalone: true,
@@ -165,6 +181,11 @@ export class ManagerDashboardComponent implements OnInit, AfterViewChecked, OnDe
     return this.skillCategoryRows.length > 0;
   }
 
+  get primaryChartHeight(): number {
+    const rowCount = this.primarySkillRows.length;
+    return Math.min(420, Math.max(200, rowCount * 42 + 52));
+  }
+
   get primarySkillChartAriaLabel(): string {
     if (!this.hasPrimarySkillData) return 'Main Skills chart has no data.';
     return `Main Skills chart: ${this.primarySkillRows.map((row) => `${row.label}, ${this.formatCount(row.profileCount)} Profiles`).join('; ')}.`;
@@ -189,6 +210,12 @@ export class ManagerDashboardComponent implements OnInit, AfterViewChecked, OnDe
 
   categoryLabel(item: SkillCategoryItem): string {
     return item.categoryName?.trim() || 'Uncategorized';
+  }
+
+  distributionColor(index: number): string {
+    const theme = this.chartTheme();
+    const palette = this.chartPalette(theme);
+    return palette[index % palette.length];
   }
 
   private primarySkillRow(item: PrimarySkillItem): DistributionRow {
@@ -219,16 +246,17 @@ export class ManagerDashboardComponent implements OnInit, AfterViewChecked, OnDe
     if (!this.primarySkillChart || this.primarySkillChart.canvas !== canvas) {
       this.destroyPrimarySkillChart();
       try {
+        const theme = this.chartTheme();
         this.primarySkillChart = new Chart(canvas, {
           type: 'bar',
           data: {
             labels: rows.map((row) => row.label),
             datasets: [{
               data: rows.map((row) => row.profileCount),
-              backgroundColor: '#1e4785',
-              borderColor: '#17191d',
+              backgroundColor: theme.information,
+              borderColor: theme.text,
               borderWidth: 1,
-              borderRadius: 2,
+              borderRadius: 4,
               barThickness: 22,
             }],
           },
@@ -239,15 +267,16 @@ export class ManagerDashboardComponent implements OnInit, AfterViewChecked, OnDe
             animation: false,
             plugins: {
               legend: { display: false },
+              tooltip: this.chartTooltip(theme),
             },
             scales: {
               x: {
                 beginAtZero: true,
-                ticks: { precision: 0, color: '#6b675f' },
-                grid: { color: '#ece8de' },
+                ticks: { precision: 0, color: theme.muted, font: { family: theme.fontMono } },
+                grid: { color: theme.borderSubtle },
               },
               y: {
-                ticks: { color: '#17191d' },
+                ticks: { color: theme.text, font: { family: theme.fontSans } },
                 grid: { display: false },
               },
             },
@@ -275,14 +304,16 @@ export class ManagerDashboardComponent implements OnInit, AfterViewChecked, OnDe
     if (!this.skillCategoryChart || this.skillCategoryChart.canvas !== canvas) {
       this.destroySkillCategoryChart();
       try {
+        const theme = this.chartTheme();
+        const palette = this.chartPalette(theme);
         this.skillCategoryChart = new Chart(canvas, {
           type: 'doughnut',
           data: {
             labels: rows.map((row) => row.label),
             datasets: [{
               data: rows.map((row) => row.profileCount),
-              backgroundColor: ['#1e4785', '#d85a18', '#2a7347', '#8b6f47', '#6b675f', '#a62d25', '#5e7094', '#c58b63'],
-              borderColor: '#f9f7f1',
+              backgroundColor: palette,
+              borderColor: theme.canvas,
               borderWidth: 3,
             }],
           },
@@ -293,6 +324,7 @@ export class ManagerDashboardComponent implements OnInit, AfterViewChecked, OnDe
             cutout: '62%',
             plugins: {
               legend: { display: false },
+              tooltip: this.chartTooltip(theme),
             },
           },
         });
@@ -305,6 +337,55 @@ export class ManagerDashboardComponent implements OnInit, AfterViewChecked, OnDe
     this.skillCategoryChart.data.labels = rows.map((row) => row.label);
     this.skillCategoryChart.data.datasets[0].data = rows.map((row) => row.profileCount);
     this.skillCategoryChart.update();
+  }
+
+  private chartTheme(): ChartTheme {
+    return {
+      text: this.readCssToken('--ibom-color-text', '#17191d'),
+      muted: this.readCssToken('--ibom-color-text-muted', '#6b675f'),
+      canvas: this.readCssToken('--ibom-color-canvas', '#f9f7f1'),
+      border: this.readCssToken('--ibom-color-border', '#d8d2c4'),
+      borderSubtle: this.readCssToken('--ibom-color-border-subtle', '#e8e3d9'),
+      information: this.readCssToken('--ibom-color-information', '#1e4785'),
+      accent: this.readCssToken('--ibom-color-accent', '#d85a18'),
+      success: this.readCssToken('--ibom-color-success', '#2a7347'),
+      warning: this.readCssToken('--ibom-color-warning', '#8b5d08'),
+      error: this.readCssToken('--ibom-color-error', '#b42318'),
+      focus: this.readCssToken('--ibom-color-focus', '#b94b13'),
+      fontSans: this.readCssToken('--ibom-font-sans', 'system-ui, sans-serif'),
+      fontMono: this.readCssToken('--ibom-font-mono', 'ui-monospace, monospace'),
+    };
+  }
+
+  private chartPalette(theme: ChartTheme): string[] {
+    return [theme.information, theme.accent, theme.success, theme.warning, theme.muted, theme.error, theme.focus, theme.border];
+  }
+
+  private chartTooltip(theme: ChartTheme): object {
+    return {
+      backgroundColor: theme.text,
+      titleColor: theme.canvas,
+      bodyColor: theme.canvas,
+      borderColor: theme.border,
+      borderWidth: 1,
+      titleFont: { family: theme.fontSans, weight: 600 },
+      bodyFont: { family: theme.fontSans },
+      padding: 10,
+      displayColors: true,
+    };
+  }
+
+  private readCssToken(name: string, fallback: string, seen = new Set<string>()): string {
+    if (seen.has(name) || typeof document === 'undefined') return fallback;
+    seen.add(name);
+
+    const styles = document.defaultView?.getComputedStyle(document.documentElement);
+    const value = styles?.getPropertyValue(name).trim();
+    if (!value) return fallback;
+
+    const alias = value.match(/^var\((--[\w-]+)(?:,\s*(.+))?\)$/);
+    if (alias) return this.readCssToken(alias[1], alias[2]?.trim() || fallback, seen);
+    return value;
   }
 
   private destroyCharts(): void {

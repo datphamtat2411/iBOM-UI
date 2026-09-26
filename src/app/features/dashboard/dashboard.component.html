@@ -1,106 +1,131 @@
 <section class="dashboard-page" data-od-id="member-dashboard" aria-labelledby="dashboard-title">
   @if (context.summariesLoading() && !context.summaries().length) {
     <div class="workspace-state" role="status" aria-live="polite">
+      <p class="page-kicker">Profile dashboard</p>
       <h1 id="dashboard-title">Loading Profiles</h1>
       <p>Loading your Profile dashboard.</p>
     </div>
   } @else if (context.summariesError()) {
     <div class="workspace-state error" role="alert">
+      <p class="page-kicker">Profile dashboard</p>
       <h1 id="dashboard-title">Unable to load Profiles</h1>
       <p>We could not load your Profile list. Please try again.</p>
-      <button class="btn text" type="button" (click)="retryProfiles()" [disabled]="context.summariesLoading()">Retry</button>
+      <button class="btn ibom-button ibom-button--quiet" type="button" (click)="retryProfiles()" [disabled]="context.summariesLoading()">Retry</button>
     </div>
   } @else if (!context.summaries().length) {
     <div class="workspace-state empty-state" aria-labelledby="dashboard-title">
+      <p class="page-kicker">Profile dashboard</p>
       <h1 id="dashboard-title">No Profiles yet</h1>
       <p>Create your first Profile to start building an iBOM CV.</p>
-      <button class="btn primary" type="button" (click)="createProfile()">Create Profile</button>
+      <button class="btn ibom-button ibom-button--primary" type="button" (click)="createProfile()">Create Profile</button>
     </div>
   } @else if (!context.selectedId() || !selectedProfile()) {
     <div class="workspace-state" role="status" aria-live="polite">
+      <p class="page-kicker">Profile dashboard</p>
       <h1 id="dashboard-title">Loading Profile</h1>
       <p>Resolving the selected Profile dashboard.</p>
     </div>
   } @else {
     @if (selectedProfile(); as profile) {
-      <div class="page-heading">
+      <header class="page-heading">
         <div>
-          <h1 id="dashboard-title">Welcome, {{ user()?.username }}</h1>
-          <p>Continue the selected Profile or prepare its current document.</p>
+          <p class="page-kicker">Profile health</p>
+          <h1 id="dashboard-title">Profile Dashboard</h1>
+          <p>Review completeness and keep the selected Profile ready for its next document action.</p>
         </div>
         <div class="heading-actions">
-          <button class="btn" type="button" (click)="openWorkspace()">Open Workspace</button>
-          <button class="btn primary" type="button" (click)="openPreview()">Preview CV</button>
+          <button class="btn ibom-button ibom-button--secondary" type="button" (click)="openWorkspace()">Open Workspace</button>
         </div>
-      </div>
+      </header>
 
-      @if (statsError()) {
-        <div class="notice error" role="alert" aria-live="polite">
-          <span><strong>Dashboard unavailable.</strong> We could not load the selected Profile statistics.</span>
-          <button class="btn text" type="button" (click)="retryStats()" [disabled]="statsLoading()">Retry</button>
+      <section class="health-summary" aria-labelledby="health-summary-heading">
+        <div class="health-overview">
+          <p class="page-kicker">Selected Profile</p>
+          <h2 id="health-summary-heading">Profile health</h2>
+          <p class="muted">{{ profileIdentity(profile) }}</p>
         </div>
-      } @else if (statsLoading() || !stats()) {
-        <div class="notice info" role="status" aria-live="polite">
-          <span><strong>Loading Dashboard.</strong> Loading completeness for {{ profile.profileName }}.</span>
-        </div>
-      } @else if (previewState() === 'valid') {
-        <div class="notice success" role="status" aria-live="polite">
-          <span><strong>Document current.</strong> This Profile has a successful Preview and is ready for export.</span>
-          <button class="btn text" type="button" (click)="openPreview()">Open document</button>
-        </div>
-      } @else if (previewState() === 'required') {
-        <div class="notice warning" role="status" aria-live="polite">
-          <span><strong>Preview required.</strong> Preview this Profile before exporting its current document.</span>
-          <button class="btn text" type="button" (click)="openPreview()">Preview now</button>
-        </div>
-      } @else if (previewState() === 'loading') {
-        <div class="notice info" role="status" aria-live="polite">
-          <span><strong>Checking Preview state.</strong> Loading the selected Profile detail.</span>
-        </div>
-      } @else {
-        <div class="notice warning" role="status" aria-live="polite">
-          <span><strong>Preview unavailable.</strong> The selected Profile detail could not be loaded.</span>
-        </div>
-      }
 
-      <div class="context-band" data-od-id="profile-context-band">
-        <div class="band-cell">
-          <label>Selected Profile</label>
-          <h2>{{ profile.profileName }}</h2>
-          <span class="small muted">{{ profileIdentity(profile) }}</span>
-        </div>
-        <div class="band-cell">
-          <label>Completeness</label>
+        <div class="completeness-overview">
+          <p class="page-kicker">Completeness</p>
           @if (stats(); as dashboard) {
             <p class="metric">{{ formatPercentage(dashboard.completeness.percentage) }}</p>
+            <div class="progress-track" role="progressbar" aria-label="Profile completeness" [attr.aria-valuenow]="dashboard.completeness.percentage" aria-valuemin="0" aria-valuemax="100">
+              <span class="progress-value" [style.width.%]="dashboard.completeness.percentage"></span>
+            </div>
             <span class="small muted">{{ dashboard.completeness.completed ? 'All required sections present' : 'Some sections need attention' }}</span>
           } @else {
             <p class="metric">&mdash;</p>
             <span class="small muted">Loading completeness</span>
           }
+          <p class="latest-export"><span>Latest export</span><span class="mono">{{ stats() ? formatLatestExport(stats()!.latestExportedAt) : 'Loading...' }}</span></p>
         </div>
-        <div class="band-cell">
-          <label>Preview state</label>
-          <span class="status" [class.valid]="previewState() === 'valid'" [class.required]="previewState() === 'required'" [class.loading]="previewState() === 'loading'" [class.unavailable]="previewState() === 'unavailable'">{{ previewStateLabel() }}</span>
-        </div>
-        <div class="band-cell">
-          <label>Latest export</label>
-          @if (stats(); as dashboard) {
-            <p class="mono small">{{ formatLatestExport(dashboard.latestExportedAt) }}</p>
-          } @else {
-            <p class="mono small">Loading...</p>
-          }
-        </div>
-      </div>
+
+        @if (statsError()) {
+          <div class="preview-readiness notice error ibom-notice ibom-notice--error" role="alert" aria-live="polite">
+            <div class="readiness-copy">
+              <p class="page-kicker">Document readiness</p>
+              <strong>Dashboard unavailable.</strong>
+              <p>We could not load the selected Profile statistics.</p>
+            </div>
+            <button class="btn ibom-button ibom-button--quiet" type="button" (click)="retryStats()" [disabled]="statsLoading()">Retry</button>
+          </div>
+        } @else if (statsLoading() || !stats()) {
+          <div class="preview-readiness notice info ibom-notice ibom-notice--information" role="status" aria-live="polite">
+            <div class="readiness-copy">
+              <p class="page-kicker">Document readiness</p>
+              <strong>Loading Dashboard.</strong>
+              <p>Loading completeness for the selected Profile.</p>
+            </div>
+          </div>
+        } @else if (previewState() === 'valid') {
+          <div class="preview-readiness notice success ibom-notice ibom-notice--success" role="status" aria-live="polite">
+            <div class="readiness-copy">
+              <p class="page-kicker">Document readiness</p>
+              <span class="status valid ibom-badge ibom-badge--success">{{ previewStateLabel() }}</span>
+              <strong>Document current.</strong>
+              <p>This Profile has a successful Preview and is ready for export.</p>
+            </div>
+            <button class="btn ibom-button ibom-button--quiet" type="button" (click)="openPreview()">Open document</button>
+          </div>
+        } @else if (previewState() === 'required') {
+          <div class="preview-readiness notice warning ibom-notice ibom-notice--warning" role="status" aria-live="polite">
+            <div class="readiness-copy">
+              <p class="page-kicker">Document readiness</p>
+              <span class="status required ibom-badge ibom-badge--warning">{{ previewStateLabel() }}</span>
+              <strong>Preview required.</strong>
+              <p>Preview this Profile before exporting its current document.</p>
+            </div>
+            <button class="btn ibom-button ibom-button--quiet" type="button" (click)="openPreview()">Preview now</button>
+          </div>
+        } @else if (previewState() === 'loading') {
+          <div class="preview-readiness notice info ibom-notice ibom-notice--information" role="status" aria-live="polite">
+            <div class="readiness-copy">
+              <p class="page-kicker">Document readiness</p>
+              <span class="status loading ibom-badge ibom-badge--information">{{ previewStateLabel() }}</span>
+              <strong>Checking Preview state.</strong>
+              <p>Loading the selected Profile detail.</p>
+            </div>
+          </div>
+        } @else {
+          <div class="preview-readiness notice warning ibom-notice ibom-notice--warning" role="status" aria-live="polite">
+            <div class="readiness-copy">
+              <p class="page-kicker">Document readiness</p>
+              <span class="status unavailable ibom-badge ibom-badge--warning">{{ previewStateLabel() }}</span>
+              <strong>Preview unavailable.</strong>
+              <p>The selected Profile detail could not be loaded.</p>
+            </div>
+          </div>
+        }
+      </section>
 
       <div class="dashboard-grid">
         <section class="section-block" aria-labelledby="completeness-heading">
           <div class="section-title">
             <h2 id="completeness-heading">Completeness by section</h2>
-            <button class="btn text" type="button" (click)="openWorkspace()">Review Profile</button>
+            <button class="btn ibom-button ibom-button--quiet" type="button" (click)="openWorkspace()">Review Profile</button>
           </div>
           @if (statsError()) {
-            <div class="inline-state error" role="alert"><p>Section completeness is unavailable.</p><button class="btn text" type="button" (click)="retryStats()">Retry</button></div>
+            <div class="inline-state error" role="alert"><p>Section completeness is unavailable.</p><button class="btn ibom-button ibom-button--quiet" type="button" (click)="retryStats()">Retry</button></div>
           } @else if (statsLoading() || !stats()) {
             <div class="contribution-list" role="status" aria-live="polite">
               <div class="contribution-row"><strong>Loading completeness</strong><span class="muted">Please wait</span><span class="mono">...</span></div>
@@ -112,7 +137,7 @@
                 <div class="contribution-row">
                   <strong>{{ sectionLabel(section) }}</strong>
                   <span class="section-detail">
-                    <span class="section-status" [class.done]="section.completed" [class.missing]="!section.completed">{{ section.completed ? 'Complete' : 'Needs attention' }}</span>
+                    <span class="section-status ibom-badge" [class.ibom-badge--success]="section.completed" [class.ibom-badge--warning]="!section.completed" [class.done]="section.completed" [class.missing]="!section.completed">{{ section.completed ? 'Complete' : 'Needs attention' }}</span>
                     @if (sectionCount(section); as count) { <span class="section-count">{{ count }}</span> }
                   </span>
                   <span class="mono">{{ formatSectionPercentage(section) }}</span>
@@ -127,11 +152,11 @@
         <section class="section-block" aria-labelledby="profiles-heading">
           <div class="section-title">
             <h2 id="profiles-heading">My Profiles</h2>
-            <button class="btn text" type="button" (click)="createProfile()">Create</button>
+            <button class="btn ibom-button ibom-button--quiet" type="button" (click)="createProfile()">Create</button>
           </div>
           <div class="profile-summary-list">
             @for (summary of context.summaries(); track summary.id) {
-              <button class="profile-summary" type="button" [class.selected]="isSelectedProfile(summary.id)" [attr.aria-current]="isSelectedProfile(summary.id) ? 'true' : null" (click)="selectProfile(summary.id)">
+              <button class="profile-summary ibom-button ibom-button--quiet" type="button" [class.selected]="isSelectedProfile(summary.id)" [class.is-selected]="isSelectedProfile(summary.id)" [attr.aria-current]="isSelectedProfile(summary.id) ? 'true' : null" (click)="selectProfile(summary.id)">
                 <span>
                   <strong>{{ summary.profileName }}</strong>
                   <small>{{ profileIdentity(summary) }}</small>

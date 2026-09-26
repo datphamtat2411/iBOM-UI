@@ -1,34 +1,34 @@
 <section class="dashboard-page manager-dashboard" aria-labelledby="manager-dashboard-title" [attr.aria-busy]="loading">
   <header class="page-heading">
     <div>
-      <p class="page-kicker">Management / Analytics</p>
+      <p class="page-kicker">Analytics overview</p>
       <h1 id="manager-dashboard-title">Manager Dashboard</h1>
       <p>Review Profile completion and skill distribution across eligible Profiles.</p>
     </div>
     <div class="heading-actions">
-      <span class="metadata">Data loaded <time [attr.datetime]="dataLoadedAt?.toISOString()">{{ dataLoadedLabel }}</time></span>
-      <button class="btn primary" type="button" (click)="refreshStats()" [disabled]="loading">
+      <span class="metadata"><span>Last updated</span> <time [attr.datetime]="dataLoadedAt?.toISOString()">{{ dataLoadedLabel }}</time></span>
+      <button class="btn ibom-button ibom-button--primary" type="button" (click)="refreshStats()" [disabled]="loading">
         {{ loading ? 'Refreshing...' : 'Refresh' }}
       </button>
     </div>
   </header>
 
   @if (!hasLoaded && loading) {
-    <div class="state-panel" role="status" aria-live="polite">Loading Manager Dashboard analytics...</div>
+    <div class="state-panel ibom-loading" role="status" aria-live="polite">Loading Manager Dashboard analytics...</div>
   } @else if (!hasLoaded && loadErrorMessage) {
-    <div class="notice error" role="alert">
+    <div class="notice error ibom-notice ibom-notice--error" role="alert">
       <span>{{ loadErrorMessage }}</span>
-      <button class="btn text retry-button" type="button" (click)="retryStats()" [disabled]="loading">Retry</button>
+      <button class="btn ibom-button ibom-button--quiet retry-button" type="button" (click)="retryStats()" [disabled]="loading">Retry</button>
     </div>
   } @else if (stats) {
     @if (loadErrorMessage) {
-      <div class="notice error" role="alert">
+      <div class="notice error ibom-notice ibom-notice--error" role="alert">
         <span>{{ loadErrorMessage }} Existing data is still shown.</span>
-        <button class="btn text retry-button" type="button" (click)="retryStats()" [disabled]="loading">Retry</button>
+        <button class="btn ibom-button ibom-button--quiet retry-button" type="button" (click)="retryStats()" [disabled]="loading">Retry</button>
       </div>
     }
 
-    <section class="completion-card" aria-labelledby="completed-profiles-title">
+    <section class="completion-card completion-summary" aria-labelledby="completed-profiles-title">
       <div class="section-title">
         <div>
           <p class="page-kicker">Profile readiness</p>
@@ -62,13 +62,13 @@
         </div>
 
         @if (hasPrimarySkillData) {
-          <div class="chart-frame primary-chart-frame">
+          <div class="chart-frame primary-chart-frame" [style.height.px]="primaryChartHeight">
             <canvas #primarySkillsCanvas class="primary-skills-chart" role="img" [attr.aria-label]="primarySkillChartAriaLabel"></canvas>
           </div>
           <ul class="distribution-list" aria-label="Main Skills counts">
             @for (row of primarySkillRows; track $index) {
               <li class="distribution-row">
-                <span class="distribution-label">{{ row.label }}</span>
+                <span class="distribution-label"><span class="distribution-swatch" [style.backgroundColor]="distributionColor($index)" aria-hidden="true"></span>{{ row.label }}</span>
                 <strong>{{ formatCount(row.profileCount) }} Profiles</strong>
               </li>
             }
@@ -96,7 +96,7 @@
           <ul class="distribution-list category-breakdown" aria-label="Skill Category counts and percentages">
             @for (row of skillCategoryRows; track $index) {
               <li class="distribution-row">
-                <span class="distribution-label">{{ row.label }}</span>
+                <span class="distribution-label"><span class="distribution-swatch" [style.backgroundColor]="distributionColor($index)" aria-hidden="true"></span>{{ row.label }}</span>
                 <strong>{{ formatCount(row.profileCount) }} Profiles · {{ formatPercentage(row.percentage) }}</strong>
               </li>
             }
@@ -111,10 +111,11 @@
 
     <section class="data-info" aria-labelledby="data-info-title">
       <div>
-        <p class="page-kicker">Data info</p>
-        <h2 id="data-info-title">Analytics source</h2>
+        <p class="page-kicker">Data context</p>
+        <h2 id="data-info-title">Analytics provenance</h2>
       </div>
       <div class="data-info-item"><span>Eligible Profiles</span><strong>{{ formatCount(totalProfilesCount) }}</strong></div>
+      <div class="data-info-item"><span>Eligibility</span><strong>Backend rules</strong></div>
       <div class="data-info-item"><span>Source</span><strong>Manager analytics API</strong></div>
       <div class="data-info-item"><span>Refresh state</span><strong>{{ loading ? 'Updating' : 'Current' }}</strong></div>
     </section>

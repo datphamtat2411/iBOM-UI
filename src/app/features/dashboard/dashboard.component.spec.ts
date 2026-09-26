@@ -134,12 +134,14 @@ describe('DashboardComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(dashboardService.getMemberStats).toHaveBeenCalledWith('1');
     expect(element.querySelector('.metric')?.textContent).toContain('0%');
-    expect(element.querySelector('.context-band')?.textContent).toContain('Never exported');
+    expect(element.querySelector('.latest-export')?.textContent).toContain('Never exported');
     expect(element.querySelector('.contribution-list')?.textContent).toContain('About Me');
     expect(element.querySelector('.contribution-list')?.textContent).toContain('0 / 6 fields');
     expect(element.querySelector('.contribution-list')?.textContent).toContain('Qualifying record present');
     expect(element.querySelector('.contribution-list')?.textContent).toContain('No qualifying record');
     expect(element.querySelector('.status.valid')?.textContent).toContain('Preview valid');
+    expect(element.querySelectorAll('.preview-readiness').length).toBe(1);
+    expect(element.querySelector('.preview-readiness .ibom-button')?.textContent).toContain('Open document');
   });
 
   it('renders each section contribution from its actual completion', () => {
@@ -213,8 +215,9 @@ describe('DashboardComponent', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('.status.required')?.textContent).toContain('Preview required');
-    expect(element.querySelector('.context-band')?.textContent).toContain('Aug 18, 2026');
-    expect(element.querySelector('.context-band')?.textContent).not.toContain('Never exported');
+    expect(element.querySelector('.latest-export')?.textContent).toContain('Aug 18, 2026');
+    expect(element.querySelector('.latest-export')?.textContent).not.toContain('Never exported');
+    expect(element.querySelector('.preview-readiness .ibom-button')?.textContent).toContain('Preview now');
 
     profileContext.detail.set(detailFor(firstSummary, true));
     fixture.detectChanges();
@@ -239,12 +242,12 @@ describe('DashboardComponent', () => {
 
     expect(profileContext.selectedId()).toBe('2');
     expect(dashboardService.getMemberStats).toHaveBeenCalledTimes(2);
-    expect(element.querySelector('.context-band')?.textContent).not.toContain('2026');
+    expect(element.querySelector('.health-summary')?.textContent).not.toContain('2026');
     expect(router.navigate).not.toHaveBeenCalled();
 
     secondStats.next(statsFor(secondSummary));
     fixture.detectChanges();
-    expect(element.querySelector('.context-band')?.textContent).toContain('Frontend CV');
+    expect(element.querySelector('.profile-summary.selected')?.textContent).toContain('Frontend CV');
   });
 
   it('shows Dashboard API failure and retries the current selection', () => {
