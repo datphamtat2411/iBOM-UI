@@ -28,8 +28,8 @@
   } @else {
     @if (selectedProfile(); as profile) {
       <header class="page-heading">
-        <div>
-          <p class="page-kicker">Profile health</p>
+        <div class="heading-copy">
+          <p class="page-kicker">Workspace / Profile health</p>
           <h1 id="dashboard-title">Profile Dashboard</h1>
           <p>Review completeness and keep the selected Profile ready for its next document action.</p>
         </div>
@@ -40,13 +40,23 @@
 
       <section class="health-summary" aria-labelledby="health-summary-heading">
         <div class="health-overview">
-          <p class="page-kicker">Selected Profile</p>
-          <h2 id="health-summary-heading">Profile health</h2>
+          <div class="health-overview-heading">
+            <p class="page-kicker">Selected Profile</p>
+            <span class="signal-tag">Active</span>
+          </div>
+          <p class="health-overview-label">Profile health</p>
+          <h2 id="health-summary-heading">{{ profile.profileName }}</h2>
           <p class="muted">{{ profileIdentity(profile) }}</p>
+          <p class="health-overview-note">Completeness and document readiness for this Profile.</p>
         </div>
 
         <div class="completeness-overview">
-          <p class="page-kicker">Completeness</p>
+          <div class="metric-heading">
+            <p class="page-kicker">Completeness</p>
+            @if (stats(); as dashboard) {
+              <span class="metric-state" [class.is-complete]="dashboard.completeness.completed">{{ dashboard.completeness.completed ? 'Complete' : 'In progress' }}</span>
+            }
+          </div>
           @if (stats(); as dashboard) {
             <p class="metric">{{ formatPercentage(dashboard.completeness.percentage) }}</p>
             <div class="progress-track" role="progressbar" aria-label="Profile completeness" [attr.aria-valuenow]="dashboard.completeness.percentage" aria-valuemin="0" aria-valuemax="100">
@@ -80,8 +90,10 @@
         } @else if (previewState() === 'valid') {
           <div class="preview-readiness notice success ibom-notice ibom-notice--success" role="status" aria-live="polite">
             <div class="readiness-copy">
-              <p class="page-kicker">Document readiness</p>
-              <span class="status valid ibom-badge ibom-badge--success">{{ previewStateLabel() }}</span>
+              <div class="readiness-heading">
+                <p class="page-kicker">Document readiness</p>
+                <span class="status valid ibom-badge ibom-badge--success">{{ previewStateLabel() }}</span>
+              </div>
               <strong>Document current.</strong>
               <p>This Profile has a successful Preview and is ready for export.</p>
             </div>
@@ -90,18 +102,22 @@
         } @else if (previewState() === 'required') {
           <div class="preview-readiness notice warning ibom-notice ibom-notice--warning" role="status" aria-live="polite">
             <div class="readiness-copy">
-              <p class="page-kicker">Document readiness</p>
-              <span class="status required ibom-badge ibom-badge--warning">{{ previewStateLabel() }}</span>
+              <div class="readiness-heading">
+                <p class="page-kicker">Document readiness</p>
+                <span class="status required ibom-badge ibom-badge--warning">{{ previewStateLabel() }}</span>
+              </div>
               <strong>Preview required.</strong>
               <p>Preview this Profile before exporting its current document.</p>
             </div>
-            <button class="btn ibom-button ibom-button--quiet" type="button" (click)="openPreview()">Preview now</button>
+            <button class="btn ibom-button ibom-button--primary" type="button" (click)="openPreview()">Preview now</button>
           </div>
         } @else if (previewState() === 'loading') {
           <div class="preview-readiness notice info ibom-notice ibom-notice--information" role="status" aria-live="polite">
             <div class="readiness-copy">
-              <p class="page-kicker">Document readiness</p>
-              <span class="status loading ibom-badge ibom-badge--information">{{ previewStateLabel() }}</span>
+              <div class="readiness-heading">
+                <p class="page-kicker">Document readiness</p>
+                <span class="status loading ibom-badge ibom-badge--information">{{ previewStateLabel() }}</span>
+              </div>
               <strong>Checking Preview state.</strong>
               <p>Loading the selected Profile detail.</p>
             </div>
@@ -109,8 +125,10 @@
         } @else {
           <div class="preview-readiness notice warning ibom-notice ibom-notice--warning" role="status" aria-live="polite">
             <div class="readiness-copy">
-              <p class="page-kicker">Document readiness</p>
-              <span class="status unavailable ibom-badge ibom-badge--warning">{{ previewStateLabel() }}</span>
+              <div class="readiness-heading">
+                <p class="page-kicker">Document readiness</p>
+                <span class="status unavailable ibom-badge ibom-badge--warning">{{ previewStateLabel() }}</span>
+              </div>
               <strong>Preview unavailable.</strong>
               <p>The selected Profile detail could not be loaded.</p>
             </div>
@@ -121,7 +139,10 @@
       <div class="dashboard-grid">
         <section class="section-block" aria-labelledby="completeness-heading">
           <div class="section-title">
-            <h2 id="completeness-heading">Completeness by section</h2>
+            <div class="section-heading-copy">
+              <p class="page-kicker">Progress map</p>
+              <h2 id="completeness-heading">Completeness by section</h2>
+            </div>
             <button class="btn ibom-button ibom-button--quiet" type="button" (click)="openWorkspace()">Review Profile</button>
           </div>
           @if (statsError()) {
@@ -140,6 +161,9 @@
                     <span class="section-status ibom-badge" [class.ibom-badge--success]="section.completed" [class.ibom-badge--warning]="!section.completed" [class.done]="section.completed" [class.missing]="!section.completed">{{ section.completed ? 'Complete' : 'Needs attention' }}</span>
                     @if (sectionCount(section); as count) { <span class="section-count">{{ count }}</span> }
                   </span>
+                  <span class="section-progress" aria-hidden="true">
+                    <span class="section-progress-value" [class.is-complete]="section.completed" [style.width.%]="sectionCompletionPercentage(section)"></span>
+                  </span>
                   <span class="mono">{{ formatSectionPercentage(section) }}</span>
                 </div>
               }
@@ -151,13 +175,18 @@
 
         <section class="section-block" aria-labelledby="profiles-heading">
           <div class="section-title">
-            <h2 id="profiles-heading">My Profiles</h2>
+            <div class="section-heading-copy">
+              <p class="page-kicker">Profile library</p>
+              <h2 id="profiles-heading">My Profiles</h2>
+            </div>
+            <span class="section-meta">{{ context.summaries().length }} Profile{{ context.summaries().length === 1 ? '' : 's' }}</span>
             <button class="btn ibom-button ibom-button--quiet" type="button" (click)="createProfile()">Create</button>
           </div>
           <div class="profile-summary-list">
             @for (summary of context.summaries(); track summary.id) {
               <button class="profile-summary ibom-button ibom-button--quiet" type="button" [class.selected]="isSelectedProfile(summary.id)" [class.is-selected]="isSelectedProfile(summary.id)" [attr.aria-current]="isSelectedProfile(summary.id) ? 'true' : null" (click)="selectProfile(summary.id)">
-                <span>
+                <span class="profile-summary-mark" aria-hidden="true">{{ summary.profileName.charAt(0).toUpperCase() }}</span>
+                <span class="profile-summary-copy">
                   <strong>{{ summary.profileName }}</strong>
                   <small>{{ profileIdentity(summary) }}</small>
                   <small>Updated: <time [attr.datetime]="summary.updatedAt">{{ formatTimestamp(summary.updatedAt) }}</time></small>

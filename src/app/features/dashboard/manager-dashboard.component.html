@@ -1,12 +1,12 @@
 <section class="dashboard-page manager-dashboard" aria-labelledby="manager-dashboard-title" [attr.aria-busy]="loading">
   <header class="page-heading">
-    <div>
-      <p class="page-kicker">Analytics overview</p>
+    <div class="heading-copy">
+      <p class="page-kicker">Management / Analytics overview</p>
       <h1 id="manager-dashboard-title">Manager Dashboard</h1>
       <p>Review Profile completion and skill distribution across eligible Profiles.</p>
     </div>
     <div class="heading-actions">
-      <span class="metadata"><span>Last updated</span> <time [attr.datetime]="dataLoadedAt?.toISOString()">{{ dataLoadedLabel }}</time></span>
+      <span class="heading-freshness"><span class="heading-freshness__dot" aria-hidden="true"></span><span><span>Last updated</span> <time [attr.datetime]="dataLoadedAt?.toISOString()">{{ dataLoadedLabel }}</time></span></span>
       <button class="btn ibom-button ibom-button--primary" type="button" (click)="refreshStats()" [disabled]="loading">
         {{ loading ? 'Refreshing...' : 'Refresh' }}
       </button>
@@ -28,16 +28,16 @@
       </div>
     }
 
-    <section class="completion-card completion-summary" aria-labelledby="completed-profiles-title">
+    <section class="completion-card completion-summary lead-panel" aria-labelledby="completed-profiles-title">
       <div class="section-title">
-        <div>
+        <div class="section-heading-copy">
           <p class="page-kicker">Profile readiness</p>
           <h2 id="completed-profiles-title">Completed Profiles</h2>
         </div>
-        <span class="metadata">Backend eligibility rules</span>
+        <span class="metadata"><span class="metadata-dot" aria-hidden="true"></span>Backend eligibility rules</span>
       </div>
       <div class="completion-content">
-        <div class="completion-summary">
+        <div class="completion-summary completion-stat">
           <p class="metadata">Completed Profiles</p>
           <p class="completion-count"><strong>{{ formatCount(completedProfilesCount) }}</strong> / {{ formatCount(totalProfilesCount) }}</p>
           <p class="completion-note completion-percentage">{{ formatPercentage(completedPercentage) }} of eligible Profiles</p>
@@ -110,7 +110,7 @@
     </div>
 
     <section class="data-info" aria-labelledby="data-info-title">
-      <div>
+      <div class="data-info-intro">
         <p class="page-kicker">Data context</p>
         <h2 id="data-info-title">Analytics provenance</h2>
       </div>

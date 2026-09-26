@@ -173,6 +173,14 @@ describe('DashboardComponent', () => {
       'Projects: 20%',
       'Skills: 0%',
     ]);
+
+    const completionPercentages = stats.completeness.sections.map((section) => fixture.componentInstance.sectionCompletionPercentage(section));
+    expect(completionPercentages[0]).toBeCloseTo(66.67, 2);
+    expect(completionPercentages[1]).toBe(0);
+    expect(completionPercentages[2]).toBe(100);
+    expect(completionPercentages[3]).toBe(0);
+    expect(completionPercentages[4]).toBe(100);
+    expect(completionPercentages[5]).toBe(0);
   });
 
   it('renders API completeness rounded to the nearest whole percent', () => {

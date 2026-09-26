@@ -112,6 +112,15 @@ export class DashboardComponent implements OnDestroy {
     return section.completed ? section.weight : 0;
   }
 
+  sectionCompletionPercentage(section: DashboardCompletenessSection): number {
+    if (section.validFieldCount !== undefined && section.fieldCount !== undefined) {
+      if (section.fieldCount <= 0 || !Number.isFinite(section.validFieldCount)) return 0;
+      return Math.min(100, Math.max(0, (section.validFieldCount / section.fieldCount) * 100));
+    }
+    if (section.hasQualifyingRecord !== undefined) return section.hasQualifyingRecord ? 100 : 0;
+    return section.completed ? 100 : 0;
+  }
+
   formatSectionPercentage(section: DashboardCompletenessSection): string {
     return `${this.percentageFormatter.format(this.sectionPercentage(section))}%`;
   }

@@ -1,2 +1,0 @@
-[     515ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://127.0.0.1:4200/api/auth/refresh-token:0
-[     534ms] [LOG] Angular is running in development mode. @ http://127.0.0.1:4200/chunk-5JONPCAR.js:17947
