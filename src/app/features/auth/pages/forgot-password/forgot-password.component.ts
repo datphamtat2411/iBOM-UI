@@ -5,6 +5,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Va
 import { Router, RouterLink } from '@angular/router';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { AuthLayoutComponent } from '../../components/auth-layout/auth-layout.component';
 import { PasswordResetService } from '../../services/password-reset.service';
 
 type MessageTone = 'error' | 'warning' | 'success';
@@ -28,9 +29,8 @@ function trimmedEmail(control: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, AuthLayoutComponent],
   templateUrl: './forgot-password.component.html',
-  styleUrl: './forgot-password.component.scss',
 })
 export class ForgotPasswordComponent {
   private readonly formBuilder = inject(FormBuilder);

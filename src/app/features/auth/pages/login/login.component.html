@@ -1,52 +1,44 @@
-<section id="login-screen" aria-labelledby="login-heading">
-  <div class="login-story" data-od-id="login-brand-panel">
-    <a class="brand" routerLink="/" aria-label="Return to iBOM Homepage">
-      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span class="brand-copy"><strong>iBOM</strong><small>CV Management System</small></span>
-    </a>
-    <div class="login-copy">
-      <p>Profile workspace · secure access</p>
-        <h1 id="login-heading" data-od-id="login-heading">
-          One identity.<br>
-          Several precise CVs.
-      </h1>
-      <p>Maintain independent professional Profiles, verify each document, and prepare standardized exports for the work ahead.</p>
-    </div>
-  </div>
-  <div class="login-form-wrap">
-    <div class="login-panel">
-      <h2>Sign in to iBOM</h2>
-      <p>Use your organization account to continue.</p>
-      <form class="login-form" id="login-form" data-od-id="login-form" [formGroup]="loginForm" (ngSubmit)="submit()" novalidate>
-        @if (message) {
-          <div id="auth-message" class="auth-message" [class.error]="messageTone === 'error'" [class.warning]="messageTone === 'warning'" role="alert">{{ message }}</div>
+<app-auth-layout
+  eyebrow="Profile workspace · secure access"
+  heading="One identity. Several precise CVs."
+  description="Maintain independent professional Profiles, verify each document, and prepare standardized exports for the work ahead."
+  headingId="login-heading"
+  brandPanelDataId="login-brand-panel"
+>
+  <div class="auth-form-panel">
+    <header class="mb-6">
+      <h2 class="m-0 text-2xl font-semibold leading-tight">Sign in to iBOM</h2>
+      <p class="mt-2 mb-0 text-sm leading-normal text-[var(--ibom-color-text-muted)]">Use your organization account to continue.</p>
+    </header>
+    <form class="grid gap-4" id="login-form" data-od-id="login-form" [formGroup]="loginForm" (ngSubmit)="submit()" [attr.aria-busy]="isSubmitting ? 'true' : null" novalidate>
+      @if (message) {
+        <div id="auth-message" class="ibom-notice" [class.ibom-notice--error]="messageTone === 'error'" [class.ibom-notice--warning]="messageTone === 'warning'" role="alert">{{ message }}</div>
+      }
+      <div class="ibom-field">
+        <label class="ibom-field__label" for="email">Email</label>
+        <input class="ibom-field__control" id="email" type="email" formControlName="email" autocomplete="email" [attr.aria-invalid]="loginForm.controls.email.invalid && loginForm.controls.email.touched ? 'true' : null" [attr.aria-describedby]="loginForm.controls.email.touched ? 'email-error' : null">
+        @if (loginForm.controls.email.touched && loginForm.controls.email.errors) {
+          <span class="ibom-field__error" id="email-error">{{ loginForm.controls.email.errors['backend'] || (loginForm.controls.email.errors['required'] ? 'Email is required.' : 'Enter a valid email address.') }}</span>
         }
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" type="email" formControlName="email" autocomplete="email" [attr.aria-invalid]="loginForm.controls.email.invalid && loginForm.controls.email.touched" [attr.aria-describedby]="loginForm.controls.email.touched ? 'email-error' : null">
-          @if (loginForm.controls.email.touched && loginForm.controls.email.errors) {
-            <span class="field-error" id="email-error">{{ loginForm.controls.email.errors['backend'] || (loginForm.controls.email.errors['required'] ? 'Email is required.' : 'Enter a valid email address.') }}</span>
-          }
-        </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <div class="password-input">
-            <input id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" autocomplete="current-password" [attr.aria-invalid]="loginForm.controls.password.invalid && loginForm.controls.password.touched" [attr.aria-describedby]="loginForm.controls.password.touched ? 'password-error' : null">
-            <button class="password-toggle" type="button" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" (click)="togglePasswordVisibility()">{{ showPassword ? 'Hide' : 'Show' }}</button>
-          </div>
-          @if (loginForm.controls.password.touched && loginForm.controls.password.errors) {
-            <span class="field-error" id="password-error">{{ loginForm.controls.password.errors['backend'] || 'Password is required.' }}</span>
-          }
-        </div>
-        <div class="login-actions">
-          <a class="btn text" routerLink="/forgot-password">Forgot password?</a>
-          <button class="btn primary" id="login-submit" data-od-id="login-submit" type="submit" [disabled]="isSubmitting">{{ isSubmitting ? 'Signing in...' : 'Sign in' }}</button>
-        </div>
-      </form>
-      <div class="auth-links">
-        <a class="link-button" routerLink="/registration">Create member account</a>
-        <a class="link-button" routerLink="/">Return to Homepage</a>
       </div>
-    </div>
+      <div class="ibom-field">
+        <label class="ibom-field__label" for="password">Password</label>
+        <div class="ibom-password">
+          <input class="ibom-field__control ibom-password__input" id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" autocomplete="current-password" [attr.aria-invalid]="loginForm.controls.password.invalid && loginForm.controls.password.touched ? 'true' : null" [attr.aria-describedby]="loginForm.controls.password.touched ? 'password-error' : null">
+          <button class="ibom-password__toggle" type="button" aria-controls="password" [attr.aria-pressed]="showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" (click)="togglePasswordVisibility()">{{ showPassword ? 'Hide' : 'Show' }}</button>
+        </div>
+        @if (loginForm.controls.password.touched && loginForm.controls.password.errors) {
+          <span class="ibom-field__error" id="password-error">{{ loginForm.controls.password.errors['backend'] || 'Password is required.' }}</span>
+        }
+      </div>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <a class="ibom-button ibom-button--quiet no-underline w-full justify-start text-sm sm:w-auto" routerLink="/forgot-password">Forgot password?</a>
+        <button class="ibom-button ibom-button--primary w-full sm:w-auto" id="login-submit" data-od-id="login-submit" type="submit" [disabled]="isSubmitting" [attr.aria-busy]="isSubmitting ? 'true' : null">{{ isSubmitting ? 'Signing in...' : 'Sign in' }}</button>
+      </div>
+    </form>
+    <nav class="mt-6 flex flex-wrap justify-between gap-x-4 gap-y-2 border-t border-[var(--ibom-color-border-subtle)] pt-5 text-sm" aria-label="Login navigation">
+      <a class="no-underline text-[var(--ibom-color-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ibom-color-focus)]" routerLink="/registration">Create member account</a>
+      <a class="no-underline text-[var(--ibom-color-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ibom-color-focus)]" routerLink="/">Return to Homepage</a>
+    </nav>
   </div>
-</section>
+</app-auth-layout>

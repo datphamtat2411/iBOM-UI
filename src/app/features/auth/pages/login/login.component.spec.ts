@@ -22,10 +22,11 @@ describe('LoginComponent', () => {
   });
 
   it('renders the approved Login actions and controls', () => {
+    expect(fixture.nativeElement.querySelector('.auth-layout')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#login-heading').textContent).toContain('Several precise CVs');
-    expect(fixture.nativeElement.querySelector('#email')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('#password')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('#login-submit').textContent).toContain('Sign in');
+    expect(fixture.nativeElement.querySelector('#email.ibom-field__control')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#password.ibom-field__control')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#login-submit.ibom-button--primary').textContent).toContain('Sign in');
   });
 
   it('links the registration entry point to Registration', () => {
@@ -38,7 +39,7 @@ describe('LoginComponent', () => {
 
   it('toggles password visibility without changing the value', () => {
     const password = fixture.nativeElement.querySelector('#password') as HTMLInputElement;
-    const toggle = fixture.nativeElement.querySelector('.password-toggle') as HTMLButtonElement;
+    const toggle = fixture.nativeElement.querySelector('.ibom-password__toggle') as HTMLButtonElement;
     password.value = 'secret';
     password.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -59,6 +60,7 @@ describe('LoginComponent', () => {
     expect(auth.login).not.toHaveBeenCalled();
     expect(fixture.nativeElement.querySelector('#email-error').textContent).toContain('Email is required');
     expect(fixture.nativeElement.querySelector('#password-error').textContent).toContain('Password is required');
+    expect(fixture.nativeElement.querySelector('#email').getAttribute('aria-describedby')).toBe('email-error');
   });
 
   it('submits once, shows loading, then navigates on success', async () => {
@@ -79,6 +81,7 @@ describe('LoginComponent', () => {
     fixture.detectChanges();
     expect(auth.login).toHaveBeenCalledTimes(1);
     expect(fixture.nativeElement.querySelector('#login-submit').disabled).toBeTrue();
+    expect(fixture.nativeElement.querySelector('#login-form').getAttribute('aria-busy')).toBe('true');
     expect(fixture.nativeElement.querySelector('#login-submit').textContent).toContain('Signing in');
 
     request.next({ accessToken: 'token', user: { id: 1, email: 'user@example.com', username: 'member', role: 'MEMBER' } });
@@ -93,7 +96,7 @@ describe('LoginComponent', () => {
     fixture.componentInstance.submit();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('#auth-message').textContent).toContain('Account disabled.');
-    expect(fixture.nativeElement.querySelector('#auth-message').classList).toContain('warning');
+    expect(fixture.nativeElement.querySelector('#auth-message').classList).toContain('ibom-notice--warning');
   });
 
   it('shows generic session-ended feedback without attributing the cause to deactivation', () => {
@@ -105,6 +108,6 @@ describe('LoginComponent', () => {
     const message = sessionFixture.nativeElement.querySelector('#auth-message');
     expect(message.textContent).toContain('Your session has ended. Please sign in again.');
     expect(message.textContent).not.toContain('deactivat');
-    expect(message.classList).toContain('warning');
+    expect(message.classList).toContain('ibom-notice--warning');
   });
 });

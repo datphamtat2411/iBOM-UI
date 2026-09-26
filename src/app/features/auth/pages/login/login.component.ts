@@ -6,15 +6,15 @@ import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { AuthLayoutComponent } from '../../components/auth-layout/auth-layout.component';
 
 type MessageTone = 'error' | 'warning';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, AuthLayoutComponent],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.scss',
 })
 export class LoginComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);

@@ -28,17 +28,18 @@ describe('RegistrationComponent', () => {
   }
 
   it('renders initial fields and hides Verification Code', () => {
-    expect(fixture.nativeElement.querySelector('#email')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('#username')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('#password')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('#confirm-password')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.auth-layout')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#email.ibom-field__control')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#username.ibom-field__control')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#password.ibom-field__control')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#confirm-password.ibom-field__control')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#verification-code')).toBeNull();
   });
 
   it('toggles password visibility independently without changing values', () => {
     fillInitial();
-    const inputs = fixture.nativeElement.querySelectorAll('.password-input input') as NodeListOf<HTMLInputElement>;
-    const buttons = fixture.nativeElement.querySelectorAll('.password-toggle') as NodeListOf<HTMLButtonElement>;
+    const inputs = fixture.nativeElement.querySelectorAll('.ibom-password input') as NodeListOf<HTMLInputElement>;
+    const buttons = fixture.nativeElement.querySelectorAll('.ibom-password__toggle') as NodeListOf<HTMLButtonElement>;
     expect(inputs[0].type).toBe('password');
     expect(inputs[1].type).toBe('password');
     expect(buttons[0].type).toBe('button');
@@ -67,11 +68,12 @@ describe('RegistrationComponent', () => {
     const password = fixture.componentInstance.registrationForm.controls.password;
     password.setValue('weak');
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('.requirements span.met').length).toBe(1);
-    expect(fixture.nativeElement.querySelectorAll('.requirements span')[2].classList).toContain('met');
+    expect(fixture.nativeElement.querySelectorAll('.ibom-password-requirements li.is-met').length).toBe(1);
+    expect(fixture.nativeElement.querySelectorAll('.ibom-password-requirements li')[2].classList).toContain('is-met');
     password.setValue('Strong1!');
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('.requirements span.met').length).toBe(5);
+    expect(fixture.nativeElement.querySelectorAll('.ibom-password-requirements li.is-met').length).toBe(5);
+    expect(fixture.nativeElement.querySelector('#password').getAttribute('aria-describedby')).toBe('password-requirements');
   });
 
   it('requests one code, reveals the code field, and preserves inputs', () => {

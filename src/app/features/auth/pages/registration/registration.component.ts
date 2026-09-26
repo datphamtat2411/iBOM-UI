@@ -5,6 +5,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Va
 import { Router, RouterLink } from '@angular/router';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { AuthLayoutComponent } from '../../components/auth-layout/auth-layout.component';
 import { RegistrationService } from '../../services/registration.service';
 import { matchingPassword, strongPassword } from '../../validators/password.validators';
 
@@ -18,9 +19,8 @@ function trimmedEmail(control: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-registration',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, AuthLayoutComponent],
   templateUrl: './registration.component.html',
-  styleUrl: './registration.component.scss',
 })
 export class RegistrationComponent {
   private readonly formBuilder = inject(FormBuilder);

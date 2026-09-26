@@ -37,6 +37,8 @@ describe('AccountSettingsComponent', () => {
   }
 
   it('submits the trimmed username and updates the authenticated user', () => {
+    expect(fixture.nativeElement.querySelector('.account-settings-page')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#username.ibom-field__control')).toBeTruthy();
     fixture.componentInstance.usernameForm.controls.username.setValue(' updated-user ');
 
     fixture.componentInstance.submitUsername();
@@ -71,8 +73,8 @@ describe('AccountSettingsComponent', () => {
 
   it('toggles each password independently without changing values', () => {
     fillPassword();
-    const inputs = fixture.nativeElement.querySelectorAll('.password-input input') as NodeListOf<HTMLInputElement>;
-    const buttons = fixture.nativeElement.querySelectorAll('.password-toggle') as NodeListOf<HTMLButtonElement>;
+    const inputs = fixture.nativeElement.querySelectorAll('.ibom-password input') as NodeListOf<HTMLInputElement>;
+    const buttons = fixture.nativeElement.querySelectorAll('.ibom-password__toggle') as NodeListOf<HTMLButtonElement>;
     expect(Array.from(inputs).every((input) => input.type === 'password')).toBeTrue();
     expect(buttons[0].type).toBe('button');
     expect(buttons[0].getAttribute('aria-label')).toBe('Show current password');
@@ -129,5 +131,7 @@ describe('AccountSettingsComponent', () => {
 
     expect(fixture.componentInstance.passwordForm.getRawValue()).toEqual({ currentPassword: '', password: '', confirmPassword: '' });
     expect(fixture.componentInstance.messageTone).toBe('success');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.ibom-notice.ibom-notice--success').getAttribute('role')).toBe('status');
   });
 });

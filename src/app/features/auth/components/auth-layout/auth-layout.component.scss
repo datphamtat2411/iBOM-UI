@@ -1,0 +1,204 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+}
+
+.auth-layout {
+  display: grid;
+  min-height: 100dvh;
+  grid-template-columns: minmax(0, 1fr) minmax(24rem, 34rem);
+  color: var(--ibom-color-text);
+  background: var(--ibom-color-canvas);
+}
+
+.auth-layout__story {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 100dvh;
+  padding: clamp(1.5rem, 4vw, 4rem) clamp(1.5rem, 5vw, 5rem);
+  flex-direction: column;
+  overflow: hidden;
+  border-inline-end: 1px solid var(--ibom-color-border);
+  background: var(--ibom-color-surface-muted);
+}
+
+.auth-layout__story::after {
+  position: absolute;
+  inset-inline-end: clamp(1.5rem, 7vw, 7rem);
+  bottom: clamp(2rem, 10vh, 7rem);
+  width: 2.25rem;
+  height: 2.25rem;
+  border-inline-start: 0.5rem solid var(--fpt-blue);
+  border-block-end: 0.5rem solid var(--fpt-orange);
+  content: '';
+  transform: rotate(-12deg);
+}
+
+.auth-layout__brand {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: var(--ibom-space-3);
+  color: var(--ibom-color-text);
+  text-decoration: none;
+}
+
+.auth-layout__brand:focus-visible {
+  outline: 3px solid var(--ibom-color-focus-ring);
+  outline-offset: 0.25rem;
+}
+
+.auth-layout__brand-mark {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  padding: 0.2rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.125rem;
+  border: 1px solid var(--ibom-color-text);
+  background: var(--ibom-color-surface);
+}
+
+.auth-layout__brand-mark i {
+  display: block;
+}
+
+.auth-layout__brand-mark i:nth-child(1) {
+  background: var(--fpt-blue);
+}
+
+.auth-layout__brand-mark i:nth-child(2) {
+  background: var(--fpt-orange);
+}
+
+.auth-layout__brand-mark i:nth-child(3) {
+  background: var(--fpt-green);
+}
+
+.auth-layout__brand-copy strong {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: var(--ibom-font-weight-bold);
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+
+.auth-layout__brand-copy small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--ibom-color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.auth-layout__story-copy {
+  max-width: 34rem;
+  margin-block: auto;
+  padding-block: clamp(3rem, 8vh, 7rem);
+}
+
+.auth-layout__eyebrow {
+  margin: 0 0 var(--ibom-space-4);
+  color: var(--ibom-color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--ibom-font-size-xs);
+  line-height: var(--ibom-line-height-normal);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.auth-layout__story-copy h1 {
+  max-width: 18ch;
+  margin: 0 0 var(--ibom-space-5);
+  font-family: var(--font-serif);
+  font-size: clamp(2.5rem, 4.4vw, 4rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.auth-layout__description {
+  max-width: 48ch;
+  margin: 0;
+  color: var(--ibom-color-text-muted);
+  font-size: var(--ibom-font-size-base);
+  line-height: var(--ibom-line-height-relaxed);
+}
+
+.auth-layout__form-region {
+  display: flex;
+  min-width: 0;
+  min-height: 100dvh;
+  align-items: center;
+  padding: clamp(2rem, 5vw, 4.5rem);
+  background: var(--ibom-color-surface);
+}
+
+.auth-layout__panel {
+  width: 100%;
+  min-width: 0;
+  max-width: 34rem;
+  margin-inline: auto;
+}
+
+@media (max-width: 53.75rem) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-layout__story {
+    min-height: auto;
+    padding: 2rem clamp(1.25rem, 5vw, 3rem) 0;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--ibom-color-border);
+  }
+
+  .auth-layout__story-copy {
+    max-width: 42rem;
+    margin-block: 0;
+    padding-block: 3.5rem 2.5rem;
+  }
+
+  .auth-layout__story-copy h1 {
+    max-width: 22ch;
+    font-size: clamp(2.25rem, 7vw, 3.25rem);
+  }
+
+  .auth-layout__story::after {
+    inset-inline-end: clamp(1.25rem, 5vw, 3rem);
+    bottom: 2.25rem;
+  }
+
+  .auth-layout__form-region {
+    min-height: auto;
+    padding: 2.5rem clamp(1.25rem, 5vw, 3rem) 4rem;
+  }
+}
+
+@media (max-width: 37.5rem) {
+  .auth-layout__story {
+    padding-top: 1.5rem;
+  }
+
+  .auth-layout__story-copy {
+    padding-block: 2.75rem 2rem;
+  }
+
+  .auth-layout__story-copy h1 {
+    font-size: clamp(2rem, 10vw, 2.75rem);
+  }
+
+  .auth-layout__description {
+    font-size: var(--ibom-font-size-sm);
+  }
+
+  .auth-layout__form-region {
+    padding: 2rem 1.25rem 3rem;
+  }
+}

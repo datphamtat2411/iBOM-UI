@@ -1,0 +1,18 @@
+<div id="login-screen" class="auth-layout" [attr.aria-labelledby]="headingId">
+  <aside class="auth-layout__story" [attr.data-od-id]="brandPanelDataId">
+    <a class="auth-layout__brand" routerLink="/" aria-label="Return to iBOM Homepage">
+      <span class="auth-layout__brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="auth-layout__brand-copy"><strong>iBOM</strong><small>CV Management System</small></span>
+    </a>
+    <div class="auth-layout__story-copy">
+      <p class="auth-layout__eyebrow">{{ eyebrow }}</p>
+      <h1 [id]="headingId">{{ heading }}</h1>
+      <p class="auth-layout__description">{{ description }}</p>
+    </div>
+  </aside>
+  <div class="auth-layout__form-region">
+    <div class="auth-layout__panel">
+      <ng-content></ng-content>
+    </div>
+  </div>
+</div>

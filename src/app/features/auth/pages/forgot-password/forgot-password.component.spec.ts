@@ -22,6 +22,7 @@ describe('ForgotPasswordComponent', () => {
   });
 
   it('validates email and keeps the request neutral on success', () => {
+    expect(fixture.nativeElement.querySelector('.auth-layout')).toBeTruthy();
     fixture.componentInstance.requestCode();
     expect(service.requestCode).not.toHaveBeenCalled();
     fixture.componentInstance.requestForm.controls.email.setValue(' USER@EXAMPLE.COM ');
@@ -29,14 +30,16 @@ describe('ForgotPasswordComponent', () => {
     expect(service.requestCode).toHaveBeenCalledWith({ email: 'user@example.com' });
     expect(fixture.componentInstance.step).toBe('verify');
     expect(fixture.componentInstance.message).toContain('If an account exists');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.ibom-notice').getAttribute('role')).toBe('status');
   });
 
   it('toggles reset passwords independently without changing values', () => {
     fixture.componentInstance.step = 'reset';
     fixture.componentInstance.resetForm.setValue({ password: 'Strong1!', confirmPassword: 'Strong1!' });
     fixture.detectChanges();
-    const inputs = fixture.nativeElement.querySelectorAll('.password-input input') as NodeListOf<HTMLInputElement>;
-    const buttons = fixture.nativeElement.querySelectorAll('.password-toggle') as NodeListOf<HTMLButtonElement>;
+    const inputs = fixture.nativeElement.querySelectorAll('.ibom-password input') as NodeListOf<HTMLInputElement>;
+    const buttons = fixture.nativeElement.querySelectorAll('.ibom-password__toggle') as NodeListOf<HTMLButtonElement>;
     expect(inputs[0].type).toBe('password');
     expect(inputs[1].type).toBe('password');
     expect(buttons[0].type).toBe('button');
