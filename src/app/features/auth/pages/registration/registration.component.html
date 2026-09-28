@@ -1,28 +1,32 @@
 <app-auth-layout
-  eyebrow="Profile workspace · member access"
+  eyebrow="A clearer way to move forward"
   heading="Build your member identity."
-  description="Create an organization account for precise profile work and standardized CV exports."
+  description="Make room for every version of your professional story. Your next chapter starts here."
   headingId="registration-heading"
 >
   <div class="auth-form-panel">
-    <header class="mb-6">
-      <h2 class="m-0 text-2xl font-semibold leading-tight">Create member account</h2>
-      <p class="mt-2 mb-0 text-sm leading-normal text-[var(--ibom-color-text-muted)]">Use your organization email to get started.</p>
+    <header>
+      <p class="auth-form-panel__eyebrow">Get started</p>
+      <h2>Create your account</h2>
+      <p>A few details and you're on your way.</p>
     </header>
+    @if (!codeRequested) {
+      <div class="auth-form-panel__step" aria-label="Step 1 of 2: account details"><span class="is-active"></span><span></span></div>
+    }
     <form class="grid gap-4" [formGroup]="registrationForm" (ngSubmit)="submit()" [attr.aria-busy]="isRequestingCode || isSubmitting ? 'true' : null" novalidate>
       @if (message) {
         <div class="ibom-notice" [class.ibom-notice--error]="messageTone === 'error'" [class.ibom-notice--warning]="messageTone === 'warning'" role="alert">{{ message }}</div>
       }
       <div class="ibom-field">
         <label class="ibom-field__label" for="email">Email</label>
-        <input class="ibom-field__control" id="email" type="email" formControlName="email" autocomplete="email" [attr.aria-invalid]="registrationForm.controls.email.invalid && registrationForm.controls.email.touched ? 'true' : null" [attr.aria-describedby]="registrationForm.controls.email.touched && registrationForm.controls.email.errors ? 'email-error' : null">
+        <input class="ibom-field__control" id="email" type="email" formControlName="email" autocomplete="email" placeholder="name@company.com" [attr.aria-invalid]="registrationForm.controls.email.invalid && registrationForm.controls.email.touched ? 'true' : null" [attr.aria-describedby]="registrationForm.controls.email.touched && registrationForm.controls.email.errors ? 'email-error' : null">
         @if (registrationForm.controls.email.touched && registrationForm.controls.email.errors) {
           <span class="ibom-field__error" id="email-error">{{ registrationForm.controls.email.errors['backend'] || (registrationForm.controls.email.errors['required'] ? 'Email is required.' : 'Enter a valid email address.') }}</span>
         }
       </div>
       <div class="ibom-field">
         <label class="ibom-field__label" for="username">Username</label>
-        <input class="ibom-field__control" id="username" type="text" formControlName="username" autocomplete="username" [attr.aria-invalid]="registrationForm.controls.username.invalid && registrationForm.controls.username.touched ? 'true' : null" [attr.aria-describedby]="registrationForm.controls.username.touched && registrationForm.controls.username.errors ? 'username-error' : null">
+        <input class="ibom-field__control" id="username" type="text" formControlName="username" autocomplete="username" placeholder="Your username" [attr.aria-invalid]="registrationForm.controls.username.invalid && registrationForm.controls.username.touched ? 'true' : null" [attr.aria-describedby]="registrationForm.controls.username.touched && registrationForm.controls.username.errors ? 'username-error' : null">
         @if (registrationForm.controls.username.touched && registrationForm.controls.username.errors) {
           <span class="ibom-field__error" id="username-error">{{ registrationForm.controls.username.errors['backend'] || (registrationForm.controls.username.errors['required'] ? 'Username is required.' : 'Username must be 100 characters or fewer.') }}</span>
         }
@@ -63,16 +67,16 @@
           }
         </div>
       }
-      <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
-        <button class="ibom-button w-full sm:w-auto" [class.ibom-button--primary]="!codeRequested" [class.ibom-button--secondary]="codeRequested" type="button" [disabled]="isRequestingCode || isSubmitting || initialFormInvalid" [attr.aria-busy]="isRequestingCode ? 'true' : null" (click)="requestCode()">{{ isRequestingCode ? 'Sending...' : codeRequested ? 'Send again' : 'Send verification code' }}</button>
+      <div class="auth-form-panel__actions flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <button class="ibom-button w-full" [class.ibom-button--primary]="!codeRequested" [class.ibom-button--secondary]="codeRequested" type="button" [disabled]="isRequestingCode || isSubmitting || initialFormInvalid" [attr.aria-busy]="isRequestingCode ? 'true' : null" (click)="requestCode()">{{ isRequestingCode ? 'Sending...' : codeRequested ? 'Send again' : 'Send verification code' }} <span aria-hidden="true">→</span></button>
         @if (codeRequested) {
-          <button class="ibom-button ibom-button--primary w-full sm:w-auto" type="submit" [disabled]="isSubmitting || isRequestingCode" [attr.aria-busy]="isSubmitting ? 'true' : null">{{ isSubmitting ? 'Creating...' : 'Create account' }}</button>
+          <button class="ibom-button ibom-button--primary w-full" type="submit" [disabled]="isSubmitting || isRequestingCode" [attr.aria-busy]="isSubmitting ? 'true' : null">{{ isSubmitting ? 'Creating...' : 'Create account' }} <span aria-hidden="true">→</span></button>
         }
       </div>
     </form>
-    <nav class="mt-6 flex flex-wrap justify-between gap-x-4 gap-y-2 border-t border-[var(--ibom-color-border-subtle)] pt-5 text-sm" aria-label="Registration navigation">
-      <a class="no-underline text-[var(--ibom-color-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ibom-color-focus)]" routerLink="/login">Back to Login</a>
-      <a class="no-underline text-[var(--ibom-color-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ibom-color-focus)]" routerLink="/">Return to Homepage</a>
+    <nav class="auth-form-panel__nav" aria-label="Registration navigation">
+      <a routerLink="/login">Already have an account? Sign in <span aria-hidden="true">↗</span></a>
+      <a routerLink="/">Back to home</a>
     </nav>
   </div>
 </app-auth-layout>

@@ -1,21 +1,37 @@
 <div id="login-screen" class="auth-layout" [attr.aria-labelledby]="headingId">
   <aside class="auth-layout__story" [attr.data-od-id]="brandPanelDataId">
     <a class="auth-layout__brand" routerLink="/" aria-label="Return to iBOM Homepage">
-      <!-- Legacy code-built logo mark retained for reference:
-      <span class="auth-layout__brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      -->
-      <img class="auth-layout__brand-logo" src="assets/Logo-FPT.webp" alt="" aria-hidden="true">
-      <span class="auth-layout__brand-copy"><strong>iBOM</strong><small>CV Management System</small></span>
+      <span class="auth-layout__brand-icon"><img class="auth-layout__brand-logo" src="assets/Logo-FPT.webp" alt="" aria-hidden="true"></span>
+      <span class="auth-layout__brand-copy"><strong>iBOM<span class="auth-layout__brand-dot">.</span></strong><small>CV Management System</small></span>
     </a>
     <div class="auth-layout__story-copy">
       <p class="auth-layout__eyebrow">{{ eyebrow }}</p>
       <h1 [id]="headingId">{{ heading }}</h1>
       <p class="auth-layout__description">{{ description }}</p>
+      <div class="auth-layout__showcase" aria-hidden="true">
+        <div class="auth-layout__showcase-glow"></div>
+        <div class="auth-layout__document">
+          <div class="auth-layout__document-top"><span>iBOM / PROFILE</span><span>01 — 03</span></div>
+          <div class="auth-layout__document-person"><span class="auth-layout__document-avatar"></span><span class="auth-layout__document-name"><i></i><i></i></span></div>
+          <div class="auth-layout__document-rule"></div>
+          <div class="auth-layout__document-label">PROFESSIONAL PROFILE</div>
+          <div class="auth-layout__document-line auth-layout__document-line--long"></div>
+          <div class="auth-layout__document-line"></div>
+          <div class="auth-layout__document-line auth-layout__document-line--short"></div>
+          <div class="auth-layout__document-chips"><span></span><span></span><span></span></div>
+        </div>
+        <div class="auth-layout__showcase-note"><span class="auth-layout__showcase-note-icon">✓</span><span>YOUR WORK, ORGANIZED<br><strong>Ready for what's next.</strong></span></div>
+      </div>
     </div>
+    <div class="auth-layout__story-footer"><span>MADE FOR THE WORK AHEAD</span><span>© iBOM</span></div>
   </aside>
   <div class="auth-layout__form-region">
-    <div class="auth-layout__panel">
-      <ng-content></ng-content>
+    <div class="auth-layout__form-wrap">
+      <div class="auth-layout__form-top"><span class="auth-layout__online-dot"></span> YOUR PROFILE WORKSPACE <span class="auth-layout__form-top-line"></span> SECURE ACCESS</div>
+      <div class="auth-layout__panel">
+        <ng-content></ng-content>
+      </div>
+      <p class="auth-layout__form-footer">iBOM <span>·</span> A better way to manage your professional story.</p>
     </div>
   </div>
 </div>

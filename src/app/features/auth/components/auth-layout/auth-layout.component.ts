@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ViewEncapsulation } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 @Component({
@@ -7,6 +7,7 @@ import { RouterLink } from '@angular/router';
   imports: [RouterLink],
   templateUrl: './auth-layout.component.html',
   styleUrl: './auth-layout.component.scss',
+  encapsulation: ViewEncapsulation.None,
 })
 export class AuthLayoutComponent {
   @Input() eyebrow = '';
