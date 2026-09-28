@@ -449,20 +449,4 @@ describe('ApplicationShellComponent', () => {
     expect(router.navigate).not.toHaveBeenCalled();
   });
 
-  it('preserves toast status and alert semantics', () => {
-    const notifications = TestBed.inject(NotificationService);
-    notifications.showSuccess('Project added successfully.');
-    fixture.detectChanges();
-    let toast = fixture.nativeElement.querySelector('[data-notification-toast]') as HTMLElement;
-    expect(toast.getAttribute('role')).toBe('status');
-    expect(toast.getAttribute('aria-live')).toBe('polite');
-    expect(toast.getAttribute('aria-atomic')).toBe('true');
-
-    notifications.showError('You do not have permission to access Member Management.');
-    fixture.detectChanges();
-    toast = fixture.nativeElement.querySelector('[data-notification-toast]') as HTMLElement;
-    expect(toast.getAttribute('role')).toBe('alert');
-    expect(toast.getAttribute('aria-live')).toBe('assertive');
-    expect(toast.classList).toContain('error');
-  });
 });

@@ -76,6 +76,13 @@
   --ibom-radius-md: 0.375rem;
   --ibom-radius-lg: 0.625rem;
   --ibom-shadow-overlay: 0 1.25rem 3rem rgb(32 26 18 / 18%);
+  --ibom-z-index-overlay: 30;
+  --ibom-z-index-toast: 40;
+
+  --ibom-feedback-toast-success-duration: 4500ms;
+  --ibom-feedback-toast-error-duration: 6000ms;
+  --ibom-feedback-toast-warning-duration: 5500ms;
+  --ibom-feedback-toast-info-duration: 4500ms;
 
   --ibom-motion-none: 0ms;
   --ibom-motion-fast: 140ms;

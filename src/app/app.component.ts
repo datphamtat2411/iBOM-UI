@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 
 import { AuthService } from './core/auth/auth.service';
+import { IbomToastHostComponent } from './shared/ui/feedback/toast-host.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, IbomToastHostComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
