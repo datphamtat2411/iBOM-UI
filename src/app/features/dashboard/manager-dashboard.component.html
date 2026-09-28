@@ -1,4 +1,4 @@
-<section class="dashboard-page manager-dashboard" aria-labelledby="manager-dashboard-title" [attr.aria-busy]="loading">
+<section class="dashboard-page manager-dashboard" aria-labelledby="manager-dashboard-title" [attr.aria-busy]="loading && !hasLoaded">
   <header class="page-heading">
     <div class="heading-copy">
       <p class="page-kicker">Management / Analytics overview</p>
@@ -7,14 +7,21 @@
     </div>
     <div class="heading-actions">
       <span class="heading-freshness"><span class="heading-freshness__dot" aria-hidden="true"></span><span><span>Last updated</span> <time [attr.datetime]="dataLoadedAt?.toISOString()">{{ dataLoadedLabel }}</time></span></span>
-      <button class="btn ibom-button ibom-button--primary" type="button" (click)="refreshStats()" [disabled]="loading">
+      <button ibomLoadingButton class="btn ibom-button ibom-button--primary" type="button" (click)="refreshStats()" [loading]="loading" loadingLabel="Refreshing analytics">
         {{ loading ? 'Refreshing...' : 'Refresh' }}
       </button>
     </div>
   </header>
 
   @if (!hasLoaded && loading) {
-    <div class="state-panel ibom-loading" role="status" aria-live="polite">Loading Manager Dashboard analytics...</div>
+    <div class="state-panel" role="status" aria-live="polite">
+      <p class="page-kicker">Preparing analytics</p>
+      <strong>Loading Manager Dashboard analytics...</strong>
+      <div class="manager-loading-layout" aria-hidden="true">
+        <ibom-skeleton variant="block" height="9rem" />
+        <div class="manager-loading-grid"><ibom-skeleton variant="block" height="19rem" /><ibom-skeleton variant="block" height="19rem" /></div>
+      </div>
+    </div>
   } @else if (!hasLoaded && loadErrorMessage) {
     <div class="notice error ibom-notice ibom-notice--error" role="alert">
       <span>{{ loadErrorMessage }}</span>
@@ -27,6 +34,7 @@
         <button class="btn ibom-button ibom-button--quiet retry-button" type="button" (click)="retryStats()" [disabled]="loading">Retry</button>
       </div>
     }
+    @if (loading) { <p class="refresh-status" role="status" aria-live="polite">Refreshing analytics. Showing the last loaded results.</p> }
 
     <section class="completion-card completion-summary lead-panel" aria-labelledby="completed-profiles-title">
       <div class="section-title">
@@ -92,6 +100,7 @@
         @if (hasSkillCategoryData) {
           <div class="chart-frame category-chart-frame">
             <canvas #skillCategoriesCanvas class="skill-categories-chart" role="img" [attr.aria-label]="skillCategoryChartAriaLabel"></canvas>
+            <div class="chart-center" aria-hidden="true"><strong>{{ skillCategoryRows.length }}</strong><span>Categories</span></div>
           </div>
           <ul class="distribution-list category-breakdown" aria-label="Skill Category counts and percentages">
             @for (row of skillCategoryRows; track $index) {

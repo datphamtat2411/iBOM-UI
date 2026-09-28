@@ -161,6 +161,10 @@ describe('ApplicationShellComponent', () => {
     expect(element.querySelector('.application-shell')?.classList).toContain('sidebar-collapsed');
     expect(element.querySelector('.nav-btn[aria-label="Dashboard"]')).not.toBeNull();
     expect(element.querySelector('.sidebar-collapse')?.getAttribute('aria-label')).toBe('Expand navigation');
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      expect(getComputedStyle(element.querySelector('.sidebar .nav-text') as HTMLElement).display).toBe('none');
+    }
+    expect(getComputedStyle(element.querySelector('.sidebar-nav') as HTMLElement).overflowX).toBe('hidden');
 
     component.toggleSidebar();
     fixture.detectChanges();
@@ -178,6 +182,12 @@ describe('ApplicationShellComponent', () => {
     expect(element.querySelector('a[routerLink="/members"]')).not.toBeNull();
     expect(element.querySelector('a[routerLink="/users"]')).not.toBeNull();
     expect(element.querySelector('a[routerLink="/dashboard/manager"]')).not.toBeNull();
+
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/members');
+    fixture.detectChanges();
+    expect(element.querySelector('.topbar .management-label')?.textContent?.trim()).toBe('Management');
+    expect(element.querySelector('.topbar .profile-trigger')).toBeNull();
 
     auth.user.set({ id: 1, email: 'minh@example.com', username: 'Minh Anh', role: 'ADMIN' });
     fixture.detectChanges();
@@ -235,6 +245,11 @@ describe('ApplicationShellComponent', () => {
     profileContext.selectedId.set('1');
     fixture.detectChanges();
 
+    const topbar = fixture.nativeElement.querySelector('.topbar') as HTMLElement;
+    expect(topbar.querySelector('.context-label')).toBeNull();
+    expect(topbar.querySelector('.profile-trigger')).not.toBeNull();
+    expect(topbar.textContent).not.toContain('Create Profile');
+    expect(topbar.textContent).not.toContain('Copy Profile');
     const menu = openMenu('.profile-trigger');
     expect(menu.textContent).toContain('My Profiles');
     expect(menu.textContent).toContain('Create Profile');
@@ -243,6 +258,54 @@ describe('ApplicationShellComponent', () => {
 
     (menu.querySelectorAll('.profile-option')[1] as HTMLButtonElement).click();
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
+  });
+
+  it('keeps a single Profile selectable with Create and Copy inside its menu', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    profileContext.summaries.set([{ id: 1, profileName: 'My CV', firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01' }]);
+    profileContext.selectedId.set('1');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.profile-static-context')).toBeNull();
+    const menu = openMenu('.profile-trigger');
+    expect(menu.querySelectorAll('.profile-option').length).toBe(1);
+    expect(menu.querySelectorAll('.profile-menu-actions button').length).toBe(2);
+  });
+
+  it('allows long Profile names and actions to remain readable in a list of three', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    profileContext.summaries.set([1, 2, 3].map((id) => ({
+      id,
+      profileName: `Profile ${id} for a very long position with a detailed professional title`,
+      firstName: 'A', lastName: 'User', jobTitle: 'Senior Engineer', updatedAt: '2026-01-01',
+    })));
+    profileContext.selectedId.set('1');
+    fixture.detectChanges();
+
+    const menu = openMenu('.profile-trigger');
+    const options = menu.querySelectorAll('.profile-option');
+    expect(options.length).toBe(3);
+    expect(getComputedStyle(options[0] as HTMLElement).whiteSpace).toBe('normal');
+    expect(getComputedStyle(options[0] as HTMLElement).height).not.toBe('48px');
+    expect(getComputedStyle(menu).overflowY).toBe('auto');
+    expect(menu.querySelectorAll('.profile-menu-actions button').length).toBe(2);
+  });
+
+  it('shows a profile count and scroll hint when more than three Profiles are available', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/1');
+    profileContext.summaries.set([1, 2, 3, 4].map((id) => ({
+      id,
+      profileName: `Profile ${id}`,
+      firstName: 'A', lastName: 'User', jobTitle: 'Engineer', updatedAt: '2026-01-01',
+    })));
+    profileContext.selectedId.set('1');
+    fixture.detectChanges();
+
+    const menu = openMenu('.profile-trigger');
+    expect(menu.querySelector('.profile-menu-head span')?.textContent?.trim()).toBe('4 profiles · Scroll to see all.');
   });
 
   it('shows a direct Create Profile action when no own Profile exists', () => {
@@ -270,6 +333,7 @@ describe('ApplicationShellComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.member-context')?.textContent).toContain('managed-user');
+    expect(fixture.nativeElement.querySelector('.topbar .context-label')).toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Create Profile');
     expect(fixture.nativeElement.textContent).not.toContain('Copy Profile');
 

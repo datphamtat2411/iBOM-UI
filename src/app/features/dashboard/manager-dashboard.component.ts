@@ -19,6 +19,8 @@ import {
   SkillCategoryItem,
 } from './models/dashboard.models';
 import { DashboardService } from './services/dashboard.service';
+import { IbomSkeletonComponent } from '../../shared/ui/loading/skeleton.component';
+import { IbomLoadingButtonComponent } from '../../shared/ui/loading/loading-button.component';
 
 Chart.register(ArcElement, BarController, BarElement, CategoryScale, DoughnutController, LinearScale, Tooltip, Legend);
 
@@ -50,6 +52,7 @@ interface ChartTheme {
 @Component({
   selector: 'app-manager-dashboard',
   standalone: true,
+  imports: [IbomSkeletonComponent, IbomLoadingButtonComponent],
   templateUrl: './manager-dashboard.component.html',
   styleUrl: './manager-dashboard.component.scss',
 })

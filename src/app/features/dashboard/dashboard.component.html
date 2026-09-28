@@ -1,9 +1,13 @@
 <section class="dashboard-page" data-od-id="member-dashboard" aria-labelledby="dashboard-title">
   @if (context.summariesLoading() && !context.summaries().length) {
-    <div class="workspace-state" role="status" aria-live="polite">
+    <div class="workspace-state loading-state" role="status" aria-live="polite">
       <p class="page-kicker">Profile dashboard</p>
       <h1 id="dashboard-title">Loading Profiles</h1>
       <p>Loading your Profile dashboard.</p>
+      <div class="loading-preview" aria-hidden="true">
+        <ibom-skeleton variant="block" height="9rem" />
+        <div class="loading-preview-grid"><ibom-skeleton variant="block" height="7rem" /><ibom-skeleton variant="block" height="7rem" /></div>
+      </div>
     </div>
   } @else if (context.summariesError()) {
     <div class="workspace-state error" role="alert">
@@ -20,10 +24,11 @@
       <button class="btn ibom-button ibom-button--primary" type="button" (click)="createProfile()">Create Profile</button>
     </div>
   } @else if (!context.selectedId() || !selectedProfile()) {
-    <div class="workspace-state" role="status" aria-live="polite">
+    <div class="workspace-state loading-state" role="status" aria-live="polite">
       <p class="page-kicker">Profile dashboard</p>
       <h1 id="dashboard-title">Loading Profile</h1>
       <p>Resolving the selected Profile dashboard.</p>
+      <div class="loading-preview" aria-hidden="true"><ibom-skeleton variant="block" height="9rem" /></div>
     </div>
   } @else {
     @if (selectedProfile(); as profile) {
@@ -47,7 +52,7 @@
           <p class="health-overview-label">Profile health</p>
           <h2 id="health-summary-heading">{{ profile.profileName }}</h2>
           <p class="muted">{{ profileIdentity(profile) }}</p>
-          <p class="health-overview-note">Completeness and document readiness for this Profile.</p>
+          <p class="health-overview-note">Your current workspace at a glance. Keep it ready for the next opportunity.</p>
         </div>
 
         <div class="completeness-overview">
@@ -64,10 +69,16 @@
             </div>
             <span class="small muted">{{ dashboard.completeness.completed ? 'All required sections present' : 'Some sections need attention' }}</span>
           } @else {
-            <p class="metric">&mdash;</p>
-            <span class="small muted">Loading completeness</span>
+            @if (statsError()) {
+              <p class="metric">&mdash;</p>
+              <span class="small muted">Completeness unavailable</span>
+            } @else {
+              <ibom-skeleton class="metric-placeholder" variant="block" width="7rem" height="3rem" />
+              <ibom-skeleton width="100%" height=".5rem" />
+              <span class="small muted">Loading completeness</span>
+            }
           }
-          <p class="latest-export"><span>Latest export</span><span class="mono">{{ stats() ? formatLatestExport(stats()!.latestExportedAt) : 'Loading...' }}</span></p>
+          <p class="latest-export"><span>Latest export</span><span class="mono">{{ stats() ? formatLatestExport(stats()!.latestExportedAt) : statsError() ? 'Unavailable' : 'Loading...' }}</span></p>
         </div>
 
         @if (statsError()) {
@@ -148,9 +159,10 @@
           @if (statsError()) {
             <div class="inline-state error" role="alert"><p>Section completeness is unavailable.</p><button class="btn ibom-button ibom-button--quiet" type="button" (click)="retryStats()">Retry</button></div>
           } @else if (statsLoading() || !stats()) {
-            <div class="contribution-list" role="status" aria-live="polite">
-              <div class="contribution-row"><strong>Loading completeness</strong><span class="muted">Please wait</span><span class="mono">...</span></div>
-              <div class="contribution-row"><strong>Loading section status</strong><span class="muted">Please wait</span><span class="mono">...</span></div>
+            <div class="contribution-list contribution-loading" role="status" aria-live="polite" aria-label="Loading section completeness">
+              @for (row of [1, 2, 3, 4]; track row) {
+                <div class="contribution-row" aria-hidden="true"><ibom-skeleton width="60%" /><ibom-skeleton width="6rem" /><ibom-skeleton width="4.5rem" /><ibom-skeleton width="2.5rem" /></div>
+              }
             </div>
           } @else if (stats()?.completeness?.sections?.length) {
             <div class="contribution-list">
@@ -161,7 +173,7 @@
                     <span class="section-status ibom-badge" [class.ibom-badge--success]="section.completed" [class.ibom-badge--warning]="!section.completed" [class.done]="section.completed" [class.missing]="!section.completed">{{ section.completed ? 'Complete' : 'Needs attention' }}</span>
                     @if (sectionCount(section); as count) { <span class="section-count">{{ count }}</span> }
                   </span>
-                  <span class="section-progress" aria-hidden="true">
+                   <span class="section-progress" role="progressbar" [attr.aria-label]="sectionLabel(section) + ' section completion'" [attr.aria-valuenow]="sectionCompletionPercentage(section)" aria-valuemin="0" aria-valuemax="100">
                     <span class="section-progress-value" [class.is-complete]="section.completed" [style.width.%]="sectionCompletionPercentage(section)"></span>
                   </span>
                   <span class="mono">{{ formatSectionPercentage(section) }}</span>

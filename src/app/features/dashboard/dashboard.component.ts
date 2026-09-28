@@ -7,12 +7,14 @@ import { MemberDashboardStats, DashboardCompletenessSection } from './models/das
 import { DashboardService } from './services/dashboard.service';
 import { ProfileDetail, ProfileSummary } from '../profile/models/profile.models';
 import { ProfileContextService } from '../profile/services/profile-context.service';
+import { IbomSkeletonComponent } from '../../shared/ui/loading/skeleton.component';
 
 type PreviewState = 'loading' | 'valid' | 'required' | 'unavailable';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
+  imports: [IbomSkeletonComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })

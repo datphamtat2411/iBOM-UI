@@ -577,6 +577,41 @@
     overflow: hidden;
   }
 
+  .cdk-overlay-pane .ibom-menu-panel.profile-menu {
+    width: min(24rem, calc(100vw - 1.5rem));
+    min-width: min(24rem, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 3rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+  }
+
+  .ibom-menu-panel.profile-menu::-webkit-scrollbar,
+  .ibom-menu-panel.profile-menu .profile-menu-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ibom-menu-panel.profile-menu .profile-menu-list {
+    max-height: calc(3 * 6.75rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+
+  .ibom-menu-panel.profile-menu .mat-mdc-menu-item.profile-option {
+    height: auto;
+    min-height: 6.75rem;
+    white-space: normal;
+  }
+
+  .ibom-menu-panel.profile-menu .profile-option .mat-mdc-menu-item-text {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--ibom-space-2);
+  }
+
   .ibom-menu-panel .mat-mdc-menu-content {
     padding: var(--ibom-space-1);
   }

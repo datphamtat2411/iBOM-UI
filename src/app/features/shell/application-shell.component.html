@@ -43,54 +43,65 @@
     [attr.aria-label]="isManagedProfileRoute() ? 'Select managed Member Profile' : 'Select Profile'"
   >
     <div class="profile-menu-head">
+      <small>PROFILE LIBRARY</small>
       <strong>{{ isManagedProfileRoute() ? 'Managed Member Profiles' : 'My Profiles' }}</strong>
-      <span>{{ isManagedProfileRoute() ? 'Switch Profiles for ' + managedMemberLabel() + '. Member context stays fixed.' : 'Switch between your Profiles.' }}</span>
+      @if (isManagedProfileRoute()) {
+        <span>Switch Profiles for {{ managedMemberLabel() }}. Member context stays fixed.</span>
+      } @else if (profileContext.summaries().length > 3) {
+        <span>{{ profileContext.summaries().length }} profiles · Scroll to see all.</span>
+      }
     </div>
 
-    @if (isManagedProfileRoute()) {
-      @for (profile of managedProfiles(); track profile.id) {
-        <button
-          class="profile-option"
-          mat-menu-item
-          type="button"
-          role="menuitemradio"
-          [class.selected]="isSelectedProfile(profile.id)"
-          [attr.aria-checked]="isSelectedProfile(profile.id)"
-          [attr.aria-label]="profile.profileName + (isSelectedProfile(profile.id) ? ', selected' : '')"
-          (click)="selectProfile(profile.id)"
-        >
-          <span class="profile-option-copy">
-            <strong>{{ profile.profileName }}</strong>
-            <small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small>
-            <small>Last updated: <time [attr.datetime]="profile.updatedAt">{{ formatTimestamp(profile.updatedAt) }}</time></small>
-          </span>
-          <span class="profile-option-state" aria-hidden="true">
-            @if (isSelectedProfile(profile.id)) { <app-shell-icon name="check" /> }
-          </span>
-        </button>
+    <div class="profile-menu-list">
+      @if (isManagedProfileRoute()) {
+        @for (profile of managedProfiles(); track profile.id) {
+          <button
+            class="profile-option"
+            mat-menu-item
+            type="button"
+            role="menuitemradio"
+            [class.selected]="isSelectedProfile(profile.id)"
+            [attr.aria-checked]="isSelectedProfile(profile.id)"
+            [attr.aria-label]="profile.profileName + (isSelectedProfile(profile.id) ? ', selected' : '')"
+            (click)="selectProfile(profile.id)"
+          >
+            <span class="profile-option-icon" aria-hidden="true"><app-shell-icon name="profile" /></span>
+            <span class="profile-option-copy">
+              <strong>{{ profile.profileName }}</strong>
+              <small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small>
+              <small>Last updated: <time [attr.datetime]="profile.updatedAt">{{ formatTimestamp(profile.updatedAt) }}</time></small>
+            </span>
+            <span class="profile-option-state" aria-hidden="true">
+              @if (isSelectedProfile(profile.id)) { <span class="profile-selected-tag"><app-shell-icon name="check" /> Current</span> }
+            </span>
+          </button>
+        }
+      } @else {
+        @for (profile of profileContext.summaries(); track profile.id) {
+          <button
+            class="profile-option"
+            mat-menu-item
+            type="button"
+            role="menuitemradio"
+            [class.selected]="isSelectedProfile(profile.id)"
+            [attr.aria-checked]="isSelectedProfile(profile.id)"
+            [attr.aria-label]="profile.profileName + (isSelectedProfile(profile.id) ? ', selected' : '')"
+            (click)="selectProfile(profile.id)"
+          >
+            <span class="profile-option-icon" aria-hidden="true"><app-shell-icon name="profile" /></span>
+            <span class="profile-option-copy">
+              <strong>{{ profile.profileName }}</strong>
+              <small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small>
+            </span>
+            <span class="profile-option-state">
+              @if (isSelectedProfile(profile.id)) { <span class="profile-selected-tag" aria-hidden="true"><app-shell-icon name="check" /> Current</span> }
+              @if (profile.completeness !== undefined) { <span class="profile-completeness" [attr.aria-label]="profile.completeness + '% complete'">{{ profile.completeness }}%</span> }
+            </span>
+          </button>
+        }
       }
-    } @else {
-      @for (profile of profileContext.summaries(); track profile.id) {
-        <button
-          class="profile-option"
-          mat-menu-item
-          type="button"
-          role="menuitemradio"
-          [class.selected]="isSelectedProfile(profile.id)"
-          [attr.aria-checked]="isSelectedProfile(profile.id)"
-          [attr.aria-label]="profile.profileName + (isSelectedProfile(profile.id) ? ', selected' : '')"
-          (click)="selectProfile(profile.id)"
-        >
-          <span class="profile-option-copy">
-            <strong>{{ profile.profileName }}</strong>
-            <small>{{ profile.firstName }} {{ profile.lastName }} · {{ profile.jobTitle }}</small>
-          </span>
-          <span class="profile-option-state">
-            @if (isSelectedProfile(profile.id)) { <app-shell-icon name="check" /> }
-            @if (profile.completeness !== undefined) { <span class="profile-completeness">{{ profile.completeness }}%</span> }
-          </span>
-        </button>
-      }
+    </div>
+    @if (!isManagedProfileRoute()) {
       <div class="profile-menu-actions">
         <button class="menu-action" mat-menu-item type="button" (click)="createProfile()">Create Profile</button>
         <button class="menu-action" mat-menu-item type="button" (click)="openCopyProfile()">Copy Profile</button>
@@ -295,8 +306,17 @@
         </a>
       </div>
 
+      <div class="topbar-heading">
+        <span class="topbar-eyebrow"><span class="topbar-spark" aria-hidden="true"></span> iBOM <span aria-hidden="true">/</span> {{ contextLabel }}</span>
+        @if (isOwnProfileContext()) {
+          <span class="topbar-title">Workspace</span>
+        } @else if (isManagedProfileRoute()) {
+          <span class="topbar-title">Member Profiles</span>
+        } @else {
+          <span class="context-label" [class.management-label]="contextLabel === 'Management'">{{ contextLabel }}</span>
+        }
+      </div>
       <div class="context-line">
-        <span class="context-label">{{ contextLabel }}</span>
         @if (isManagedProfileRoute()) {
           <span class="member-context">Viewing Member: {{ managedMemberLabel() }}</span>
           @if (managedProfiles().length > 1) {
@@ -337,7 +357,7 @@
           }
           <button class="btn text managed-context-exit" type="button" (click)="exitManagedMember()">Back to My Profiles</button>
         } @else if (isOwnProfileContext()) {
-          @if (profileContext.summaries().length > 1) {
+          @if (profileContext.summaries().length) {
             <div class="profile-switcher">
               <button
                 class="profile-trigger"
@@ -352,14 +372,6 @@
                 <span><small>My Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span>
                 <app-shell-icon name="chevron" />
               </button>
-            </div>
-          } @else if (profileContext.summaries().length === 1) {
-            <div class="profile-static-context" aria-label="Selected Profile">
-              <span><small>My Profile</small><strong aria-live="polite">{{ selectedProfileName }}</strong></span>
-              <div class="profile-context-actions">
-                <button class="btn text" type="button" (click)="createProfile()">Create Profile</button>
-                <button class="btn text" type="button" (click)="openCopyProfile()">Copy Profile</button>
-              </div>
             </div>
           } @else {
             <button class="profile-create-cta" type="button" (click)="createProfile()">Create Profile</button>
