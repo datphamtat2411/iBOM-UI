@@ -39,6 +39,11 @@
                 "glob": "**/*",
                 "input": "assets",
                 "output": "/assets/"
+              },
+              {
+                "glob": "pdf.worker.min.mjs",
+                "input": "node_modules/pdfjs-dist/legacy/build",
+                "output": "/assets/pdfjs/"
               }
             ],
             "styles": [
@@ -105,6 +110,11 @@
                 "glob": "**/*",
                 "input": "assets",
                 "output": "/assets/"
+              },
+              {
+                "glob": "pdf.worker.min.mjs",
+                "input": "node_modules/pdfjs-dist/legacy/build",
+                "output": "/assets/pdfjs/"
               }
             ],
             "styles": [

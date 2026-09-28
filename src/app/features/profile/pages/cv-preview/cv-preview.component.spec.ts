@@ -7,6 +7,7 @@ import { BehaviorSubject, NEVER, of, Subject } from 'rxjs';
 import { FileNameFormatPage, ProfileDetail } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
+import { PdfDocumentRenderer, PdfRenderCallbacks, PdfRenderHandle } from './pdf-document-renderer.service';
 import { CvPreviewComponent } from './cv-preview.component';
 
 describe('CvPreviewComponent', () => {
@@ -34,6 +35,14 @@ describe('CvPreviewComponent', () => {
     isNotFound: jasmine.Spy;
   };
   let profiles: { preview: jasmine.Spy; listFileNameFormats: jasmine.Spy; download: jasmine.Spy };
+  let pdfRenderer: jasmine.SpyObj<PdfDocumentRenderer>;
+  let pdfRenderSessions: Array<{
+    blob: Blob;
+    container: HTMLElement;
+    initialWidth: number;
+    callbacks: PdfRenderCallbacks;
+    handle: jasmine.SpyObj<PdfRenderHandle>;
+  }>;
 
   const detail: ProfileDetail = {
     id: 1,
@@ -64,6 +73,14 @@ describe('CvPreviewComponent', () => {
       listFileNameFormats: jasmine.createSpy('listFileNameFormats').and.returnValue(of({ content: [{ id: 7, name: 'Name - Title' }], page: 0, size: 10, totalElements: 1, totalPages: 1 })),
       download: jasmine.createSpy('download').and.returnValue(NEVER),
     };
+    pdfRenderSessions = [];
+    pdfRenderer = jasmine.createSpyObj<PdfDocumentRenderer>('PdfDocumentRenderer', ['render']);
+    pdfRenderer.render.and.callFake((blob, container, initialWidth, callbacks) => {
+      const handle = jasmine.createSpyObj<PdfRenderHandle>('PdfRenderHandle', ['resize', 'destroy']);
+      pdfRenderSessions.push({ blob, container, initialWidth, callbacks, handle });
+      queueMicrotask(() => callbacks.rendered());
+      return handle;
+    });
     context = {
       selectedId: signal<string | null>('1'),
       detail: signal<ProfileDetail | null>(detail),
@@ -89,6 +106,7 @@ describe('CvPreviewComponent', () => {
       imports: [CvPreviewComponent],
       providers: [
         { provide: ProfileService, useValue: profiles },
+        { provide: PdfDocumentRenderer, useValue: pdfRenderer },
         { provide: ProfileContextService, useValue: context },
         { provide: ActivatedRoute, useValue: { paramMap: params } },
         { provide: Router, useValue: router },
@@ -144,7 +162,6 @@ describe('CvPreviewComponent', () => {
   function renderValid(currentDetail: ProfileDetail = { ...detail, hasPreviewed: true }): CvPreviewComponent {
     profiles.preview.and.returnValue(of(new Blob(['backend pdf'], { type: 'application/pdf' })));
     reloadWith(currentDetail);
-    spyOn(URL, 'createObjectURL').and.returnValue('blob:preview');
     const component = render(currentDetail);
     fixture?.detectChanges();
     return component;
@@ -177,7 +194,6 @@ describe('CvPreviewComponent', () => {
     profiles.preview.and.returnValue(of(new Blob(['managed pdf'], { type: 'application/pdf' })));
     reloadManagedWith(managedDetail);
     profiles.download.and.returnValue(NEVER);
-    spyOn(URL, 'createObjectURL').and.returnValue('blob:managed-preview');
     const component = render();
 
     activateManaged(managedDetail);
@@ -217,8 +233,6 @@ describe('CvPreviewComponent', () => {
     const nextManagedDetail = { ...detail, id: 3, profileName: 'Other Managed CV', hasPreviewed: false };
     profiles.preview.and.returnValue(of(new Blob(['managed pdf'], { type: 'application/pdf' })));
     reloadManagedWith(managedDetail);
-    const createObjectUrl = spyOn(URL, 'createObjectURL').and.returnValue('blob:managed-preview');
-    const revokeObjectUrl = spyOn(URL, 'revokeObjectURL');
     const component = render();
 
     activateManaged(managedDetail, '10', '2');
@@ -232,8 +246,7 @@ describe('CvPreviewComponent', () => {
     params.next(convertToParamMap({ memberId: '11', profileId: '3' }));
     fixture?.detectChanges();
 
-    expect(createObjectUrl).toHaveBeenCalledWith(jasmine.any(Blob));
-    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:managed-preview');
+    expect(pdfRenderSessions[0].handle.destroy).toHaveBeenCalled();
     expect(component.selectedFileNameFormatId).toBeNull();
     expect(component.exportError).toBe('');
     expect(component.previewState).toBe('required');
@@ -446,16 +459,16 @@ describe('CvPreviewComponent', () => {
     const pdf = new Blob(['backend pdf'], { type: 'application/pdf' });
     profiles.preview.and.returnValue(of(pdf));
     reloadWith(validDetail);
-    spyOn(URL, 'createObjectURL').and.returnValue('blob:preview');
 
     const component = render(validDetail);
     fixture?.detectChanges();
 
     expect(profiles.preview).toHaveBeenCalledWith('1');
     expect(component.previewState).toBe('valid');
-    expect(component.documentUrl).not.toBeNull();
-    expect(fixture?.nativeElement.querySelector('iframe')).toBeTruthy();
-    expect(fixture?.nativeElement.querySelector('.cv-page')).toBeNull();
+    expect(component.documentBlob).toBe(pdf);
+    expect(pdfRenderer.render).toHaveBeenCalledWith(pdf, jasmine.any(HTMLElement), jasmine.any(Number), jasmine.any(Object));
+    expect(fixture?.nativeElement.querySelector('.pdf-pages')).toBeTruthy();
+    expect(fixture?.nativeElement.querySelector('iframe, embed, object')).toBeNull();
   });
 
   it('keeps export controls unavailable until the current Preview is valid', () => {
@@ -503,7 +516,7 @@ describe('CvPreviewComponent', () => {
       context.detail.set(next);
       return of(next);
     });
-    const createObjectUrl = spyOn(URL, 'createObjectURL').and.returnValues('blob:preview', 'blob:download');
+    const createObjectUrl = spyOn(URL, 'createObjectURL').and.returnValue('blob:download');
     const revokeObjectUrl = spyOn(URL, 'revokeObjectURL');
     const createElement = spyOn(document, 'createElement').and.callThrough();
     const component = render(validDetail);
@@ -541,7 +554,7 @@ describe('CvPreviewComponent', () => {
 
     expect(component.exportSuccess).toBe('PDF export downloaded successfully.');
     expect(component.previewState).toBe('valid');
-    expect(component.documentUrl).not.toBeNull();
+    expect(component.documentBlob).not.toBeNull();
   });
 
   it('uses a quoted backend filename containing a semicolon', () => {
@@ -585,7 +598,7 @@ describe('CvPreviewComponent', () => {
     expect(createElement).not.toHaveBeenCalled();
     expect(component.exportError).toBe('The backend did not provide a usable export filename. Please retry.');
     expect(component.previewState).toBe('valid');
-    expect(component.documentUrl).not.toBeNull();
+    expect(component.documentBlob).not.toBeNull();
   });
 
   it('preserves the existing fallback when Content-Disposition is missing', () => {
@@ -616,7 +629,7 @@ describe('CvPreviewComponent', () => {
     await Promise.resolve();
 
     expect(component.previewState).toBe('valid');
-    expect(component.documentUrl).not.toBeNull();
+    expect(component.documentBlob).not.toBeNull();
     expect(component.exportError).toBe('Format was removed.');
     expect(component.exportSuccess).toBe('');
     expect(component.isExporting).toBeFalse();
@@ -632,7 +645,6 @@ describe('CvPreviewComponent', () => {
     const validDetail = { ...detail, hasPreviewed: true };
     profiles.preview.and.returnValue(of(new Blob(['backend pdf'], { type: 'application/pdf' })));
     context.reloadDetail.and.returnValues(of(validDetail), reconciliation);
-    spyOn(URL, 'createObjectURL').and.returnValue('blob:preview');
     const component = render(validDetail);
     component.exportDocument('pdf');
     request.next(new HttpResponse({
@@ -662,16 +674,14 @@ describe('CvPreviewComponent', () => {
     });
     const component = render();
     const pdf = new Blob(['backend pdf'], { type: 'application/pdf' });
-    spyOn(URL, 'createObjectURL');
 
     component.generatePreview();
     request.next(pdf);
     context.detail.set({ ...detail, version: 4, hasPreviewed: true });
     reconciliation.next({ ...detail, version: 4, hasPreviewed: true });
 
-    expect(component.documentUrl).toBeNull();
+    expect(component.documentBlob).toBeNull();
     expect(component.previewState).toBe('failure');
-    expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
   it('shows failure and allows retry after a version conflict', () => {
@@ -684,7 +694,7 @@ describe('CvPreviewComponent', () => {
     first.error(new HttpErrorResponse({ status: 409, error: { errorCode: 'PROFILE_VERSION_CONFLICT' } }));
 
     expect(component.previewState).toBe('failure');
-    expect(component.documentUrl).toBeNull();
+    expect(component.documentBlob).toBeNull();
     fixture?.detectChanges();
     expect(fixture?.nativeElement.textContent).toContain('Review the Profile and retry');
 
@@ -694,18 +704,15 @@ describe('CvPreviewComponent', () => {
     expect(component.previewState).toBe('generating');
   });
 
-  it('treats a not-found Preview response as unavailable and never creates a document URL', () => {
+  it('treats a not-found Preview response as unavailable without rendering document bytes', () => {
     const request = new Subject<Blob>();
     profiles.preview.and.returnValue(request);
     const component = render();
-    spyOn(URL, 'createObjectURL');
-
     component.generatePreview();
     request.error(new HttpErrorResponse({ status: 404, error: { errorCode: 'PROFILE_NOT_FOUND' } }));
 
     expect(component.previewState).toBe('unavailable');
-    expect(component.documentUrl).toBeNull();
-    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(component.documentBlob).toBeNull();
   });
 
   it('classifies a PROFILE_NOT_FOUND JSON error delivered as a Preview Blob', async () => {
@@ -721,7 +728,7 @@ describe('CvPreviewComponent', () => {
 
     expect(component.previewState).toBe('unavailable');
     expect(component.previewError).toBe('This Profile is not available to your account.');
-    expect(component.documentUrl).toBeNull();
+    expect(component.documentBlob).toBeNull();
   });
 
   it('retains version-conflict retry behavior for a PROFILE_VERSION_CONFLICT Preview Blob', async () => {
@@ -773,7 +780,7 @@ describe('CvPreviewComponent', () => {
 
     expect(component.previewState).toBe('loading');
     expect(component.previewError).toBe('');
-    expect(component.documentUrl).toBeNull();
+    expect(component.documentBlob).toBeNull();
   });
 
   it('invalidates pending Preview responses and the displayed document when the Profile switches', () => {
@@ -789,38 +796,41 @@ describe('CvPreviewComponent', () => {
     request.next(new Blob(['stale'], { type: 'application/pdf' }));
     request.error(new Error('stale error'));
 
-    expect(component.documentUrl).toBeNull();
+    expect(component.documentBlob).toBeNull();
     expect(component.previewState).toBe('loading');
   });
 
-  it('revokes the displayed object URL when Profile context invalidates it and on destroy', () => {
+  it('cleans rendered PDF pages when Profile context invalidates them and on destroy', () => {
     const validDetail = { ...detail, hasPreviewed: true };
-    const pdf = new Blob(['backend pdf'], { type: 'application/pdf' });
-    profiles.preview.and.returnValue(of(pdf));
+    const firstPdf = new Blob(['backend pdf 1'], { type: 'application/pdf' });
+    profiles.preview.and.returnValue(of(firstPdf));
     reloadWith(validDetail);
-    spyOn(URL, 'createObjectURL').and.returnValues('blob:preview-1', 'blob:preview-2');
-    const revoke = spyOn(URL, 'revokeObjectURL');
     const component = render(validDetail);
     fixture?.detectChanges();
 
     expect(component.previewState).toBe('valid');
+    expect(component.documentBlob).toBe(firstPdf);
+    expect(pdfRenderSessions.length).toBe(1);
     context.detail.set({ ...validDetail, version: 4, hasPreviewed: false });
     fixture?.detectChanges();
 
-    expect(component.documentUrl).toBeNull();
-    expect(revoke).toHaveBeenCalledWith('blob:preview-1');
+    expect(component.documentBlob).toBeNull();
+    expect(pdfRenderSessions[0].handle.destroy).toHaveBeenCalled();
 
+    const secondPdf = new Blob(['backend pdf 2'], { type: 'application/pdf' });
     const refreshedDetail = { ...validDetail, version: 4, hasPreviewed: true };
-    profiles.preview.and.returnValue(of(pdf));
+    profiles.preview.and.returnValue(of(secondPdf));
     reloadWith(refreshedDetail);
     context.detail.set(refreshedDetail);
     component.generatePreview();
     fixture?.detectChanges();
     expect(component.previewState).toBe('valid');
+    expect(component.documentBlob).toBe(secondPdf);
+    expect(pdfRenderSessions[1].blob).toBe(secondPdf);
 
     fixture?.destroy();
     fixture = undefined;
 
-    expect(revoke).toHaveBeenCalledWith('blob:preview-2');
+    expect(pdfRenderSessions[1].handle.destroy).toHaveBeenCalled();
   });
 });

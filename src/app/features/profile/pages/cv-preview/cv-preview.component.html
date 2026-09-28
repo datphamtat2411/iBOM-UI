@@ -6,53 +6,72 @@
   } @else if (activeContextError()) {
     <div class="workspace-state error" role="alert"><h1>Unable to load Profile</h1><p>We could not load this Profile. Please try again later.</p></div>
   } @else {
-    <div class="page-heading">
-      <div><h1 id="preview-title">CV Preview</h1><p>{{ previewSubtitle() }}</p></div>
-      <div class="heading-actions"><button class="btn" type="button" (click)="returnToProfile()">Return to Profile</button></div>
-    </div>
+    <header class="page-heading">
+      <div class="heading-copy">
+        <span class="eyebrow"><span class="eyebrow-line"></span> DOCUMENT STUDIO / CV</span>
+        <h1 id="preview-title">CV Preview<span class="title-period">.</span></h1>
+        <p>{{ previewSubtitle() }}</p>
+      </div>
+      <div class="heading-actions">
+        <button class="btn back-button" type="button" (click)="returnToProfile()">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16 10H4m0 0 5-5m-5 5 5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Return to Profile
+        </button>
+      </div>
+    </header>
 
     <div class="notice preview-banner" [class.success]="previewState === 'valid'" [class.info]="previewState === 'generating'" [class.warning]="previewState === 'required'" [class.error]="previewState === 'failure'" [class.unavailable]="previewState === 'unavailable'" [attr.role]="previewState === 'failure' || previewState === 'unavailable' ? 'alert' : 'status'" aria-live="polite">
       @if (previewState === 'required') {
-        <span><strong>Preview required.</strong> No current document is available for this Profile.</span>
+        <span class="notice-copy"><span class="notice-indicator" aria-hidden="true"></span><span><strong>Preview required.</strong> No current document is available for this Profile.</span></span>
         <span class="mono small">CURRENT PROFILE</span>
       } @else if (previewState === 'loading') {
-        <span><strong>Loading Profile.</strong> Checking the current saved Profile before Preview.</span>
+        <span class="notice-copy"><span class="notice-indicator" aria-hidden="true"></span><span><strong>Loading Profile.</strong> Checking the current saved Profile before Preview.</span></span>
         <span class="mono small">PLEASE WAIT</span>
       } @else if (previewState === 'generating') {
-        <span><strong>Generating Preview.</strong> Preparing the saved Profile document.</span>
+        <span class="notice-copy"><span class="notice-indicator" aria-hidden="true"></span><span><strong>Generating Preview.</strong> Preparing the saved Profile document.</span></span>
         <span class="mono small">PLEASE WAIT</span>
       } @else if (previewState === 'valid') {
-        <span><strong>Preview valid.</strong> The document below reflects the current saved Profile.</span>
+        <span class="notice-copy"><span class="notice-indicator" aria-hidden="true"></span><span><strong>Preview valid.</strong> The document below reflects the current saved Profile.</span></span>
         <span class="mono small">CURRENT PROFILE</span>
       } @else {
-        <span><strong>Preview unavailable.</strong> {{ previewError }}</span>
+        <span class="notice-copy"><span class="notice-indicator" aria-hidden="true"></span><span><strong>Preview unavailable.</strong> {{ previewError }}</span></span>
         <span class="mono small">RETRY REQUIRED</span>
       }
     </div>
 
     <div class="preview-layout">
       <aside class="preview-tools" aria-label="Preview controls">
-        <h2>Document controls</h2>
-        <p>Preview is generated from the current saved Profile. A document is shown only after the backend confirms it is current.</p>
-        <span class="status" [class.required]="previewState === 'required'" [class.generating]="previewState === 'generating'" [class.valid]="previewState === 'valid'" [class.error]="previewState === 'failure' || previewState === 'unavailable'">
-          @if (previewState === 'required') { Preview required }
-          @else if (previewState === 'loading') { Loading Profile }
-          @else if (previewState === 'generating') { Generating Preview }
-          @else if (previewState === 'valid') { Preview valid }
-          @else { Preview unavailable }
-        </span>
-        <div class="preview-actions">
-          @if (previewState === 'required') {
-            <button class="btn primary" type="button" (click)="generatePreview()">Generate Preview</button>
-          } @else if (previewState === 'generating') {
-            <button class="btn primary" type="button" disabled aria-busy="true">Generating Preview...</button>
-          } @else if (previewState === 'failure') {
-            <button class="btn primary" type="button" (click)="retryPreview()">Retry Preview</button>
-          }
+        <div class="tools-header">
+          <span class="section-index">YOUR WORKSPACE</span>
+          <h2>Document controls</h2>
+          <p>Everything you need to prepare and download your CV.</p>
         </div>
-        @if (previewError && previewState === 'failure') { <p class="preview-help error-copy">{{ previewError }}</p> }
-        <div class="export-controls">
-          <label class="format-field" for="file-name-format">File Name Format
+        <div class="tool-section">
+          <div class="section-heading"><span class="section-number">01</span><h3>Preview status</h3></div>
+          <span class="status" [class.required]="previewState === 'required'" [class.generating]="previewState === 'generating'" [class.valid]="previewState === 'valid'" [class.error]="previewState === 'failure' || previewState === 'unavailable'">
+            <span class="status-dot" aria-hidden="true"></span>
+            @if (previewState === 'required') { Preview required }
+            @else if (previewState === 'loading') { Loading Profile }
+            @else if (previewState === 'generating') { Generating Preview }
+            @else if (previewState === 'valid') { Preview valid }
+            @else { Preview unavailable }
+          </span>
+          <p class="section-description">Only the current saved version of your Profile can be previewed.</p>
+          <div class="preview-actions">
+            @if (previewState === 'required') {
+              <button class="btn primary" type="button" (click)="generatePreview()">Generate Preview <span aria-hidden="true">↗</span></button>
+            } @else if (previewState === 'generating') {
+              <button class="btn primary" type="button" disabled aria-busy="true">Generating Preview...</button>
+            } @else if (previewState === 'failure') {
+              <button class="btn primary" type="button" (click)="retryPreview()">Retry Preview <span aria-hidden="true">↗</span></button>
+            }
+          </div>
+          @if (previewError && previewState === 'failure') { <p class="preview-help error-copy">{{ previewError }}</p> }
+        </div>
+        <div class="tool-section export-controls">
+          <div class="section-heading"><span class="section-number">02</span><h3>Export CV</h3></div>
+          <p class="section-description">Choose a file name, then download your document.</p>
+          <label class="format-field" for="file-name-format">File name format
             <select id="file-name-format" [value]="selectedFileNameFormatId ?? ''" (change)="selectFileNameFormat($event)" [disabled]="!canExport || isExporting">
               <option value="">Automatic</option>
               @for (format of fileNameFormats; track format.id) {
@@ -61,8 +80,8 @@
             </select>
           </label>
           <div class="export-stack" aria-label="Export document">
-            <button class="btn" type="button" (click)="exportDocument('pdf')" [disabled]="!canExport || isExporting" [attr.aria-busy]="exportingFormat === 'pdf' ? 'true' : null">{{ exportingFormat === 'pdf' ? 'Exporting PDF...' : 'Export PDF' }}</button>
-            <button class="btn" type="button" (click)="exportDocument('docx')" [disabled]="!canExport || isExporting" [attr.aria-busy]="exportingFormat === 'docx' ? 'true' : null">{{ exportingFormat === 'docx' ? 'Exporting DOCX...' : 'Export DOCX' }}</button>
+            <button class="btn export-button" type="button" (click)="exportDocument('pdf')" [disabled]="!canExport || isExporting" [attr.aria-busy]="exportingFormat === 'pdf' ? 'true' : null"><span>{{ exportingFormat === 'pdf' ? 'Exporting PDF...' : 'Export PDF' }}</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5M4 13.5v2.25c0 .69.56 1.25 1.25 1.25h9.5c.69 0 1.25-.56 1.25-1.25V13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="btn export-button" type="button" (click)="exportDocument('docx')" [disabled]="!canExport || isExporting" [attr.aria-busy]="exportingFormat === 'docx' ? 'true' : null"><span>{{ exportingFormat === 'docx' ? 'Exporting DOCX...' : 'Export DOCX' }}</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5M4 13.5v2.25c0 .69.56 1.25 1.25 1.25h9.5c.69 0 1.25-.56 1.25-1.25V13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </div>
           @if (fileNameFormatsLoading) { <p class="preview-help" role="status" aria-live="polite">Loading File Name Formats...</p> }
           @if (fileNameFormatsError) {
@@ -71,22 +90,34 @@
           }
           @if (exportSuccess) { <p class="preview-help success-copy" role="status">{{ exportSuccess }}</p> }
           @if (exportError) { <p class="preview-help error-copy" role="alert">{{ exportError }}</p> }
-           @if (formatLastExportedAt(activeDetail()?.lastExportedAt); as formattedLastExportedAt) { <p class="last-exported">Last exported: {{ formattedLastExportedAt }}</p> }
+          @if (formatLastExportedAt(activeDetail()?.lastExportedAt); as formattedLastExportedAt) { <p class="last-exported">Last exported: {{ formattedLastExportedAt }}</p> }
         </div>
       </aside>
 
-      <div class="document-stage" aria-label="Backend-generated PDF document">
-        @if (previewState === 'valid' && documentUrl) {
-          <iframe class="pdf-surface" [src]="documentUrl" title="Current Profile PDF Preview"></iframe>
-        } @else if (previewState === 'generating') {
-          <div class="document-placeholder" role="status" aria-live="polite"><span class="placeholder-line title"></span><span class="placeholder-line medium"></span><span class="placeholder-line wide"></span><span class="placeholder-line wide"></span><span class="placeholder-line short"></span><p>Preparing the backend-generated PDF...</p></div>
-        } @else if (previewState === 'required') {
-          <div class="document-placeholder empty"><h2>No current document</h2><p>Generate a Preview to display the PDF returned by the backend.</p><button class="btn primary" type="button" (click)="generatePreview()">Generate Preview</button></div>
-        } @else if (previewState === 'loading') {
-          <div class="document-placeholder empty" role="status"><h2>Loading Profile</h2><p>Checking the current saved Profile before requesting a PDF.</p></div>
-        } @else {
-          <div class="document-placeholder empty"><h2>Document unavailable</h2><p>{{ previewError || 'A current PDF is not available for this Profile.' }}</p></div>
-        }
+      <div class="document-stage">
+        <div class="stage-toolbar">
+          <div class="stage-label"><span class="stage-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><path d="M5 2.75h6l4 4v10.5H5V2.75Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11 2.75v4h4M7.5 10h5m-5 3h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span><strong>Document preview</strong><small>Current saved profile · PDF</small></span></div>
+          <span class="stage-format">PDF DOCUMENT <span aria-hidden="true">/</span> PREVIEW</span>
+        </div>
+        <div class="stage-canvas">
+          @if (previewState === 'valid' && documentBlob) {
+            <div class="document-viewport" role="region" aria-label="Backend-generated PDF document">
+              <div class="pdf-pages" #documentPages aria-label="Rendered PDF pages"></div>
+              @if (!pdfPagesRendered) {
+                <div class="document-placeholder" role="status" aria-live="polite"><span class="placeholder-line title"></span><span class="placeholder-line medium"></span><span class="placeholder-line wide"></span><span class="placeholder-line wide"></span><span class="placeholder-line short"></span><p>Rendering the backend-generated PDF...</p></div>
+              }
+            </div>
+          } @else if (previewState === 'generating') {
+            <div class="document-placeholder" role="status" aria-live="polite"><span class="placeholder-line title"></span><span class="placeholder-line medium"></span><span class="placeholder-line wide"></span><span class="placeholder-line wide"></span><span class="placeholder-line short"></span><p>Preparing the backend-generated PDF...</p></div>
+          } @else if (previewState === 'required') {
+            <div class="document-placeholder empty"><span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M12 5h16l8 8v30H12V5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M28 5v8h8M18 22h12M18 28h12M18 34h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="empty-kicker">READY WHEN YOU ARE</span><h2>No current document</h2><p>Generate a Preview to display the PDF returned by the backend.</p><button class="btn primary" type="button" (click)="generatePreview()">Generate Preview <span aria-hidden="true">↗</span></button></div>
+          } @else if (previewState === 'loading') {
+            <div class="document-placeholder empty" role="status"><span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M12 5h16l8 8v30H12V5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M28 5v8h8M18 22h12M18 28h12M18 34h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><h2>Loading Profile</h2><p>Checking the current saved Profile before requesting a PDF.</p></div>
+          } @else {
+            <div class="document-placeholder empty"><span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M12 5h16l8 8v30H12V5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M28 5v8h8M18 22h12M18 28h12M18 34h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><h2>Document unavailable</h2><p>{{ previewError || 'A current PDF is not available for this Profile.' }}</p></div>
+          }
+        </div>
+        <div class="stage-footer"><span>CV / PREVIEW</span><span>Generated from your saved profile</span></div>
       </div>
     </div>
   }

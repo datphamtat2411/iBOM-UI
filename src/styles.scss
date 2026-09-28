@@ -29,6 +29,11 @@
   box-sizing: border-box;
 }
 
+.field,
+.ibom-field {
+  align-self: start;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -54,6 +59,20 @@ select {
 ::selection {
   background: var(--fpt-orange);
   color: #fff;
+}
+
+.cv-pdf-page {
+  width: 100%;
+  overflow: hidden;
+  background: #fff;
+  outline: 1px solid var(--shell-border, var(--grid-border));
+  box-shadow: 0 5px 16px rgb(23 25 29 / 11%);
+}
+
+.cv-pdf-page canvas {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

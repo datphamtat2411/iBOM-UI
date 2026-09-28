@@ -1,12 +1,12 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { Component, effect, inject, OnDestroy } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { Component, effect, ElementRef, inject, OnDestroy, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { EMPTY, expand, reduce, Subscription } from 'rxjs';
 
 import { CvExportFormat, FileNameFormat, FileNameFormatPage, ProfileDetail } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
+import { PdfDocumentRenderer, PdfRenderHandle } from './pdf-document-renderer.service';
 
 type PreviewState = 'loading' | 'required' | 'generating' | 'valid' | 'failure' | 'unavailable';
 
@@ -44,13 +44,14 @@ export class CvPreviewComponent implements OnDestroy {
   private readonly profileService = inject(ProfileService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly sanitizer = inject(DomSanitizer);
+  private readonly pdfRenderer = inject(PdfDocumentRenderer);
   readonly context = inject(ProfileContextService);
 
   activeProfileId: string | null = null;
   previewState: PreviewState = 'loading';
   previewError = '';
-  documentUrl: SafeResourceUrl | null = null;
+  documentBlob: Blob | null = null;
+  pdfPagesRendered = false;
   fileNameFormats: FileNameFormat[] = [];
   fileNameFormatsLoading = false;
   fileNameFormatsError = '';
@@ -82,12 +83,42 @@ export class CvPreviewComponent implements OnDestroy {
   private fileNameFormatsGeneration = 0;
   private observedProfileVersion: number | null = null;
   private fileNameFormatsLoaded = false;
-  private documentObjectUrl: string | null = null;
   private documentProfileId: string | null = null;
   private documentVersion: number | null = null;
+  private documentPagesElement: HTMLElement | null = null;
+  private documentResizeObserver: ResizeObserver | null = null;
+  private pdfRenderHandle: PdfRenderHandle | null = null;
   private pendingDocument: PendingDocument | null = null;
   private pendingExport: PendingExport | null = null;
   private activeMemberId: string | null = null;
+
+  @ViewChild('documentPages')
+  set documentPages(reference: ElementRef<HTMLDivElement> | undefined) {
+    const element = reference?.nativeElement ?? null;
+    if (element === this.documentPagesElement) return;
+
+    this.cleanupDocumentRendering();
+    this.documentPagesElement = element;
+    if (!element || !this.documentBlob || this.previewState !== 'valid') return;
+
+    const blob = this.documentBlob;
+    this.pdfPagesRendered = false;
+    const handle = this.pdfRenderer.render(blob, element, element.clientWidth, {
+      rendered: () => {
+        if (this.isCurrentDocumentRender(blob, element)) this.pdfPagesRendered = true;
+      },
+      failed: () => this.failDocumentRender(blob, element),
+    });
+    this.pdfRenderHandle = handle;
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.documentResizeObserver = new ResizeObserver((entries) => {
+        const width = entries[0]?.contentRect.width ?? element.clientWidth;
+        if (width > 0) handle.resize(width);
+      });
+      this.documentResizeObserver.observe(element);
+    }
+  }
 
   constructor() {
     this.routeSubscription = this.route.paramMap.subscribe((params) => {
@@ -128,7 +159,7 @@ export class CvPreviewComponent implements OnDestroy {
       && this.activePreviewGeneration === null
       && this.activeReconciliationGeneration === null
       && this.previewState === 'valid'
-      && !!this.documentUrl
+      && !!this.documentBlob
       && !!detail
       && detail.hasPreviewed
       && this.documentProfileId === this.activeProfileId
@@ -451,18 +482,38 @@ export class CvPreviewComponent implements OnDestroy {
 
   private replaceDocument(blob: Blob, profileId: string, version: number): void {
     this.clearDocument();
-    this.documentObjectUrl = URL.createObjectURL(blob);
-    this.documentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.documentObjectUrl);
+    this.documentBlob = blob;
     this.documentProfileId = profileId;
     this.documentVersion = version;
   }
 
   private clearDocument(): void {
-    if (this.documentObjectUrl) URL.revokeObjectURL(this.documentObjectUrl);
-    this.documentObjectUrl = null;
-    this.documentUrl = null;
+    this.cleanupDocumentRendering();
+    this.documentBlob = null;
     this.documentProfileId = null;
     this.documentVersion = null;
+  }
+
+  private cleanupDocumentRendering(): void {
+    this.documentResizeObserver?.disconnect();
+    this.documentResizeObserver = null;
+    this.pdfRenderHandle?.destroy();
+    this.pdfRenderHandle = null;
+    this.documentPagesElement = null;
+    this.pdfPagesRendered = false;
+  }
+
+  private isCurrentDocumentRender(blob: Blob, element: HTMLElement): boolean {
+    return this.documentBlob === blob
+      && this.documentPagesElement === element
+      && this.previewState === 'valid';
+  }
+
+  private failDocumentRender(blob: Blob, element: HTMLElement): void {
+    if (!this.isCurrentDocumentRender(blob, element)) return;
+    this.previewState = 'failure';
+    this.previewError = 'The backend-generated PDF could not be displayed. Please retry Preview.';
+    this.clearDocument();
   }
 
   private loadFileNameFormats(): void {
