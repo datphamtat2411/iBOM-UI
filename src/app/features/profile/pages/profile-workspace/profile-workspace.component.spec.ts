@@ -8,6 +8,7 @@ import { BehaviorSubject, Subject, of, throwError } from 'rxjs';
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { DashboardService } from '../../../dashboard/services/dashboard.service';
 import { MemberDashboardStats } from '../../../dashboard/models/dashboard.models';
+import { MasterDataService } from '../../../master-data/services/master-data.service';
 import { ProfileDetail, ProfileSummary } from '../../models/profile.models';
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileService } from '../../services/profile.service';
@@ -128,6 +129,7 @@ describe('ProfileWorkspaceComponent', () => {
       providers: [
         { provide: ProfileService, useValue: profiles },
         { provide: DashboardService, useValue: dashboardService },
+        { provide: MasterDataService, useValue: { listSkillCategories: jasmine.createSpy('listSkillCategories').and.returnValue(of([])) } },
         { provide: ProfileContextService, useValue: context },
         { provide: ActivatedRoute, useValue: { paramMap: params } },
         { provide: Router, useValue: router },
