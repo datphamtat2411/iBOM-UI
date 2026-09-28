@@ -16,14 +16,14 @@ The frontend is built with **Angular 17** using a feature-based architecture and
 
 The public homepage introduces the platform and provides entry points into the authentication flow.
 <p align="center">
-&#x20; \<img src="./img/website_preview/HomePage.png" alt="iBOM Homepage" width="100%" />
+&#x20; <img src="./img/website_preview/HomePage.png" alt="iBOM Homepage" width="100%" />
 </p>
 
 ### Member Workspace
 
 The authenticated Member workspace provides an overview of the selected profile, profile completeness, export activity, and quick access to CV management operations.
 <p align="center">
-&#x20; \<img src="./img/website_preview/MemberDashboard.png" alt="iBOM Member Workspace" width="100%" />
+&#x20; <img src="./img/website_preview/MemberDashboard.png" alt="iBOM Member Workspace" width="100%" />
 </p>
 
 ## Core Features
