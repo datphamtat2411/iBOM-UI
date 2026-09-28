@@ -60,6 +60,8 @@
   --ibom-shell-sidebar-width-collapsed: 4.5rem;
   --ibom-shell-sidebar-width-mobile: min(18rem, calc(100vw - 2rem));
   --ibom-shell-topbar-height: 4rem;
+  --ibom-brand-logo-width: 3.9375rem;
+  --ibom-brand-logo-height: 2.3625rem;
 
   --ibom-space-1: 0.25rem;
   --ibom-space-2: 0.5rem;
@@ -101,6 +103,13 @@
   --shell-border: var(--ibom-color-border);
   --shell-muted: var(--ibom-color-text-muted);
   --shell-accent: var(--ibom-color-accent);
+}
+
+@media (max-width: 540px) {
+  :root {
+    --ibom-brand-logo-width: 3.4125rem;
+    --ibom-brand-logo-height: 2.1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

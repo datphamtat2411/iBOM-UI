@@ -154,8 +154,16 @@
   }
 }
 
-.brand:hover .brand-mark,
-.brand:focus-visible .brand-mark {
+.brand-image {
+  display: block;
+  width: var(--ibom-brand-logo-width);
+  height: var(--ibom-brand-logo-height);
+  object-fit: contain;
+  transition: transform 180ms ease;
+}
+
+.brand:hover .brand-image,
+.brand:focus-visible .brand-image {
   transform: rotate(2deg);
 }
 
@@ -792,11 +800,6 @@ h1 {
 
   .system-status-bar {
     padding-inline: 0.75rem;
-  }
-
-  .brand-mark span {
-    width: 0.7rem;
-    height: 1.25rem;
   }
 
   .brand-line strong {

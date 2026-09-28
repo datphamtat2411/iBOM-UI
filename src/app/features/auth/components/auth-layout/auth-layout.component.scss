@@ -76,6 +76,14 @@
   background: var(--fpt-green);
 }
 
+.auth-layout__brand-logo {
+  display: block;
+  flex: 0 0 auto;
+  width: var(--ibom-brand-logo-width);
+  height: var(--ibom-brand-logo-height);
+  object-fit: contain;
+}
+
 .auth-layout__brand-copy strong {
   display: block;
   font-family: var(--font-serif);

@@ -79,6 +79,14 @@
 .brand-mark i:nth-child(2) { background: var(--fpt-orange); }
 .brand-mark i:nth-child(3) { background: var(--fpt-green); }
 
+.brand-image {
+  display: block;
+  flex: 0 0 auto;
+  width: var(--ibom-brand-logo-width);
+  height: var(--ibom-brand-logo-height);
+  object-fit: contain;
+}
+
 .brand-copy {
   min-width: 0;
 }
@@ -910,14 +918,6 @@
     font-family: var(--font-serif);
     font-size: var(--ibom-font-size-lg);
     font-weight: var(--ibom-font-weight-bold);
-  }
-
-  .mobile-brand .brand-mark {
-    border-color: var(--ibom-color-text);
-  }
-
-  .mobile-brand .brand-mark i {
-    height: 1rem;
   }
 
   .context-line {
