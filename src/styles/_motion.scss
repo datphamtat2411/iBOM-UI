@@ -1,0 +1,73 @@
+@layer utilities {
+  .ibom-motion-interactive {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: var(--ibom-motion-fast);
+    transition-timing-function: var(--ibom-motion-ease-standard);
+  }
+
+  .ibom-motion-fade {
+    transition-property: opacity;
+    transition-duration: var(--ibom-motion-normal);
+    transition-timing-function: var(--ibom-motion-ease-standard);
+  }
+
+  .ibom-motion-fade.is-hidden {
+    opacity: 0;
+  }
+
+  .ibom-motion-fade.is-visible {
+    opacity: 1;
+  }
+
+  .ibom-motion-enter {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity var(--ibom-motion-normal) var(--ibom-motion-ease-enter),
+      transform var(--ibom-motion-normal) var(--ibom-motion-ease-enter);
+  }
+
+  .ibom-motion-enter.is-entering {
+    opacity: 0;
+    transform: translateY(var(--ibom-motion-distance-sm));
+  }
+
+  .ibom-motion-exit {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity var(--ibom-motion-fast) var(--ibom-motion-ease-exit),
+      transform var(--ibom-motion-fast) var(--ibom-motion-ease-exit);
+  }
+
+  .ibom-motion-exit.is-exiting {
+    opacity: 0;
+    transform: translateY(var(--ibom-motion-distance-sm));
+  }
+
+  .ibom-motion-surface-enter {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity var(--ibom-motion-deliberate) var(--ibom-motion-ease-enter),
+      transform var(--ibom-motion-deliberate) var(--ibom-motion-ease-enter);
+  }
+
+  .ibom-motion-surface-enter.is-entering {
+    opacity: 0;
+    transform: translateY(var(--ibom-motion-distance-sm)) scale(var(--ibom-motion-scale-enter));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ibom-motion-enter.is-entering,
+    .ibom-motion-surface-enter.is-entering {
+      opacity: 1;
+      transform: none;
+    }
+
+    .ibom-motion-exit.is-exiting {
+      opacity: 0;
+      transform: none;
+    }
+  }
+}

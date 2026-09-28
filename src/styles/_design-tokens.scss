@@ -77,9 +77,16 @@
   --ibom-radius-lg: 0.625rem;
   --ibom-shadow-overlay: 0 1.25rem 3rem rgb(32 26 18 / 18%);
 
+  --ibom-motion-none: 0ms;
   --ibom-motion-fast: 140ms;
   --ibom-motion-normal: 180ms;
+  --ibom-motion-deliberate: 220ms;
   --ibom-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --ibom-motion-ease-standard: var(--ibom-motion-ease);
+  --ibom-motion-ease-enter: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ibom-motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ibom-motion-distance-sm: 6px;
+  --ibom-motion-scale-enter: 0.98;
 
   // Compatibility aliases used by feature styles that still predate the shared token layer.
   --shell-ink: var(--ibom-color-text);
@@ -91,7 +98,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --ibom-motion-fast: 0ms;
-    --ibom-motion-normal: 0ms;
+    --ibom-motion-fast: var(--ibom-motion-none);
+    --ibom-motion-normal: var(--ibom-motion-none);
+    --ibom-motion-deliberate: var(--ibom-motion-none);
   }
 }
