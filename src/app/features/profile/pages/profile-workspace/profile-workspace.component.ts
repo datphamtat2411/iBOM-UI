@@ -1,9 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
+import { A11yModule } from '@angular/cdk/a11y';
 import { Component, effect, inject, OnDestroy, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
+import { NotificationService } from '../../../../core/notifications/notification.service';
+import { IbomLoadingButtonComponent } from '../../../../shared/ui/loading/loading-button.component';
+import { IbomSkeletonComponent } from '../../../../shared/ui/loading/skeleton.component';
+import { IbomMotionPreferenceService } from '../../../../shared/ui/motion/ibom-motion-preference.service';
 import { DashboardCompletenessSection, MemberDashboardStats } from '../../../dashboard/models/dashboard.models';
 import { DashboardService } from '../../../dashboard/services/dashboard.service';
 import { ManagedMemberContext, ProfileDetail, ProfileSummary } from '../../models/profile.models';
@@ -17,11 +23,12 @@ import { LanguageSectionComponent } from './sections/language-section/language-s
 import { ProfileWorkspaceSection, ProjectNavigationRequest } from './sections/profile-section-events';
 import { ProjectsSectionComponent } from './sections/projects-section/projects-section.component';
 import { SkillSectionComponent } from './sections/skill-section/skill-section.component';
+import { WorkspaceModalDirective } from './sections/workspace-modal.directive';
 
 @Component({
   selector: 'app-profile-workspace',
   standalone: true,
-  imports: [AboutMeSectionComponent, CertificateSectionComponent, EducationSectionComponent, LanguageSectionComponent, ProjectsSectionComponent, SkillSectionComponent],
+  imports: [DatePipe, DecimalPipe, NgTemplateOutlet, A11yModule, WorkspaceModalDirective, IbomLoadingButtonComponent, IbomSkeletonComponent, AboutMeSectionComponent, CertificateSectionComponent, EducationSectionComponent, LanguageSectionComponent, ProjectsSectionComponent, SkillSectionComponent],
   templateUrl: './profile-workspace.component.html',
   styleUrl: './profile-workspace.component.scss',
 })
@@ -30,6 +37,8 @@ export class ProfileWorkspaceComponent implements OnDestroy {
   private readonly profileService = inject(ProfileService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly notifications = inject(NotificationService);
+  private readonly motionPreference = inject(IbomMotionPreferenceService);
   readonly context = inject(ProfileContextService);
   readonly editSession = inject(ProfileEditSessionService);
   readonly workspaceStats = signal<MemberDashboardStats | null>(null);
@@ -221,11 +230,24 @@ export class ProfileWorkspaceComponent implements OnDestroy {
 
   scrollToSection(sectionId: ProfileWorkspaceSection): void {
     this.activeSection = sectionId;
-    document.getElementById(`workspace-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById(`workspace-section-${sectionId}`)?.scrollIntoView({
+      behavior: this.motionPreference.isReducedMotion() ? 'auto' : 'smooth',
+      block: 'start',
+    });
   }
 
   profileName(): string {
     return this.workspaceDetail()?.profileName ?? this.selectedSummary()?.profileName ?? 'Profile Workspace';
+  }
+
+  profileInitials(profile: ProfileDetail): string {
+    return `${profile.firstName?.trim().charAt(0) ?? ''}${profile.lastName?.trim().charAt(0) ?? ''}`.toUpperCase() || 'CV';
+  }
+
+  completenessPercent(): number | null {
+    const stats = this.workspaceStats();
+    if (!stats || this.workspaceStatsLoading() || this.workspaceStatsError()) return null;
+    return Math.max(0, Math.min(100, stats.completeness.percentage));
   }
 
   workspaceSummaries(): ProfileSummary[] {
@@ -336,8 +358,10 @@ export class ProfileWorkspaceComponent implements OnDestroy {
   }
 
   private finishDelete(profileId: string, operationGeneration: number): void {
+    const name = this.deleteTarget?.name;
     this.closeDeleteConfirmation();
     this.isDeleting = false;
+    this.notifications.showSuccess(name ? `${name} deleted.` : 'Profile deleted.');
 
     const refresh$ = this.isManagedContext
       ? this.context.refreshManagedSummariesAndSelectFirst()

@@ -89,6 +89,8 @@ describe('ProfileWorkspaceComponent', () => {
       listCertificates: jasmine.createSpy('listCertificates').and.returnValue(of([])),
       listProjects: jasmine.createSpy('listProjects').and.returnValue(of([])),
       listProfileSkills: jasmine.createSpy('listProfileSkills').and.returnValue(of([])),
+      listLanguageMaster: jasmine.createSpy('listLanguageMaster').and.returnValue(of({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 })),
+      listSkillMaster: jasmine.createSpy('listSkillMaster').and.returnValue(of({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 })),
     };
     context = {
       summaries: signal([summary]),
@@ -173,6 +175,25 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.nativeElement.querySelector('#workspace-section-certificates')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-projects')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-skills')).toBeTruthy();
+  });
+
+  it('shows a structured skeleton while the Profile list or selected detail loads', () => {
+    context.summaries.set([]);
+    context.summariesLoading.set(true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#workspace-title')?.textContent).toContain('Loading Profiles');
+    expect(fixture.nativeElement.querySelectorAll('.workspace-loading ibom-skeleton').length).toBeGreaterThan(5);
+    expect(fixture.nativeElement.querySelector('.workspace-sections')).toBeNull();
+
+    context.summaries.set([summary]);
+    context.summariesLoading.set(false);
+    context.detail.set(null);
+    context.detailLoading.set(true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#workspace-title')?.textContent).toContain('Loading Profile');
+    expect(fixture.nativeElement.querySelector('.workspace-loading [role="status"]')?.textContent).toContain('Backend CV');
   });
 
   it('loads a managed Member route separately and reuses shared Profile CRUD sections without owner actions', () => {
@@ -262,6 +283,8 @@ describe('ProfileWorkspaceComponent', () => {
 
     expect(Array.from(fixture.nativeElement.querySelectorAll('.section-score') as NodeListOf<Element>)
       .every((score) => score.textContent?.trim() === '—')).toBeTrue();
+    expect(fixture.nativeElement.querySelectorAll('.section-score ibom-skeleton').length).toBe(6);
+    expect(fixture.nativeElement.querySelector('.progress-feedback')?.textContent).toContain('Calculating');
 
     pendingStats.next(statsFor({ ...summary, id: 2, profileName: 'Frontend CV' }));
     fixture.detectChanges();
@@ -324,6 +347,56 @@ describe('ProfileWorkspaceComponent', () => {
     expect((fixture.nativeElement.querySelector('#workspace-section-projects .section-title button') as HTMLButtonElement).disabled).toBeFalse();
   });
 
+  it('opens each inline editor as an isolated dialog and restores page scrolling after closing', () => {
+    const originalOverflow = document.body.style.overflow;
+    const openers = [
+      { open: () => about().startEditing(), close: () => about().cancelEditing(), title: 'Edit About Me' },
+      { open: () => education().startEducationCreate(), close: () => education().cancelEditing(), title: 'Add Education' },
+      { open: () => languageSection().startLanguageCreate(), close: () => languageSection().cancelEditing(), title: 'Add Language' },
+      { open: () => certificates().startCertificateCreate(), close: () => certificates().cancelEditing(), title: 'Add Certificate' },
+      { open: () => skillSection().startSkillCreate(), close: () => skillSection().cancelEditing(), title: 'Add Skill' },
+    ];
+
+    for (const { open, close, title } of openers) {
+      open();
+      fixture.detectChanges();
+      const dialog = fixture.nativeElement.querySelector('.workspace-editor-modal') as HTMLDialogElement;
+      expect(dialog.open).toBeTrue();
+      expect(dialog.querySelector('h2')?.textContent).toContain(title);
+      expect(dialog.querySelector('.editor-body')).toBeTruthy();
+      expect(dialog.querySelector('.sticky-actions')).toBeTruthy();
+      expect(document.body.style.overflow).toBe('hidden');
+      close();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('.workspace-editor-modal')).toBeNull();
+      expect(document.body.style.overflow).toBe(originalOverflow);
+    }
+  });
+
+  it('places the discard decision above an unsaved editor and keeps its draft on Escape', () => {
+    about().startEditing();
+    fixture.detectChanges();
+    about().editForm.controls.firstName.setValue('Draft');
+    about().editForm.controls.firstName.markAsDirty();
+    const editor = fixture.nativeElement.querySelector('.workspace-editor-modal') as HTMLDialogElement;
+    editor.dispatchEvent(new Event('cancel', { cancelable: true }));
+    fixture.detectChanges();
+
+    const confirmation = fixture.nativeElement.querySelector('#about-cancel-warning-title')?.closest('dialog') as HTMLDialogElement;
+    expect(editor.open).toBeTrue();
+    expect(confirmation.open).toBeTrue();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    confirmation.dispatchEvent(new Event('cancel', { cancelable: true }));
+    fixture.detectChanges();
+    expect(about().isEditing).toBeTrue();
+    expect(about().editForm.controls.firstName.value).toBe('Draft');
+
+    about().discardEditing();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.workspace-editor-modal')).toBeNull();
+  });
+
   it('coordinates Certificate ownership with the remaining Workspace sections', () => {
     certificates().interactionActiveChange.emit(true);
     fixture.detectChanges();
@@ -377,6 +450,23 @@ describe('ProfileWorkspaceComponent', () => {
     const decision = fixture.componentInstance.editSession.requestNavigation('/dashboard');
     fixture.componentInstance.discardPendingNavigation();
     await expectAsync(decision).toBeResolvedTo(true);
+  });
+
+  it('contains focus in the Profile delete confirmation and confirms deletion with a toast', () => {
+    context.summaries.set([summary, { ...summary, id: 2 }]);
+    context.refreshSummariesAndSelectFirst.and.returnValue(of({ ...summary, id: 2 }));
+    profiles['delete'].and.returnValue(of(undefined));
+    fixture.componentInstance.openDeleteConfirmation();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#delete-profile-title')?.textContent).toContain('Backend CV');
+    expect(fixture.nativeElement.querySelector('.confirm-modal[cdktrapfocus]')).toBeTruthy();
+
+    fixture.componentInstance.confirmDelete();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(NotificationService).showSuccess).toHaveBeenCalledWith('Backend CV deleted.');
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
   });
 
   it('ignores a stale Profile delete response after the route changes', () => {

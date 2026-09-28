@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Subject, Subscription, takeUntil } from 'rxjs';
 
@@ -9,6 +9,8 @@ import { LanguageLevel, LanguageMasterOption, ProfileDetail, ProfileLanguage, Pr
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
+import { MasterComboboxPopupDirective } from '../master-combobox-popup.directive';
+import { WorkspaceModalDirective } from '../workspace-modal.directive';
 
 type LanguageEditorMode = 'create' | 'edit' | null;
 type EditableLanguageField = keyof EditableLanguageValues;
@@ -22,11 +24,12 @@ type MutationPostSaveIntent = 'close' | 'add-another';
 @Component({
   selector: 'app-language-section',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, MasterComboboxPopupDirective, WorkspaceModalDirective],
   templateUrl: './language-section.component.html',
   styleUrl: './language-section.component.scss',
 })
 export class LanguageSectionComponent implements OnChanges, OnDestroy {
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly formBuilder = inject(FormBuilder);
   private readonly profileService = inject(ProfileService);
   private readonly notifications = inject(NotificationService);
@@ -78,6 +81,8 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
   languageMasterState: MasterComboboxState = 'idle';
   languageMasterDropdownOpen = false;
   languageMasterHighlightedIndex = -1;
+  languageLevelDropdownOpen = false;
+  languageLevelHighlightedIndex = -1;
   languageInputValue = '';
   selectedLanguageMasterOption: LanguageMasterOption | null = null;
 
@@ -365,6 +370,83 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
     return this.languageLevels.find((option) => option.value === level)?.label ?? level;
   }
 
+  selectedLanguageLevelLabel(): string {
+    const level = this.languageForm.controls.level.value;
+    return level ? this.languageLevelLabel(level) : 'Select a proficiency';
+  }
+
+  languageLevelOptionId(): string | null {
+    const option = this.languageLevels[this.languageLevelHighlightedIndex];
+    return this.languageLevelDropdownOpen && option ? `profile-language-level-option-${option.value}` : null;
+  }
+
+  languageLevelFocusout(event: FocusEvent): void {
+    const nextTarget = event.relatedTarget;
+    if (!(nextTarget instanceof Node) || !this.host.querySelector('.proficiency-select')?.contains(nextTarget)) {
+      this.closeLanguageLevelDropdown();
+    }
+  }
+
+  toggleLanguageLevelDropdown(): void {
+    if (this.isLanguageSubmitting) return;
+    if (this.languageLevelDropdownOpen) {
+      this.closeLanguageLevelDropdown();
+      return;
+    }
+    this.languageLevelDropdownOpen = true;
+    const selectedIndex = this.languageLevels.findIndex((option) => option.value === this.languageForm.controls.level.value);
+    this.languageLevelHighlightedIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  }
+
+  languageLevelKeydown(event: KeyboardEvent): void {
+    const key = event.key;
+    if (!this.languageLevelDropdownOpen) {
+      if (key !== 'ArrowDown' && key !== 'ArrowUp' && key !== 'Enter' && key !== ' ') return;
+      event.preventDefault();
+      this.toggleLanguageLevelDropdown();
+      if (key === 'ArrowUp' && this.languageLevelDropdownOpen) {
+        this.languageLevelHighlightedIndex = this.languageLevels.length - 1;
+      }
+      return;
+    }
+
+    if (key === 'Escape') {
+      event.preventDefault();
+      this.closeLanguageLevelDropdown();
+    } else if (key === 'ArrowDown' || key === 'ArrowUp') {
+      event.preventDefault();
+      const direction = key === 'ArrowDown' ? 1 : -1;
+      this.languageLevelHighlightedIndex = (this.languageLevelHighlightedIndex + direction + this.languageLevels.length) % this.languageLevels.length;
+    } else if (key === 'Home' || key === 'End') {
+      event.preventDefault();
+      this.languageLevelHighlightedIndex = key === 'Home' ? 0 : this.languageLevels.length - 1;
+    } else if ((key === 'Enter' || key === ' ') && this.languageLevelHighlightedIndex >= 0) {
+      event.preventDefault();
+      const option = this.languageLevels[this.languageLevelHighlightedIndex];
+      if (option) this.selectLanguageLevel(option.value);
+    }
+  }
+
+  selectLanguageLevel(level: LanguageLevel): void {
+    if (this.isLanguageSubmitting || !this.languageLevels.some((option) => option.value === level)) return;
+    const control = this.languageForm.controls.level;
+    const changed = control.value !== level;
+    control.setValue(level);
+    control.markAsTouched();
+    if (changed) {
+      control.markAsDirty();
+      this.languageForm.markAsDirty();
+    }
+    this.closeLanguageLevelDropdown();
+    this.syncDirtyState();
+  }
+
+  @HostListener('document:pointerdown', ['$event'])
+  dismissLanguageLevelDropdown(event: PointerEvent): void {
+    if (!this.languageLevelDropdownOpen || !(event.target instanceof Node)) return;
+    if (!this.host.querySelector('.proficiency-select')?.contains(event.target)) this.closeLanguageLevelDropdown();
+  }
+
   languageMasterInputChanged(value: string): void {
     this.languageInputValue = value;
     this.languageMasterSearchDraft = value;
@@ -644,6 +726,7 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
     this.languageForm.reset(values);
     this.languageForm.markAsPristine();
     this.languageForm.markAsUntouched();
+    this.closeLanguageLevelDropdown();
     this.clearLanguageBackendErrors();
     this.resetLanguageMasterSelector();
     this.loadLanguageMaster(0, '');
@@ -663,10 +746,16 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
     this.languageForm.reset(this.emptyLanguageValues());
     this.languageForm.markAsPristine();
     this.languageForm.markAsUntouched();
+    this.closeLanguageLevelDropdown();
     this.clearLanguageBackendErrors();
     this.resetLanguageMasterSelector();
     this.originalLanguageInputValue = '';
     this.syncDirtyState();
+  }
+
+  private closeLanguageLevelDropdown(): void {
+    this.languageLevelDropdownOpen = false;
+    this.languageLevelHighlightedIndex = -1;
   }
 
   private resetLanguageMasterSelector(): void {
@@ -714,6 +803,7 @@ export class LanguageSectionComponent implements OnChanges, OnDestroy {
     this.languageForm.reset(values);
     this.languageForm.markAsPristine();
     this.languageForm.markAsUntouched();
+    this.closeLanguageLevelDropdown();
     this.languageMutationGeneration++;
     this.languageConflict = false;
     this.cancelConfirmation = false;

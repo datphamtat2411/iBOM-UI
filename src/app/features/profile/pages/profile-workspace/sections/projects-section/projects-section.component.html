@@ -1,5 +1,5 @@
 <section class="content-section" id="workspace-section-projects" aria-labelledby="projects-title">
-  <div class="section-title"><div><h2 id="projects-title">Projects</h2><p>Long-form project records prove role, scope, responsibility, and technology depth.</p></div><button class="btn" type="button" (click)="requestProjectCreate()" [disabled]="mutationBlocked">Add project</button></div>
+  <div class="section-title"><div><span class="section-kicker">05 / Work in action</span><h2 id="projects-title">Projects</h2><p>Show what you built and the impact you made.</p></div><button class="btn" type="button" (click)="requestProjectCreate()" [disabled]="mutationBlocked">Add project</button></div>
   @if (projectMessage) { <div class="notice success" role="status">{{ projectMessage }}</div> }
   @if (projectLoading) {
     <div class="section-state" role="status" aria-live="polite"><p>Loading Project records.</p></div>

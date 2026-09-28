@@ -9,6 +9,7 @@ import { ProfileDetail, UpdateProfileRequest } from '../../../../models/profile.
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
+import { WorkspaceModalDirective } from '../workspace-modal.directive';
 
 type EditableAboutMeField = Exclude<keyof UpdateProfileRequest, 'profileName' | 'version'>;
 type EditableAboutMeValues = Pick<UpdateProfileRequest, EditableAboutMeField>;
@@ -16,7 +17,7 @@ type EditableAboutMeValues = Pick<UpdateProfileRequest, EditableAboutMeField>;
 @Component({
   selector: 'app-about-me-section',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, WorkspaceModalDirective],
   templateUrl: './about-me-section.component.html',
   styleUrl: './about-me-section.component.scss',
 })

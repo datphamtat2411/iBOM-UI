@@ -227,8 +227,11 @@ export class ProfileService {
     );
   }
 
-  listSkillMaster(page: number, size: number, search: string): Observable<SkillMasterPage> {
-    const params = new HttpParams({ fromObject: { page, size, search: search.trim() } });
+  listSkillMaster(page: number, size: number, search: string, categoryId?: number | string | null): Observable<SkillMasterPage> {
+    let params = new HttpParams({ fromObject: { page, size, search: search.trim() } });
+    if (categoryId !== undefined && categoryId !== null && String(categoryId).trim()) {
+      params = params.set('categoryId', String(categoryId));
+    }
     return this.http.get<ApiResponse<SkillMasterPage>>(`${API_BASE_URL}/master/skills`, { params }).pipe(
       map((response) => response.data),
     );

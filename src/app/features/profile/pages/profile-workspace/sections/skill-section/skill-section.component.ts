@@ -6,9 +6,13 @@ import { Subject, Subscription, takeUntil } from 'rxjs';
 import { ApiErrorResponse } from '../../../../../../core/http/api.models';
 import { NotificationService } from '../../../../../../core/notifications/notification.service';
 import { ProfileDetail, ProfileSkill, ProfileSkillRequest, SkillMasterOption } from '../../../../models/profile.models';
+import { SkillCategory } from '../../../../../master-data/models/master-data.models';
+import { MasterDataService } from '../../../../../master-data/services/master-data.service';
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
+import { MasterComboboxPopupDirective } from '../master-combobox-popup.directive';
+import { WorkspaceModalDirective } from '../workspace-modal.directive';
 
 type SkillEditorMode = 'create' | 'edit' | null;
 type EditableSkillField = keyof EditableSkillValues;
@@ -23,13 +27,14 @@ type MutationPostSaveIntent = 'close' | 'add-another';
 @Component({
   selector: 'app-skill-section',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, MasterComboboxPopupDirective, WorkspaceModalDirective],
   templateUrl: './skill-section.component.html',
   styleUrl: './skill-section.component.scss',
 })
 export class SkillSectionComponent implements OnChanges, OnDestroy {
   private readonly formBuilder = inject(FormBuilder);
   private readonly profileService = inject(ProfileService);
+  private readonly masterDataService = inject(MasterDataService);
   private readonly notifications = inject(NotificationService);
   readonly context = inject(ProfileContextService);
   readonly editSession = inject(ProfileEditSessionService);
@@ -76,6 +81,11 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
   skillMasterHighlightedIndex = -1;
   skillInputValue = '';
   selectedSkillMasterOption: SkillMasterOption | null = null;
+  skillCategories: SkillCategory[] = [];
+  skillCategoriesLoading = false;
+  skillCategoriesError = false;
+  skillCategoryFilter = '';
+  skillCategoryDropdownOpen = false;
 
   private activeProfileId: string | null = null;
   private activeMemberId: string | null = null;
@@ -382,6 +392,29 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
     this.scheduleSkillMasterSearch(value);
   }
 
+  skillCategoryFilterChanged(categoryId: string | number): void {
+    this.skillCategoryFilter = String(categoryId);
+    this.skillCategoryDropdownOpen = false;
+    this.skillMasterDropdownOpen = true;
+    this.skillMasterHighlightedIndex = -1;
+    this.loadSkillMaster(0, this.skillInputValue.trim());
+  }
+
+  toggleSkillCategoryDropdown(): void {
+    if (!this.skillCategoriesLoading && !this.skillCategoriesError) {
+      this.skillCategoryDropdownOpen = !this.skillCategoryDropdownOpen;
+    }
+  }
+
+  skillCategoryFilterLabel(): string {
+    if (!this.skillCategoryFilter) return 'All categories';
+    return this.skillCategories.find((category) => String(category.id) === this.skillCategoryFilter)?.name ?? 'All categories';
+  }
+
+  isSkillCategoryFilterSelected(categoryId: string | number): boolean {
+    return this.skillCategoryFilter === String(categoryId);
+  }
+
   clearSkillMasterInput(): void {
     this.skillMasterInputChanged('');
   }
@@ -559,7 +592,7 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
     this.skillMasterError = null;
     this.skillMasterReady = false;
     this.skillMasterState = 'loading';
-    this.profileService.listSkillMaster(page, this.skillMasterSize, search).pipe(takeUntil(this.skillMasterCancel)).subscribe({
+    this.profileService.listSkillMaster(page, this.skillMasterSize, search, this.skillCategoryFilter || undefined).pipe(takeUntil(this.skillMasterCancel)).subscribe({
       next: (result) => {
         if (this.skillMasterGeneration !== generation || !this.skillEditorMode) return;
         this.skillMasterOptions = append
@@ -697,6 +730,8 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
     this.skillMasterTotalElements = 0;
     this.skillMasterTotalPages = 0;
     this.skillMasterSearch = '';
+    this.skillCategoryFilter = '';
+    this.skillCategoryDropdownOpen = false;
     this.skillMasterSearchDraft = '';
     this.skillMasterLoading = false;
     this.skillMasterError = null;
@@ -724,6 +759,8 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
     this.skillEditorMode = skill ? 'edit' : 'create';
     this.editingProfileSkillId = skill ? skill.profileSkillId : null;
     this.selectedSkillMasterOption = skill ? this.skillMasterOption(skill) : null;
+    this.skillCategoryFilter = skill?.categoryId === null || skill?.categoryId === undefined ? '' : String(skill.categoryId);
+    this.skillCategoryDropdownOpen = false;
     this.skillInputValue = skill?.skillName ?? '';
     this.skillMasterSearchDraft = this.skillInputValue;
     this.originalSkillInputValue = this.skillInputValue.trim();
@@ -739,8 +776,24 @@ export class SkillSectionComponent implements OnChanges, OnDestroy {
     this.reloadConfirmation = false;
     this.skillErrorMessage = '';
     this.skillMessage = '';
+    this.loadSkillCategories();
     this.loadSkillMaster(0, '');
     this.syncDirtyState();
+  }
+
+  private loadSkillCategories(): void {
+    this.skillCategoriesLoading = true;
+    this.skillCategoriesError = false;
+    this.masterDataService.listSkillCategories().subscribe({
+      next: (categories) => {
+        this.skillCategories = categories;
+        this.skillCategoriesLoading = false;
+      },
+      error: () => {
+        this.skillCategoriesLoading = false;
+        this.skillCategoriesError = true;
+      },
+    });
   }
 
   private handleSkillSaveError(error: unknown): void {

@@ -1,50 +1,80 @@
 <section class="profile-page" aria-labelledby="workspace-title">
   @if (workspaceSummariesLoading() && !workspaceSummaries().length) {
-    <div class="workspace-state" role="status" aria-live="polite"><h1>{{ isManagedContext ? 'Loading Member Profiles' : 'Loading Profiles' }}</h1><p>{{ isManagedContext ? 'Loading the managed Member Profile list.' : 'Loading your Profile workspace.' }}</p></div>
+    <ng-container [ngTemplateOutlet]="workspaceLoading" [ngTemplateOutletContext]="{ title: isManagedContext ? 'Loading Member Profiles' : 'Loading Profiles', description: isManagedContext ? 'Loading the managed Member Profile list.' : 'Loading your Profile workspace.' }" />
   } @else if (workspaceSummariesError()) {
     <div class="workspace-state error" role="alert">
-      @if (isManagedContext && context.isNotFound(workspaceSummariesError())) { <h1>Member unavailable</h1><p>This Member is not available for managed Profile access.</p> }
-      @else { <h1>Unable to load Profiles</h1><p>{{ isManagedContext ? 'We could not load the managed Member Profile list.' : 'We could not load your Profile list.' }} Please try again.</p> }
+      <span class="state-mark" aria-hidden="true">!</span><span class="eyebrow">Profile workspace</span>
+      @if (isManagedContext && context.isNotFound(workspaceSummariesError())) { <h1 id="workspace-title">Member unavailable</h1><p>This Member is not available for managed Profile access.</p> }
+      @else { <h1 id="workspace-title">Unable to load Profiles</h1><p>{{ isManagedContext ? 'We could not load the managed Member Profile list.' : 'We could not load your Profile list.' }} Please try again.</p> }
       <button class="btn text" type="button" (click)="retryWorkspace()" [disabled]="workspaceSummariesLoading()">Retry</button>
     </div>
   } @else if (!workspaceSummaries().length && !(isManagedContext && context.managedProfileMissing())) {
-     <div class="workspace-state"><h1 id="workspace-title">{{ isManagedContext ? 'No active Profiles' : 'Profile Workspace' }}</h1><p>{{ isManagedContext ? 'This member has no profiles.' : 'You do not have any active Profiles yet. Use the Profile menu above to create one.' }}</p></div>
+    <div class="workspace-state"><span class="state-mark" aria-hidden="true">✦</span><span class="eyebrow">Your next chapter starts here</span><h1 id="workspace-title">{{ isManagedContext ? 'No active Profiles' : 'Profile Workspace' }}</h1><p>{{ isManagedContext ? 'This member has no profiles.' : 'You do not have any active Profiles yet. Use the Profile menu above to create one.' }}</p></div>
   } @else if (workspaceDetailError() || (isManagedContext && context.managedProfileMissing())) {
     <div class="workspace-state error" role="alert">
-      @if (context.isNotFound(workspaceDetailError()) || (isManagedContext && context.managedProfileMissing())) { <h1>Profile not found</h1><p>{{ isManagedContext ? 'This Member Profile is not available or is no longer active.' : 'This Profile is not available to your account.' }}</p> }
-      @else { <h1>Unable to load Profile</h1><p>We could not load this Profile. Please try again later.</p> }
+      <span class="state-mark" aria-hidden="true">!</span><span class="eyebrow">Profile workspace</span>
+      @if (context.isNotFound(workspaceDetailError()) || (isManagedContext && context.managedProfileMissing())) { <h1 id="workspace-title">Profile not found</h1><p>{{ isManagedContext ? 'This Member Profile is not available or is no longer active.' : 'This Profile is not available to your account.' }}</p> }
+      @else { <h1 id="workspace-title">Unable to load Profile</h1><p>We could not load this Profile. Please try again later.</p> }
       @if (isManagedContext) { <button class="btn text" type="button" (click)="retryWorkspace()" [disabled]="workspaceDetailLoading()">Retry</button> }
     </div>
   } @else if (workspaceDetailLoading() || !workspaceDetail()) {
-    <div class="workspace-state" role="status" aria-live="polite"><h1>Loading Profile</h1><p>Loading {{ profileName() }}.</p></div>
+    <ng-container [ngTemplateOutlet]="workspaceLoading" [ngTemplateOutletContext]="{ title: 'Loading Profile', description: 'Loading ' + profileName() + '.' }" />
   } @else {
     @if (workspaceDetail(); as profile) {
-       <div class="page-heading"><div><h1 id="workspace-title">{{ isManagedContext ? 'Managed Profile Workspace' : 'Profile Workspace' }}</h1><p>{{ isManagedContext ? managedMemberLabel() + ' · ' + profile.profileName + ' · Managed Member Profile' : profile.profileName + ' · About Me and Profile-specific content' }}</p></div><div class="heading-actions"><button class="btn" type="button" (click)="openPreview()">Preview CV</button><button class="btn danger delete-profile-button" type="button" [title]="!isManagedContext ? 'Available while more than one active Profile exists' : 'Delete this managed Member Profile'" [disabled]="(!isManagedContext && workspaceSummaries().length <= 1) || !canStartWorkspaceMutation()" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></div>
-       @if (isManagedContext) { <div class="notice info" role="status"><strong>Managed Member Profile:</strong> Viewing {{ managedMemberLabel() }}. Profile management actions are limited to the selected Member context.</div> }
-       <div class="workspace-grid">
+      <header class="page-heading">
+        <div class="heading-copy"><span class="eyebrow"><span class="eyebrow-line"></span>{{ isManagedContext ? 'Member profiles / Workspace' : 'Profiles / Workspace' }}</span><h1 id="workspace-title">{{ isManagedContext ? 'Managed Profile Workspace' : 'Profile Workspace' }}</h1><p>{{ isManagedContext ? managedMemberLabel() + ' · ' + profile.profileName + ' · Managed Member Profile' : 'A home for every detail that makes your story yours.' }}</p></div>
+        <div class="heading-actions"><button class="btn preview-button" type="button" (click)="openPreview()">Preview CV <span aria-hidden="true">↗</span></button><button class="btn danger delete-profile-button" type="button" [title]="!isManagedContext ? 'Available while more than one active Profile exists' : 'Delete this managed Member Profile'" [disabled]="(!isManagedContext && workspaceSummaries().length <= 1) || !canStartWorkspaceMutation()" [attr.aria-busy]="isDeleting" (click)="openDeleteConfirmation()">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div>
+      </header>
+
+      @if (isManagedContext) { <div class="notice info" role="status"><strong>Managed Member Profile:</strong> Viewing {{ managedMemberLabel() }}. Profile management actions are limited to the selected Member context.</div> }
+
+      <div class="profile-hero">
+        <div class="hero-identity">
+          <div class="hero-avatar" aria-hidden="true">{{ profileInitials(profile) }}</div>
+          <div class="hero-copy"><span class="hero-kicker">{{ isManagedContext ? 'Member profile' : 'Your professional profile' }} <span class="hero-dot" aria-hidden="true"></span> {{ profile.profileName }}</span><h2>{{ profile.firstName }} {{ profile.lastName }}</h2><p>{{ profile.jobTitle || 'Add your job title in About Me' }}</p></div>
+          <div class="hero-meta"><span>PROFILE DETAILS</span><strong>{{ profile.yearsOfExperience }} {{ profile.yearsOfExperience === 1 ? 'year' : 'years' }} of experience</strong><small>Updated {{ profile.updatedAt | date:'MMM d, y' }}</small></div>
+        </div>
+        <div class="hero-progress">
+           <div class="progress-copy"><span class="progress-label">PROFILE COMPLETENESS</span><div class="progress-heading">@if (workspaceStatsLoading()) { <ibom-skeleton variant="text" width="5rem" height="2.5rem" /> } @else { <strong>{{ completenessPercent() === null ? '—' : (completenessPercent() | number:'1.0-0') + '%' }}</strong> }<span>Keep building your story,<br>one section at a time.</span></div></div>
+           <div class="progress-track" role="progressbar" [attr.aria-valuenow]="completenessPercent()" aria-valuemin="0" aria-valuemax="100" aria-label="Profile completeness"><span [style.width.%]="completenessPercent() ?? 0"></span></div>
+           @if (workspaceStatsLoading()) { <p class="progress-feedback" role="status">Calculating completeness…</p> }
+           @else if (workspaceStatsError()) { <p class="progress-feedback">Completeness is temporarily unavailable. You can still edit your profile.</p> }
+        </div>
+      </div>
+
+      <div class="workspace-grid">
         <nav class="section-nav" aria-label="Profile sections">
-           @for (section of sections; track section[0]) {
-             <button type="button" [class.active]="activeSection === section[0]" [attr.aria-current]="activeSection === section[0] ? 'true' : null" (click)="scrollToSection(section[0])"><span>{{ section[1] }}</span><span class="section-score mono" [attr.aria-label]="section[1] + ' completeness contribution'">{{ sectionScore(section[0]) }}</span></button>
-           }
+           <div class="nav-heading"><span class="eyebrow">Explore your profile</span><strong>Contents <span>{{ sections.length.toString().padStart(2, '0') }}</span></strong></div>
+           @for (section of sections; track section[0]; let index = $index) {
+             <button type="button" [class.active]="activeSection === section[0]" [attr.aria-current]="activeSection === section[0] ? 'location' : null" [attr.aria-controls]="'workspace-section-' + section[0]" (click)="scrollToSection(section[0])"><span class="nav-index">{{ (index + 1).toString().padStart(2, '0') }}</span><span class="nav-text">{{ section[1] }}</span><span class="section-score mono" [attr.aria-label]="section[1] + ' completeness contribution: ' + (workspaceStatsLoading() ? 'loading' : sectionScore(section[0]))"><span [class.score-loading]="workspaceStatsLoading()">{{ sectionScore(section[0]) }}</span>@if (workspaceStatsLoading()) { <ibom-skeleton variant="text" width="4.5rem" height=".6rem" /> }</span></button>
+          }
         </nav>
         <div class="workspace-sections">
-          <app-about-me-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('about')" (interactionActiveChange)="mutationInteractionChanged('about', $event)"></app-about-me-section>
-          <app-education-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('education')" (interactionActiveChange)="mutationInteractionChanged('education', $event)"></app-education-section>
-          <app-language-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('languages')" (interactionActiveChange)="mutationInteractionChanged('languages', $event)"></app-language-section>
-          <app-certificate-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('certificates')" (interactionActiveChange)="mutationInteractionChanged('certificates', $event)"></app-certificate-section>
-          <app-projects-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('projects')" (interactionActiveChange)="mutationInteractionChanged('projects', $event)" (navigationRequested)="projectNavigationRequested($event)"></app-projects-section>
-          <app-skill-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('skills')" (interactionActiveChange)="mutationInteractionChanged('skills', $event)"></app-skill-section>
+          <div class="sections-intro"><div><span class="eyebrow">The details matter</span><h2>Make it yours.</h2></div><p>Shape your story, section by section.</p></div>
+          <div class="section-panel"><app-about-me-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('about')" (interactionActiveChange)="mutationInteractionChanged('about', $event)"></app-about-me-section></div>
+          <div class="section-panel"><app-education-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('education')" (interactionActiveChange)="mutationInteractionChanged('education', $event)"></app-education-section></div>
+          <div class="section-panel"><app-language-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('languages')" (interactionActiveChange)="mutationInteractionChanged('languages', $event)"></app-language-section></div>
+          <div class="section-panel"><app-certificate-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('certificates')" (interactionActiveChange)="mutationInteractionChanged('certificates', $event)"></app-certificate-section></div>
+          <div class="section-panel"><app-projects-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('projects')" (interactionActiveChange)="mutationInteractionChanged('projects', $event)" (navigationRequested)="projectNavigationRequested($event)"></app-projects-section></div>
+          <div class="section-panel"><app-skill-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('skills')" (interactionActiveChange)="mutationInteractionChanged('skills', $event)"></app-skill-section></div>
         </div>
       </div>
     }
   }
 
   @if (editSession.pendingNavigation(); as pending) {
-    <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="navigation-warning-title" aria-describedby="navigation-warning-copy"><h2 id="navigation-warning-title">Leave without saving?</h2><p id="navigation-warning-copy">Your unsaved editor changes will be discarded if you continue to <span class="mono">{{ pending.url }}</span>.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepPendingNavigation()">Keep Editing</button><button class="btn primary" type="button" (click)="discardPendingNavigation()">Discard and continue</button></div></section></div>
+    <dialog class="modal-backdrop navigation-modal" workspaceModal (dismissRequested)="keepPendingNavigation()" aria-labelledby="navigation-warning-title" aria-describedby="navigation-warning-copy" tabindex="-1"><section class="confirm-modal"><h2 id="navigation-warning-title">Leave without saving?</h2><p id="navigation-warning-copy">Your unsaved editor changes will be discarded if you continue to <span class="mono">{{ pending.url }}</span>.</p><div class="modal-actions"><button class="btn" type="button" (click)="keepPendingNavigation()">Keep Editing</button><button class="btn primary" type="button" (click)="discardPendingNavigation()">Discard and continue</button></div></section></dialog>
   }
   @if (deleteConfirmation) {
     @if (deleteTarget; as target) {
-      <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-profile-title" aria-describedby="delete-profile-copy"><h2 id="delete-profile-title">Delete {{ target.name }}?</h2><p id="delete-profile-copy">This removes the selected Profile only. This action cannot be undone. @if (editSession.dirty()) { <span>Your unsaved editor changes will also be lost.</span> }</p>@if (deleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ deleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelDelete()" [disabled]="isDeleting">Cancel</button><button class="btn danger" type="button" (click)="confirmDelete()" [disabled]="isDeleting" [attr.aria-busy]="isDeleting">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></section></div>
+       <div class="modal-backdrop" role="presentation"><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-profile-title" aria-describedby="delete-profile-copy" cdkTrapFocus [cdkTrapFocusAutoCapture]="true"><h2 id="delete-profile-title">Delete {{ target.name }}?</h2><p id="delete-profile-copy">This removes the selected Profile only. This action cannot be undone. @if (editSession.dirty()) { <span>Your unsaved editor changes will also be lost.</span> }</p>@if (deleteErrorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ deleteErrorMessage }}</div> }<div class="modal-actions"><button class="btn" type="button" (click)="cancelDelete()" [disabled]="isDeleting">Cancel</button><button class="btn danger" ibomLoadingButton type="button" (click)="confirmDelete()" [loading]="isDeleting" [disabled]="isDeleting">{{ isDeleting ? 'Deleting...' : 'Delete Profile' }}</button></div></section></div>
     }
   }
+  <ng-template #workspaceLoading let-title="title" let-description="description">
+    <div class="workspace-loading">
+      <header class="loading-heading"><span class="eyebrow">Profiles / Workspace</span><h1 id="workspace-title">{{ title }}</h1><p role="status" aria-live="polite">{{ description }}</p><div class="loading-heading-lines" aria-hidden="true"><ibom-skeleton variant="text" width="65%" /><ibom-skeleton variant="text" width="40%" /></div></header>
+      <div class="loading-identity" aria-hidden="true"><ibom-skeleton variant="circle" width="4.5rem" height="4.5rem" /><div class="loading-copy"><ibom-skeleton variant="text" width="11rem" /><ibom-skeleton variant="text" width="min(100%, 19rem)" height="1.75rem" /><ibom-skeleton variant="text" width="8rem" /></div><ibom-skeleton class="loading-completeness" variant="block" height="4rem" /></div>
+      <div class="loading-grid" aria-hidden="true"><div class="loading-sidebar"><ibom-skeleton variant="text" width="60%" height="1.5rem" />@for (section of sections; track section[0]) { <ibom-skeleton variant="text" height="1.1rem" /> }</div><div class="loading-sections">@for (section of sections.slice(0, 2); track section[0]) { <div class="loading-panel"><ibom-skeleton variant="text" width="35%" height="1.5rem" /><ibom-skeleton variant="text" width="80%" /><ibom-skeleton variant="block" height="4.5rem" /></div> }</div></div>
+    </div>
+  </ng-template>
 </section>

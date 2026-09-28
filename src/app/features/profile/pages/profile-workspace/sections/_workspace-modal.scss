@@ -1,0 +1,84 @@
+@mixin modal {
+  .workspace-editor-modal {
+    width: min(850px, calc(100vw - 32px));
+    max-width: none;
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    overflow: visible;
+    border: 1px solid var(--ibom-color-border);
+    border-radius: 18px;
+    background: var(--ibom-color-surface);
+    color: var(--ibom-color-text);
+    font-family: var(--ibom-font-sans);
+    box-shadow: 0 30px 90px rgb(17 32 49 / 30%);
+  }
+  .workspace-editor-modal::backdrop, .modal-backdrop::backdrop {
+    background: rgb(16 30 44 / 54%);
+    backdrop-filter: blur(4px);
+  }
+  .workspace-editor-modal:focus, .modal-backdrop:focus { outline: none; }
+  .workspace-editor-modal form {
+    display: flex;
+    max-height: calc(100dvh - 32px);
+    flex-direction: column;
+    margin: 0;
+  }
+  .editor-heading {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 28px;
+    border-bottom: 1px solid var(--ibom-color-border-subtle);
+    background: linear-gradient(110deg, #f7f3ec, #fffefa 70%);
+  }
+  .editor-heading span {
+    color: var(--ibom-color-accent);
+    font-family: var(--ibom-font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .editor-heading h2 { margin: 4px 0 0; font-size: clamp(20px, 3vw, 26px); line-height: 1.25; }
+  .editor-heading .editor-close { width: 38px; height: 38px; min-height: 38px; flex: 0 0 auto; padding: 0; border-radius: 50%; font-size: 24px; line-height: 1; }
+  .editor-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px 28px; }
+  .editor-body .form-section:first-of-type { margin-top: 0; }
+  .workspace-editor-modal .sticky-actions {
+    position: static;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 16px 28px;
+    border: 0;
+    border-top: 1px solid var(--ibom-color-border-subtle);
+    border-radius: 0;
+    background: #fffefa;
+    box-shadow: 0 -8px 22px rgb(23 25 29 / 5%);
+    backdrop-filter: none;
+  }
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 20px;
+    border: 0;
+    background: transparent;
+    color: var(--ibom-color-text);
+  }
+  .modal-backdrop[open] { display: grid; place-items: center; }
+  .modal-backdrop:not([open]) { display: none; }
+  .modal-backdrop .confirm-modal { box-shadow: 0 24px 70px rgb(17 32 49 / 28%); }
+
+  @media (max-width: 600px) {
+    .workspace-editor-modal { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 14px; }
+    .workspace-editor-modal form { max-height: calc(100dvh - 20px); }
+    .editor-heading { padding: 16px 18px; }
+    .editor-body { padding: 18px; }
+    .workspace-editor-modal .sticky-actions { padding: 14px 18px; }
+  }
+}

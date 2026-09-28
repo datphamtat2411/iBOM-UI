@@ -7,6 +7,7 @@ import { NotificationService } from '../../../../../../core/notifications/notifi
 import { ProfileDetail, ProfileSkill, SkillMasterOption } from '../../../../models/profile.models';
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileService } from '../../../../services/profile.service';
+import { MasterDataService } from '../../../../../master-data/services/master-data.service';
 import { SkillSectionComponent } from './skill-section.component';
 
 describe('SkillSectionComponent', () => {
@@ -29,6 +30,7 @@ describe('SkillSectionComponent', () => {
     listSkillMaster: jasmine.Spy;
   };
   let notifications: { showSuccess: jasmine.Spy };
+  let masterData: { listSkillCategories: jasmine.Spy };
 
   const profile: ProfileDetail = {
     id: 1,
@@ -71,6 +73,7 @@ describe('SkillSectionComponent', () => {
       listSkillMaster: jasmine.createSpy('listSkillMaster').and.returnValue(of({ content: [angular, typescript, python], page: 0, size: 10, totalElements: 3, totalPages: 1 })),
     };
     notifications = { showSuccess: jasmine.createSpy('showSuccess') };
+    masterData = { listSkillCategories: jasmine.createSpy('listSkillCategories').and.returnValue(of([{ id: 1, code: 'FE', name: 'Frontend' }, { id: 2, code: 'BE', name: 'Backend' }])) };
 
     await TestBed.configureTestingModule({
       imports: [SkillSectionComponent],
@@ -78,6 +81,7 @@ describe('SkillSectionComponent', () => {
         { provide: ProfileContextService, useValue: context },
         { provide: ProfileService, useValue: profiles },
         { provide: NotificationService, useValue: notifications },
+        { provide: MasterDataService, useValue: masterData },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(SkillSectionComponent);
@@ -110,8 +114,10 @@ describe('SkillSectionComponent', () => {
     expect(fixture.componentInstance.skillForm.controls.experienceYears.errors?.['required']).toBeTrue();
   });
 
-  it('requires controlled Master selection and derives Category read-only', () => {
+  it('requires controlled Master selection and provides Category as a Skill filter', () => {
     openCreate();
+    fixture.componentInstance.skillCategoryFilterChanged('2');
+    expect(profiles.listSkillMaster).toHaveBeenCalledWith(0, 10, '', '2');
     fixture.componentInstance.skillMasterInputChanged('Typed only');
     fixture.componentInstance.skillForm.controls.experienceYears.setValue(2.25);
     fixture.componentInstance.submitSkill();
@@ -119,6 +125,7 @@ describe('SkillSectionComponent', () => {
 
     select(typescript);
     expect(fixture.componentInstance.selectedSkillCategory()).toBe('Frontend');
+    expect(fixture.nativeElement.textContent).not.toContain('Category is derived from the selected Skill Master value and cannot be changed here.');
     profiles.createProfileSkill.and.returnValue(of({ profileSkill: { profileSkillId: 3, skillId: typescript.id, skillName: typescript.name, categoryId: typescript.categoryId, categoryCode: typescript.categoryCode, categoryName: typescript.categoryName, experienceYears: 1.5, lastUsed: null }, profileVersion: 4 }));
     fixture.componentInstance.submitSkill();
     expect(profiles.createProfileSkill).toHaveBeenCalledWith('1', jasmine.objectContaining({ skillId: 12, experienceYears: 1.5, version: 3 }));
@@ -161,7 +168,7 @@ describe('SkillSectionComponent', () => {
     );
     fixture.componentInstance.searchSkillMaster();
     fixture.componentInstance.loadMoreSkillMaster();
-    expect(profiles.listSkillMaster).toHaveBeenCalledWith(1, 10, 'Angular');
+    expect(profiles.listSkillMaster).toHaveBeenCalledWith(1, 10, 'Angular', undefined);
     expect(fixture.componentInstance.skillMasterOptions).toEqual([angular, typescript]);
   });
 

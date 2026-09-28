@@ -9,6 +9,7 @@ import { Certificate, CertificateRequest, ProfileDetail } from '../../../../mode
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
+import { WorkspaceModalDirective } from '../workspace-modal.directive';
 
 type CertificateEditorMode = 'create' | 'edit' | null;
 type EditableCertificateField = keyof EditableCertificateValues;
@@ -21,7 +22,7 @@ type MutationPostSaveIntent = 'close' | 'add-another';
 @Component({
   selector: 'app-certificate-section',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, WorkspaceModalDirective],
   templateUrl: './certificate-section.component.html',
   styleUrl: './certificate-section.component.scss',
 })

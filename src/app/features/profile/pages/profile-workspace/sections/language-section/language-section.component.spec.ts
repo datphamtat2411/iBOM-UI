@@ -112,6 +112,26 @@ describe('LanguageSectionComponent', () => {
     expect(fixture.componentInstance.languageForm.controls.level.touched).toBeTrue();
   });
 
+  it('renders a custom Proficiency listbox and supports keyboard selection', () => {
+    openCreate();
+    const trigger = fixture.nativeElement.querySelector('#profile-language-level') as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+
+    const listbox = fixture.nativeElement.querySelector('.proficiency-options') as HTMLElement;
+    expect(listbox).not.toBeNull();
+    expect(listbox.querySelectorAll('[role="option"]').length).toBe(5);
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }));
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-activedescendant')).toBe('profile-language-level-option-INTERMEDIATE');
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.languageForm.controls.level.value).toBe('INTERMEDIATE');
+    expect(fixture.nativeElement.querySelector('.proficiency-options')).toBeNull();
+  });
+
   it('requires a committed Master value and never submits arbitrary text', () => {
     openCreate();
     fixture.componentInstance.languageMasterInputChanged('Typed only');

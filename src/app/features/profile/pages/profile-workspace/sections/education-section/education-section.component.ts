@@ -9,6 +9,7 @@ import { Education, EducationRequest, EducationStatus, ProfileDetail } from '../
 import { ProfileContextService } from '../../../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../../../services/profile-edit-session.service';
 import { ProfileService } from '../../../../services/profile.service';
+import { WorkspaceModalDirective } from '../workspace-modal.directive';
 
 type EducationEditorMode = 'create' | 'edit' | null;
 type EditableEducationField = keyof EditableEducationValues;
@@ -25,7 +26,7 @@ type MutationPostSaveIntent = 'close' | 'add-another';
 @Component({
   selector: 'app-education-section',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, WorkspaceModalDirective],
   templateUrl: './education-section.component.html',
   styleUrl: './education-section.component.scss',
 })

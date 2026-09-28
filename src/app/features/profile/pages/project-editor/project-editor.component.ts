@@ -10,6 +10,7 @@ import { ProfileDetail, Project, ProjectRequest, ProjectStatus } from '../../mod
 import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
 import { ProfileService } from '../../services/profile.service';
+import { WorkspaceModalDirective } from '../profile-workspace/sections/workspace-modal.directive';
 
 type ProjectEditorMode = 'create' | 'edit';
 type ProjectSaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'failure' | 'conflict';
@@ -31,7 +32,7 @@ type EditableProjectValues = {
 @Component({
   selector: 'app-project-editor',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, WorkspaceModalDirective],
   templateUrl: './project-editor.component.html',
   styleUrl: './project-editor.component.scss',
 })
