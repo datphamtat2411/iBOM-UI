@@ -1,0 +1,63 @@
+@mixin styles {
+  .state-panel {
+    display: grid;
+    min-height: 300px;
+    padding: 34px;
+    align-content: center;
+    justify-items: center;
+    border: 1px solid #e4ded3;
+    border-radius: 12px;
+    background: #fffefa;
+    text-align: center;
+  }
+
+  .state-panel h3 {
+    margin: 10px 0 6px;
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: -.03em;
+  }
+
+  .state-panel p {
+    max-width: 410px;
+    margin: 0;
+    color: #77736c;
+    font-size: 11px;
+    line-height: 1.65;
+  }
+
+  .state-panel .button { margin-top: 19px; }
+
+  .empty-art {
+    display: grid;
+    width: 70px;
+    height: 70px;
+    margin-bottom: 17px;
+    place-items: center;
+    border: 1px solid #f0dccd;
+    border-radius: 20px;
+    background: #fff5ed;
+    color: var(--ibom-color-accent);
+    transform: rotate(-4deg);
+  }
+
+  .empty-art svg {
+    width: 46px;
+    height: 46px;
+    transform: rotate(4deg);
+  }
+
+  .no-results { min-height: 230px; }
+  .search-empty-icon { color: #cf8d63; font-family: Georgia, serif; font-size: 48px; line-height: 1; }
+  .button.quiet { border-color: #ddd7cc; background: transparent; }
+  .error-panel { border-color: #f0c5be; background: #fffafa; }
+  .error-panel .section-kicker { margin-top: 5px; color: #a83328; }
+  .state-symbol { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; background: #fceeed; color: #a83328; font-size: 18px; font-weight: 700; }
+  .loading-panel { overflow: hidden; }
+  .loading-mark { width: 28px; height: 28px; border: 2px solid #eee6dc; border-top-color: var(--ibom-color-accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  .loading-cards { display: grid; width: min(660px, 100%); grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 28px; }
+  .loading-cards i { height: 115px; border: 1px solid #eee8de; border-radius: 9px; background: linear-gradient(100deg, #f3f0e9 25%, #fbf9f5 45%, #f3f0e9 65%); background-size: 220% 100%; animation: shimmer 1.4s ease-in-out infinite; }
+  .loading-cards i:nth-child(2) { animation-delay: .16s; }
+  .loading-cards i:nth-child(3) { animation-delay: .32s; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+}

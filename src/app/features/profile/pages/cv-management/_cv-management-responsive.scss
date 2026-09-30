@@ -1,0 +1,80 @@
+@mixin styles {
+  @media (max-width: 900px) {
+    .profile-list .card-content { grid-template-columns: minmax(0, 1fr) minmax(150px, .8fr); grid-template-areas: 'title readiness' 'role meta' 'updated updated' 'actions actions'; }
+    .profile-list .card-actions { min-width: 0; margin: 14px -22px -22px; padding: 12px 22px 14px; flex-direction: row; justify-content: stretch; border-top: 1px solid #eeeae2; border-left: 0; }
+    .profile-list .edit-profile-button { width: 38px; }
+  }
+
+  @media (max-width: 1050px) {
+    .profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .library-hero { grid-template-columns: minmax(0, 1fr) minmax(260px, .75fr); }
+    .hero-art { transform: scale(.9); }
+  }
+
+  @media (max-width: 720px) {
+    .library-hero { min-height: 0; grid-template-columns: minmax(0, 1fr); padding-bottom: 30px; }
+    .hero-art { position: absolute; right: -64px; bottom: -10px; width: 300px; min-height: 240px; opacity: .46; transform: scale(.83); transform-origin: bottom right; }
+    .hero-floating-tag, .hero-orbit-label, .hero-index { display: none; }
+    .hero-copy { max-width: 480px; }
+    .library-overview { grid-template-columns: 1fr auto; gap: 14px; }
+    .overview-note { grid-column: 1; grid-row: 2; padding: 10px 0 0; border: 0; border-top: 1px solid #e9e4da; }
+    .overview-side-note { grid-column: 2; grid-row: 1 / 3; }
+    .collection-heading { align-items: flex-start; flex-direction: column; }
+    .collection-tools { width: 100%; }
+    .search-field { flex: 1 1 auto; min-width: 0; }
+  }
+
+  @media (max-width: 560px) {
+    .management-page { padding: 16px 14px 52px; }
+    .library-hero { padding: 26px 22px; border-radius: 15px; }
+    .hero-copy h1 { font-size: clamp(37px, 11vw, 54px); }
+    .hero-copy > p { max-width: 330px; font-size: 12px; }
+    .hero-art { right: -125px; bottom: -47px; opacity: .28; }
+    .library-overview { min-height: 90px; padding: 15px; }
+    .overview-side-note { font-size: 7px; }
+    .overview-side-note .side-note-line { width: 13px; }
+    .overview-note p { font-size: 10px; }
+    .collection { padding-top: 37px; }
+    .collection-tools { align-items: stretch; }
+    .collection-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; }
+    .search-field { min-width: 0; }
+    .sort-field { padding-inline: 9px 24px; }
+    .sort-field select { min-width: 92px; font-size: 9px; }
+    .view-switch { gap: 1px; }
+    .view-switch-label { display: none; }
+    .view-button { width: 32px; }
+    .profile-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .profile-list .cv-card { grid-template-columns: minmax(0, 1fr); }
+    .profile-list .card-preview { height: 155px; min-height: 0; }
+    .profile-list .card-content { display: block; padding: 16px 17px 0; }
+    .profile-list .profile-role { margin: 8px 0 9px; }
+    .profile-list .preview-readiness { margin-bottom: 8px; }
+    .profile-list .card-meta { margin-top: 0; }
+    .profile-list .updated-secondary { margin: -2px 0 0; }
+    .profile-list .card-actions { display: flex; margin: 13px -17px 0; padding: 11px 17px 13px; flex-direction: row; border-top: 1px solid #eeeae2; border-left: 0; }
+    .card-preview { height: 170px; }
+    .paper-sheet { transform: translateY(11px) rotate(-3deg); }
+    .cv-card:hover .paper-sheet { transform: translateY(7px) rotate(-1deg) scale(1.025); }
+    .state-panel { min-height: 280px; padding: 24px 18px; }
+    .quick-preview-dialog { width: calc(100vw - 18px); height: calc(100dvh - 20px); border-radius: 11px; }
+    .quick-preview-panel { border-radius: 11px; }
+    .quick-preview-toolbar { min-height: 72px; padding: 10px; gap: 8px; }
+    .quick-document-icon { width: 34px; height: 34px; }
+    .quick-document-icon svg { width: 19px; height: 19px; }
+    .quick-preview-heading h2 { font-size: 12px; }
+    .quick-preview-heading p { max-width: 160px; font-size: 9px; }
+    .quick-preview-kicker { font-size: 7px; }
+    .quick-toolbar-actions { gap: 5px; }
+    .toolbar-open { width: 34px; min-height: 34px; padding: 0; overflow: hidden; gap: 0; font-size: 0; }
+    .toolbar-open span { font-size: 16px; }
+    .close-preview { width: 34px; height: 34px; }
+    .quick-preview-canvas { padding: 12px; }
+    .quick-preview-footer { padding-inline: 11px; font-size: 7px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .button, .cv-card, .paper-sheet, .eye-button, .preview-profile-button, .edit-profile-button, .close-preview { transition: none; }
+    .loading-mark, .loading-cards i, .preview-spinner, .mini-spinner, .readiness-spinner, .preview-readiness.readiness-ready > i { animation: none; }
+    .quick-preview-dialog[open] { animation: none; }
+  }
+}

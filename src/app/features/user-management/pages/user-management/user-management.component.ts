@@ -32,6 +32,11 @@ export class UserManagementComponent implements OnInit {
     { value: 'MANAGER', label: 'Manager' },
     { value: 'ADMIN', label: 'Admin' },
   ];
+  readonly roleDescriptions: Readonly<Record<UserRole, string>> = {
+    MEMBER: 'Standard access',
+    MANAGER: 'Team oversight',
+    ADMIN: 'Full workspace access',
+  };
 
   filterDraft: UserFilterDraft = this.emptyFilterDraft();
   appliedFilter: AppliedUserFilter | null = null;
@@ -71,6 +76,26 @@ export class UserManagementComponent implements OnInit {
 
   get canResetFilters(): boolean {
     return this.filtersApplied || this.hasDraftFilters();
+  }
+
+  get activeUsersOnPage(): number {
+    return this.users.filter((user) => user.status === 'ACTIVE').length;
+  }
+
+  get inactiveUsersOnPage(): number {
+    return this.users.filter((user) => user.status === 'INACTIVE').length;
+  }
+
+  get rolesOnPage(): number {
+    return new Set(this.users.map((user) => user.role)).size;
+  }
+
+  get pageRangeStart(): number {
+    return this.users.length ? this.currentPage * this.pageSize + 1 : 0;
+  }
+
+  get pageRangeEnd(): number {
+    return this.currentPage * this.pageSize + this.users.length;
   }
 
   get appliedSearchDescription(): string {
@@ -152,6 +177,16 @@ export class UserManagementComponent implements OnInit {
 
   statusClass(status: UserStatus): string {
     return status === 'ACTIVE' ? 'active' : 'inactive';
+  }
+
+  roleDescription(role: UserRole): string {
+    return this.roleDescriptions[role];
+  }
+
+  userInitials(username: string): string {
+    const parts = username.trim().split(/[\s._-]+/).filter(Boolean);
+    if (parts.length > 1) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return username.trim().slice(0, 2).toUpperCase() || 'U';
   }
 
   handleUserCreated(): void {
