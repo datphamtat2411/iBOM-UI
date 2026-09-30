@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -22,7 +23,7 @@ interface ValidationViolation {
   templateUrl: './language-master-management.component.html',
   styleUrl: './language-master-management.component.scss',
 })
-export class LanguageMasterManagementComponent implements OnInit {
+export class LanguageMasterManagementComponent implements OnInit, OnDestroy {
   private readonly formBuilder = inject(FormBuilder);
   private readonly languageService = inject(LanguageMasterService);
   private readonly notifications = inject(NotificationService);
@@ -54,6 +55,8 @@ export class LanguageMasterManagementComponent implements OnInit {
   deleteErrorMessage = '';
 
   private loadGeneration = 0;
+  private readonly destroy$ = new Subject<void>();
+  private readonly searchInput$ = new Subject<string>();
   private readonly timestampFormatter = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -64,7 +67,15 @@ export class LanguageMasterManagementComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.searchInput$.pipe(debounceTime(250), distinctUntilChanged(), takeUntil(this.destroy$)).subscribe((search) => {
+      this.loadLanguages(0, search);
+    });
     this.loadLanguages(0);
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadLanguages(page = this.currentPage, search = this.searchTerm): void {
@@ -104,7 +115,11 @@ export class LanguageMasterManagementComponent implements OnInit {
 
   setSearchDraft(value: string): void {
     this.searchDraft = value;
-    if (!value.trim() && this.searchTerm) this.searchLanguages();
+    if (!value.trim()) {
+      if (this.searchTerm) this.clearSearch();
+      return;
+    }
+    this.searchInput$.next(value);
   }
 
   searchLanguages(): void {

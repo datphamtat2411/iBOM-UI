@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -23,6 +23,7 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
   private readonly masterDataService = inject(MasterDataService);
   private readonly notifications = inject(NotificationService);
   private readonly destroy$ = new Subject<void>();
+  private readonly searchInput$ = new Subject<string>();
 
   readonly pageSize = 10;
   readonly skillForm = this.formBuilder.group({
@@ -67,6 +68,9 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    this.searchInput$.pipe(debounceTime(250), distinctUntilChanged(), takeUntil(this.destroy$)).subscribe((search) => {
+      this.loadSkills(0, search);
+    });
     this.loadCategories();
     this.loadSkills(0, '');
   }
@@ -77,8 +81,6 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
   }
 
   loadSkills(page = this.page, search = this.search): void {
-    if (this.isLoading) return;
-
     const requestedPage = Math.max(0, page);
     const requestedSearch = search.trim();
     const generation = ++this.listGeneration;
@@ -110,12 +112,19 @@ export class SkillManagementComponent implements OnInit, OnDestroy {
   }
 
   applySearch(): void {
-    if (this.isLoading) return;
     this.loadSkills(0, this.searchDraft);
   }
 
+  setSearchDraft(value: string): void {
+    this.searchDraft = value;
+    if (!value.trim()) {
+      if (this.search) this.clearSearch();
+      return;
+    }
+    this.searchInput$.next(value);
+  }
+
   clearSearch(): void {
-    if (this.isLoading && !this.search) return;
     this.searchDraft = '';
     this.loadSkills(0, '');
   }

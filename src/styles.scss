@@ -1,6 +1,7 @@
 @use './styles/design-tokens';
 @use './styles/motion';
 @use './styles/material-theme';
+@use './styles/master-data';
 @use './app/shared/ui/primitives';
 
 @tailwind base;

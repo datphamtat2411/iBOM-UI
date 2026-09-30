@@ -1,20 +1,29 @@
-<section class="master-data-page" aria-labelledby="master-data-title">
-  <div class="page-heading">
-    <div>
-      <p class="page-kicker">Management / Master Data</p>
+<section class="master-data-page master-data-surface" aria-labelledby="master-data-title">
+  <header class="master-data-hero">
+    <div class="master-data-hero-copy">
+      <p class="master-data-kicker">Management / Master Data</p>
       <h1 id="master-data-title">{{ resource }}</h1>
-      <p>{{ resource === 'Seniority' ? 'Experience range configuration' : 'Master Data workspace' }}</p>
+      <p>{{ resource === 'Seniority' ? 'Shape the experience ranges used to keep Profile Skills consistent.' : 'Keep controlled Skills and Categories ready for every Profile record.' }}</p>
     </div>
-  </div>
+    <div class="master-data-hero-tools">
+      <div class="master-data-hero-meta" aria-label="Master Data resource information">
+        <span>RESOURCE</span>
+        <strong>{{ resource }}</strong>
+        <small>Controlled configuration</small>
+      </div>
+    </div>
+  </header>
 
-  @if (isSkillsResource) {
-    <app-skill-management />
-  } @else if (resource === 'Seniority') {
-    <app-seniority-management />
-  } @else {
-    <div class="master-data-notice">
-      <strong>{{ resource }}</strong>
-      <span>Configuration tools for this resource will appear here when supported.</span>
-    </div>
-  }
+  <div class="master-data-content">
+    @if (isSkillsResource) {
+      <app-skill-management />
+    } @else if (resource === 'Seniority') {
+      <app-seniority-management />
+    } @else {
+      <div class="master-data-notice">
+        <strong>{{ resource }}</strong>
+        <span>Configuration tools for this resource will appear here when supported.</span>
+      </div>
+    }
+  </div>
 </section>

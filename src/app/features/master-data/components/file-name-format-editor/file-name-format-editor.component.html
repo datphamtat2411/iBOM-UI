@@ -1,12 +1,14 @@
-<div class="modal-backdrop" role="presentation">
-  <section class="format-modal" role="dialog" aria-modal="true" aria-labelledby="file-name-format-editor-title" aria-describedby="file-name-format-editor-copy">
-    <div class="modal-heading">
+<div class="modal-backdrop master-data-modal-backdrop" role="presentation" tabindex="-1" (keydown.escape)="close()">
+  <section class="format-modal master-data-dialog master-data-dialog--builder" role="dialog" aria-modal="true" aria-labelledby="file-name-format-editor-title" aria-describedby="file-name-format-editor-copy" tabindex="-1" (click)="$event.stopPropagation()">
+    <div class="modal-heading master-data-dialog-header">
       <div>
-        <p class="eyebrow">Master Data / File Name Formats</p>
-        <h2 id="file-name-format-editor-title">{{ editorTitle }}</h2>
+        <div class="master-data-dialog-title">
+          <span class="master-data-dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4.5h14v15H5zM8 8h8M8 12h5M8 16h7" /></svg></span>
+          <div><p class="eyebrow master-data-dialog-eyebrow">Master Data / File Name Formats</p><h2 id="file-name-format-editor-title">{{ editorTitle }}</h2></div>
+        </div>
         <p id="file-name-format-editor-copy">Build the export filename from supported Profile values.</p>
       </div>
-      <button class="btn text close-button" type="button" aria-label="Close editor" (click)="close()" [disabled]="isSubmitting">Close</button>
+      <button class="btn text close-button master-data-dialog-close" type="button" aria-label="Close editor" title="Close" (click)="close()" [disabled]="isSubmitting"><span aria-hidden="true">&times;</span></button>
     </div>
 
     @if (errorMessage) { <div class="notice error" role="alert" aria-live="polite">{{ errorMessage }}</div> }
@@ -18,7 +20,7 @@
         @if (nameFieldInvalid()) { <span class="field-error">{{ nameFieldError() }}</span> }
       </div>
 
-      <section class="builder-section" aria-labelledby="pattern-builder-title">
+      <section class="builder-section master-data-dialog-section" aria-labelledby="pattern-builder-title">
         <div class="section-heading">
           <div>
             <h3 id="pattern-builder-title">Pattern Builder</h3>
@@ -95,7 +97,7 @@
         @if (reorderAnnouncement) { <span class="sr-only" role="status" aria-live="polite">{{ reorderAnnouncement }}</span> }
       </section>
 
-      <div class="modal-actions">
+      <div class="modal-actions master-data-dialog-actions">
         <span class="busy-copy" role="status" aria-live="polite">{{ isSubmitting ? 'Saving File Name Format...' : 'Input remains open after validation errors.' }}</span>
         <button class="btn" type="button" (click)="close()" [disabled]="isSubmitting">Cancel</button>
         <button class="btn primary" type="submit" [disabled]="!canSubmit()" [attr.aria-busy]="isSubmitting">{{ submitLabel }}</button>
