@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 
@@ -81,6 +81,7 @@ describe('MemberManagementComponent', () => {
   it('uses one unified workspace without Search Mode or Add Condition interactions', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Search mode');
     expect(fixture.nativeElement.textContent).not.toContain('Add condition');
+    expect(fixture.nativeElement.textContent).not.toContain('Apply filters');
     expect(component.filterDraft).toEqual({ search: '', status: 'ALL', languages: [], skills: [] });
   });
 
@@ -159,13 +160,13 @@ describe('MemberManagementComponent', () => {
     expect((fixture.nativeElement.querySelector('#selected-skill-seniority-0') as HTMLSelectElement).value).toBe('21');
   });
 
-  it('applies account, Language, and Skill conditions in one request with optional Any modifiers', () => {
-    members.searchMembers.calls.reset();
-    component.setSearchDraft('  alice  ');
+  it('applies account, Language, and Skill conditions automatically with optional Any modifiers', fakeAsync(() => {
     component.setStatusDraft('ACTIVE');
     component.selectLanguage({ id: 'en', name: 'English' });
     component.selectSkill({ id: 11, name: 'Java', categoryId: 7, categoryName: 'Backend' });
-    component.applyFilters();
+    members.searchMembers.calls.reset();
+    component.setSearchDraft('  alice  ');
+    tick(300);
 
     expect(members.searchMembers).toHaveBeenCalledTimes(1);
     expect(members.searchMembers).toHaveBeenCalledWith({
@@ -188,7 +189,29 @@ describe('MemberManagementComponent', () => {
       .map((condition: HTMLElement) => condition.textContent?.trim());
     expect(conditionText[0]).toContain('English');
     expect(conditionText[1]).toContain('Java');
-  });
+  }));
+
+  it('applies status immediately and debounces member search input', fakeAsync(() => {
+    members.searchMembers.calls.reset();
+
+    component.setStatusDraft('ACTIVE');
+    expect(members.searchMembers).toHaveBeenCalledTimes(1);
+    component.setSearchDraft('alice');
+    expect(members.searchMembers).toHaveBeenCalledTimes(1);
+
+    tick(299);
+    expect(members.searchMembers).toHaveBeenCalledTimes(1);
+    tick(1);
+    expect(members.searchMembers).toHaveBeenCalledTimes(2);
+    expect(members.searchMembers).toHaveBeenCalledWith({
+      search: 'alice',
+      status: 'ACTIVE',
+      languages: [],
+      skills: [],
+      page: 0,
+      size: 10,
+    });
+  }));
 
   it('prevents duplicate conditions and allows partial modifier changes', () => {
     component.selectLanguage({ id: 'en', name: 'English' });
@@ -201,27 +224,27 @@ describe('MemberManagementComponent', () => {
     expect(component.filterDraft.skills).toEqual([{ skillId: 11, seniorityId: '21' }]);
   });
 
-  it('paginates with the immutable applied snapshot instead of unsaved draft edits', () => {
+  it('paginates with the latest automatically applied filter snapshot', fakeAsync(() => {
     members.searchMembers.and.returnValue(of(page([active], 0, 2, 11)));
     component.setSearchDraft('alice');
+    tick(300);
     component.selectLanguage({ id: 'en', name: 'English' });
-    component.applyFilters();
-
     component.setSearchDraft('unsaved-edit');
+    tick(300);
     component.selectSkill({ id: 11, name: 'Java' });
     members.searchMembers.calls.reset();
     component.nextPage();
 
     expect(members.searchMembers).toHaveBeenCalledTimes(1);
     expect(members.searchMembers).toHaveBeenCalledWith({
-      search: 'alice',
-      status: null,
-      languages: [{ languageId: 'en', level: null }],
-      skills: [],
-      page: 1,
-      size: 10,
-    });
-  });
+       search: 'unsaved-edit',
+       status: null,
+       languages: [{ languageId: 'en', level: null }],
+       skills: [{ skillId: 11, seniorityId: null }],
+       page: 1,
+       size: 10,
+     });
+  }));
 
   it('shows the base empty-state copy when the Member list has no records', () => {
     members.list.and.returnValue(of(page([], 0, 0, 0)));
@@ -232,10 +255,9 @@ describe('MemberManagementComponent', () => {
     expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No members found.');
   });
 
-  it('shows the matching empty-state copy and retains applied filters when the Member search is empty or fails', () => {
-    component.selectSkill({ id: 11, name: 'Java' });
+  it('shows the matching empty-state copy and retains applied filters when the Member search is empty or fails', fakeAsync(() => {
     members.searchMembers.and.returnValue(of(page([], 0, 0, 0)));
-    component.applyFilters();
+    component.selectSkill({ id: 11, name: 'Java' });
     fixture.detectChanges();
 
     expect(component.appliedFilter?.skills).toEqual([{ skillId: 11, seniorityId: null }]);
@@ -243,21 +265,21 @@ describe('MemberManagementComponent', () => {
     expect(fixture.nativeElement.querySelector('.empty-state h2')?.textContent?.trim()).toBe('No matching members found.');
 
     component.setSearchDraft('alice');
-    expect(component.appliedFilter?.search).toBe('');
     expect(component.filterDraft.search).toBe('alice');
-    component.applyFilters();
+    tick(300);
     expect(component.appliedFilter?.search).toBe('alice');
     expect(component.appliedFilter?.skills).toEqual([{ skillId: 11, seniorityId: null }]);
 
     const failedSearch = new Subject<MemberPage>();
     members.searchMembers.and.returnValue(failedSearch);
-    component.applyFilters();
+    component.setSearchDraft('bob');
+    tick(300);
     failedSearch.error(new HttpErrorResponse({ status: 503, error: { message: 'Search unavailable' } }));
     fixture.detectChanges();
 
     expect(component.appliedFilter?.skills).toEqual([{ skillId: 11, seniorityId: null }]);
     expect(fixture.nativeElement.textContent).toContain('Search unavailable');
-  });
+  }));
 
   it('keeps matching Profile evidence and managed-Member navigation in the result table', () => {
     const matchingMember: MemberSummary = {

@@ -30,6 +30,7 @@
           [attr.aria-controls]="kind.toLowerCase() + '-filter-listbox'"
           [attr.aria-activedescendant]="activeOptionId"
           [attr.aria-busy]="loading"
+          [disabled]="disabled || loading"
           (input)="setSearchDraft($any($event.target).value)"
           (keydown)="searchKeydown($event)"
         >
@@ -39,7 +40,7 @@
             [id]="kind.toLowerCase() + '-filter-category'"
             aria-label="Skill Category"
             [value]="categoryId"
-            [disabled]="categoriesLoading || !!categoryErrorMessage"
+            [disabled]="disabled || categoriesLoading || !!categoryErrorMessage"
             (change)="setCategoryFilter($any($event.target).value)"
           >
             <option value="">All Categories</option>
@@ -48,7 +49,7 @@
             }
           </select>
           @if (categoryErrorMessage) {
-            <div class="popup-inline-error" role="alert">{{ categoryErrorMessage }} <button class="btn text" type="button" (click)="retryCategories()">Retry</button></div>
+            <div class="popup-inline-error" role="alert">{{ categoryErrorMessage }} <button class="btn text" type="button" (click)="retryCategories()" [disabled]="disabled || categoriesLoading">Retry</button></div>
           }
         }
       </div>
@@ -57,7 +58,7 @@
         @if (loading) {
           <div class="choice-state" role="status" aria-live="polite">Searching {{ kindLabel }}...</div>
         } @else if (errorMessage) {
-          <div class="choice-state error" role="alert">{{ errorMessage }} <button class="btn text" type="button" (click)="retryChoices()">Retry</button></div>
+          <div class="choice-state error" role="alert">{{ errorMessage }} <button class="btn text" type="button" (click)="retryChoices()" [disabled]="disabled || loading">Retry</button></div>
         } @else if (!choices.length) {
           <div class="choice-state" role="status">{{ emptyMessage }}</div>
         } @else {
@@ -84,9 +85,9 @@
 
       @if (!loading && !errorMessage && totalPages > 1) {
         <nav class="picker-pagination" [attr.aria-label]="kindLabel + ' picker pagination'">
-          <button class="btn text" type="button" (click)="previousPage()" [disabled]="!canGoPrevious">Previous</button>
+          <button class="btn text" type="button" (click)="previousPage()" [disabled]="disabled || !canGoPrevious">Previous</button>
           <span class="metadata">Page {{ page + 1 }} of {{ totalPages }} · {{ totalElements }} choices</span>
-          <button class="btn text" type="button" (click)="nextPage()" [disabled]="!canGoNext">Next</button>
+          <button class="btn text" type="button" (click)="nextPage()" [disabled]="disabled || !canGoNext">Next</button>
         </nav>
       }
     </div>

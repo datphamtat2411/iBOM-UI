@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { ApiErrorResponse } from '../../../../core/http/api.models';
@@ -27,7 +27,7 @@ type MemberFilterTab = 'LANGUAGES' | 'SKILLS';
   templateUrl: './member-management.component.html',
   styleUrl: './member-management.component.scss',
 })
-export class MemberManagementComponent implements OnInit {
+export class MemberManagementComponent implements OnInit, OnDestroy {
   private readonly memberService = inject(MemberManagementService);
   private readonly router = inject(Router);
 
@@ -65,6 +65,7 @@ export class MemberManagementComponent implements OnInit {
   readonly languageChoices = new Map<string, SearchChoice>();
   private loadGeneration = 0;
   private seniorityGeneration = 0;
+  private filterApplyTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly timestampFormatter = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -77,6 +78,10 @@ export class MemberManagementComponent implements OnInit {
   ngOnInit(): void {
     this.loadMembers(0);
     this.loadSeniorities();
+  }
+
+  ngOnDestroy(): void {
+    this.clearFilterApplyTimer();
   }
 
   get searchDraft(): string {
@@ -118,12 +123,12 @@ export class MemberManagementComponent implements OnInit {
   }
 
   get canAddPendingLanguage(): boolean {
-    return !!this.pendingLanguage && !this.loading
+    return !!this.pendingLanguage
       && !this.filterDraft.languages.some((condition) => this.sameId(condition.languageId, this.pendingLanguage!.id));
   }
 
   get canAddPendingSkill(): boolean {
-    return !!this.pendingSkill && !this.loading
+    return !!this.pendingSkill
       && !this.filterDraft.skills.some((condition) => this.sameId(condition.skillId, this.pendingSkill!.id));
   }
 
@@ -145,6 +150,14 @@ export class MemberManagementComponent implements OnInit {
 
   get canResetFilters(): boolean {
     return this.filtersApplied;
+  }
+
+  get activeMembersOnPage(): number {
+    return this.members.filter((member) => member.status === 'ACTIVE').length;
+  }
+
+  get profileCountOnPage(): number {
+    return this.members.reduce((count, member) => count + member.activeProfileCount, 0);
   }
 
   get appliedSearchDescription(): string {
@@ -196,10 +209,12 @@ export class MemberManagementComponent implements OnInit {
 
   setSearchDraft(value: string): void {
     this.filterDraft = { ...this.filterDraft, search: value };
+    this.scheduleFilterApply();
   }
 
   setStatusDraft(value: string): void {
     this.filterDraft = { ...this.filterDraft, status: this.validStatusFilter(value) ? value : 'ALL' };
+    this.applyFilters();
   }
 
   setActiveFilterTab(tab: MemberFilterTab): void {
@@ -243,6 +258,7 @@ export class MemberManagementComponent implements OnInit {
     };
     this.pendingLanguage = null;
     this.pendingLanguageLevel = null;
+    this.applyFilters();
   }
 
   chooseSkill(choice: SearchChoice): void {
@@ -264,6 +280,7 @@ export class MemberManagementComponent implements OnInit {
     };
     this.pendingSkill = null;
     this.pendingSkillSeniorityId = null;
+    this.applyFilters();
   }
 
   selectLanguage(choice: SearchChoice): void {
@@ -273,6 +290,7 @@ export class MemberManagementComponent implements OnInit {
       ...this.filterDraft,
       languages: [...this.filterDraft.languages, { languageId: choice.id, level: null }],
     };
+    this.applyFilters();
   }
 
   selectSkill(choice: SearchChoice): void {
@@ -282,6 +300,7 @@ export class MemberManagementComponent implements OnInit {
       ...this.filterDraft,
       skills: [...this.filterDraft.skills, { skillId: choice.id, seniorityId: null }],
     };
+    this.applyFilters();
   }
 
   setLanguageLevel(index: number, value: string): void {
@@ -293,6 +312,7 @@ export class MemberManagementComponent implements OnInit {
         ? { ...item, level: this.validLanguageLevel(value) ? value : null }
         : item),
     };
+    this.applyFilters();
   }
 
   setSkillSeniority(index: number, value: string): void {
@@ -304,6 +324,7 @@ export class MemberManagementComponent implements OnInit {
         ? { ...item, seniorityId: value.trim() ? value : null }
         : item),
     };
+    this.applyFilters();
   }
 
   removeLanguageCondition(index: number): void {
@@ -311,6 +332,7 @@ export class MemberManagementComponent implements OnInit {
       ...this.filterDraft,
       languages: this.filterDraft.languages.filter((_, itemIndex) => itemIndex !== index),
     };
+    this.applyFilters();
   }
 
   removeSkillCondition(index: number): void {
@@ -318,15 +340,25 @@ export class MemberManagementComponent implements OnInit {
       ...this.filterDraft,
       skills: this.filterDraft.skills.filter((_, itemIndex) => itemIndex !== index),
     };
+    this.applyFilters();
   }
 
   applyFilters(): void {
+    this.clearFilterApplyTimer();
     this.validationMessage = '';
+
+    if (!this.hasDraftFilters()) {
+      this.appliedFilter = null;
+      this.loadMembers(0);
+      return;
+    }
+
     this.appliedFilter = this.cloneDraft(this.filterDraft);
     this.loadAppliedSearch(0);
   }
 
   clearFilters(): void {
+    this.clearFilterApplyTimer();
     this.filterDraft = this.emptyFilterDraft();
     this.appliedFilter = null;
     this.pendingLanguage = null;
@@ -391,6 +423,10 @@ export class MemberManagementComponent implements OnInit {
 
   matchingProfileUpdatedAt(profile: MatchingProfile): string | null | undefined {
     return profile.updatedAt ?? profile.lastUpdatedAt;
+  }
+
+  memberInitial(member: MemberSummary): string {
+    return member.username.trim().charAt(0).toUpperCase() || '?';
   }
 
   openMember(member: MemberSummary): void {
@@ -484,6 +520,19 @@ export class MemberManagementComponent implements OnInit {
 
   private emptyFilterDraft(): MemberFilterDraft {
     return { search: '', status: 'ALL', languages: [], skills: [] };
+  }
+
+  private scheduleFilterApply(): void {
+    this.clearFilterApplyTimer();
+    this.filterApplyTimer = setTimeout(() => {
+      this.filterApplyTimer = null;
+      this.applyFilters();
+    }, 300);
+  }
+
+  private clearFilterApplyTimer(): void {
+    if (this.filterApplyTimer !== null) clearTimeout(this.filterApplyTimer);
+    this.filterApplyTimer = null;
   }
 
   private hasDraftFilters(): boolean {

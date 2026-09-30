@@ -131,6 +131,7 @@ export class MemberFilterChoicePickerComponent implements OnInit, OnChanges, OnD
     this.selectedChoice = choice;
     this.closeDropdown();
     this.searchDraft = '';
+    this.focusTrigger();
     this.choiceSelected.emit(choice);
   }
 
