@@ -33,8 +33,8 @@ describe('application routes', () => {
 
     expect(profiles?.canActivate).toBeTruthy();
     expect(profiles?.canDeactivate).toBeTruthy();
-    expect(profiles?.children?.map((route) => route.path)).toEqual(['', 'new', ':profileId/projects/new', ':profileId/projects/:projectId', ':profileId/preview', ':profileId']);
-    expect(profiles?.children?.[1].path).toBe('new');
+    expect(profiles?.children?.map((route) => route.path)).toEqual(['', 'management', 'new', ':profileId/projects/new', ':profileId/projects/:projectId', ':profileId/preview', ':profileId']);
+    expect(profiles?.children?.[2].path).toBe('new');
     expect(profiles?.children?.every((route) => route.canActivate)).toBeTrue();
     expect(profiles?.children?.every((route) => route.loadComponent)).toBeTrue();
   });

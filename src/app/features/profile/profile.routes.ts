@@ -12,6 +12,14 @@ export const profileRoutes: Routes = [
       ),
   },
   {
+    path: 'management',
+    canActivate: [profileDirtyNavigationGuard],
+    loadComponent: () =>
+      import('./pages/cv-management/cv-management.component').then(
+        (component) => component.CvManagementComponent,
+      ),
+  },
+  {
     path: 'new',
     canActivate: [profileDirtyNavigationGuard],
     loadComponent: () =>

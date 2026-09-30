@@ -88,4 +88,6 @@
 .skills-table td:first-child { color: var(--ibom-color-text); font-weight: 600; }
 .skills-table tbody tr:last-child td { border-bottom: 0; }
 .skills-table tr:hover td { background: #fffaf3; }
-.skills-table .record-actions { justify-content: flex-start; margin-top: 0; }
+.skills-table th:last-child { padding-inline-end: 18px; text-align: end; }
+.skills-table td:last-child { padding-inline-end: 18px; }
+.skills-table .record-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: nowrap; margin-top: 0; }

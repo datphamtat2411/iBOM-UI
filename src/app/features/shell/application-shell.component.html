@@ -164,6 +164,7 @@
           class="nav-btn"
           routerLink="/profiles"
           routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: isCvManagementRoute() }"
           [attr.aria-label]="sidebarCollapsed() ? 'Profile Workspace' : null"
           [matTooltip]="sidebarCollapsed() ? 'Profile Workspace' : ''"
           [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
@@ -173,6 +174,21 @@
         >
           <app-shell-icon name="profile" />
           <span class="nav-text">Profile Workspace</span>
+        </a>
+        <a
+          class="nav-btn"
+          routerLink="/profiles/management"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          [attr.aria-label]="sidebarCollapsed() ? 'CV Management' : null"
+          [matTooltip]="sidebarCollapsed() ? 'CV Management' : ''"
+          [matTooltipDisabled]="!sidebarCollapsed() || mobileViewport()"
+          matTooltipClass="ibom-tooltip"
+          matTooltipPosition="right"
+          (click)="closeNavigation()"
+        >
+          <app-shell-icon name="cv-management" />
+          <span class="nav-text">CV Management</span>
         </a>
       </div>
 

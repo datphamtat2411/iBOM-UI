@@ -118,6 +118,16 @@ describe('ApplicationShellComponent', () => {
     expect(fixture.componentInstance.accountMenuOpen).toBeFalse();
   });
 
+  it('keeps Profile Workspace and CV Management as separate Workspace navigation items', () => {
+    const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.nav-group[aria-label="Workspace"] a.nav-btn')) as HTMLAnchorElement[];
+    const profileLinks = links.filter((link) => link.getAttribute('href')?.startsWith('/profiles'));
+
+    expect(profileLinks.map((link) => link.textContent?.trim())).toEqual(['Profile Workspace', 'CV Management']);
+    expect(profileLinks.map((link) => link.getAttribute('href'))).toEqual(['/profiles', '/profiles/management']);
+    expect(fixture.componentInstance.isCvManagementRoute('/profiles/management?sort=name')).toBeTrue();
+    expect(fixture.componentInstance.isCvManagementRoute('/profiles/12')).toBeFalse();
+  });
+
   it('links the workspace logo to the homepage', () => {
     const brand = fixture.nativeElement.querySelector('.brand') as HTMLAnchorElement;
 

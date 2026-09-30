@@ -136,6 +136,11 @@ export class ApplicationShellComponent {
     return path === '/dashboard';
   }
 
+  isCvManagementRoute(url = this.router.url): boolean {
+    const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    return path === '/profiles/management';
+  }
+
   isManagedProfileRoute(url = this.router.url): boolean {
     const path = url.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
     return /^\/members\/[^/]+\/profiles(?:\/[^/]+(?:\/preview|\/projects(?:\/[^/]+)?)?)?$/.test(path);

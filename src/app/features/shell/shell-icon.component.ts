@@ -6,6 +6,7 @@ export type ShellIconName =
   | 'chevron'
   | 'close'
   | 'collapse'
+  | 'cv-management'
   | 'dashboard'
   | 'expand'
   | 'manager-dashboard'
@@ -51,6 +52,11 @@ export type ShellIconName =
         @case ('collapse') {
           <path d="m14.5 6-6 6 6 6" />
           <path d="M8.5 12h10" />
+        }
+        @case ('cv-management') {
+          <path d="M7 3.75h7l5 5v11.5H7V3.75Z" />
+          <path d="M14 3.75v5h5M10 13h6m-6 3.5h6" />
+          <path d="M4 7.5v12.75c0 .83.67 1.5 1.5 1.5H16" />
         }
         @case ('dashboard') {
           <rect x="4" y="4" width="6" height="6" rx="1" />

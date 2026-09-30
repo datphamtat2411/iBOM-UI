@@ -127,13 +127,15 @@ describe('iBOM headless UI primitives', () => {
     document.querySelectorAll('.cdk-overlay-pane').forEach((element) => element.remove());
   });
 
-  it('opens a tooltip from focus without moving focus into the passive surface', fakeAsync(async () => {
-    await TestBed.configureTestingModule({ imports: [TooltipHostComponent] }).compileComponents();
+  it('opens a tooltip from focus without moving focus into the passive surface', fakeAsync(() => {
+    TestBed.configureTestingModule({ imports: [TooltipHostComponent] });
     const fixture = TestBed.createComponent(TooltipHostComponent);
     fixture.detectChanges();
     const trigger = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 
     trigger.focus();
+    // A background Karma window can update activeElement without emitting focus events.
+    trigger.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     fixture.detectChanges();
 
     const tooltip = overlayElement<HTMLElement>('[role="tooltip"]');
@@ -142,14 +144,15 @@ describe('iBOM headless UI primitives', () => {
     expect(document.activeElement).toBe(trigger);
 
     trigger.blur();
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     tick();
     fixture.detectChanges();
     expect(document.querySelector('[role="tooltip"]')).toBeNull();
     fixture.destroy();
   }));
 
-  it('delays tooltip hover and closes it when the pointer leaves', fakeAsync(async () => {
-    await TestBed.configureTestingModule({ imports: [TooltipHostComponent] }).compileComponents();
+  it('delays tooltip hover and closes it when the pointer leaves', fakeAsync(() => {
+    TestBed.configureTestingModule({ imports: [TooltipHostComponent] });
     const fixture = TestBed.createComponent(TooltipHostComponent);
     fixture.detectChanges();
     const trigger = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
@@ -314,6 +317,8 @@ describe('iBOM headless UI primitives', () => {
     const input = fixture.nativeElement.querySelector('[role="combobox"]') as HTMLInputElement;
 
     input.focus();
+    expect(document.activeElement).toBe(input);
+    input.dispatchEvent(new FocusEvent('focus'));
     fixture.detectChanges();
     expect(input.getAttribute('aria-expanded')).toBe('true');
     expect(input.getAttribute('aria-controls')).toBe(overlayElement('[role="listbox"]').id);
@@ -355,6 +360,8 @@ describe('iBOM headless UI primitives', () => {
     fixture.detectChanges();
     const input = fixture.nativeElement.querySelector('[role="combobox"]') as HTMLInputElement;
     input.focus();
+    expect(document.activeElement).toBe(input);
+    input.dispatchEvent(new FocusEvent('focus'));
     fixture.detectChanges();
     expect(document.querySelector('.ibom-combobox-panel .ibom-combobox__loading')).not.toBeNull();
     fixture.destroy();

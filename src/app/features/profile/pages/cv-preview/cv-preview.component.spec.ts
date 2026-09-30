@@ -36,6 +36,7 @@ describe('CvPreviewComponent', () => {
   };
   let profiles: { preview: jasmine.Spy; listFileNameFormats: jasmine.Spy; download: jasmine.Spy };
   let pdfRenderer: jasmine.SpyObj<PdfDocumentRenderer>;
+  let anchorClick: jasmine.Spy;
   let pdfRenderSessions: Array<{
     blob: Blob;
     container: HTMLElement;
@@ -66,6 +67,8 @@ describe('CvPreviewComponent', () => {
   }
 
   beforeEach(async () => {
+    // Keep unit tests from writing export artifacts to the browser's Downloads folder.
+    anchorClick = spyOn(HTMLAnchorElement.prototype, 'click').and.stub();
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
     router = { navigate: jasmine.createSpy('navigate') };
     profiles = {
@@ -528,6 +531,7 @@ describe('CvPreviewComponent', () => {
     }));
 
     const anchor = createElement.calls.mostRecent().returnValue as HTMLAnchorElement;
+    expect(anchorClick).toHaveBeenCalledTimes(1);
     expect(anchor.download).toBe('backend cv.docx');
     expect(createObjectUrl).toHaveBeenCalledWith(exported);
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:download');
