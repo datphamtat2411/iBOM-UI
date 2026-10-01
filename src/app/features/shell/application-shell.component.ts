@@ -214,7 +214,9 @@ export class ApplicationShellComponent {
 
       const listTop = list.getBoundingClientRect().top;
       const selectedTop = selected.getBoundingClientRect().top;
-      list.scrollTop = Math.max(0, list.scrollTop + selectedTop - listTop);
+      const requestedScrollTop = Math.max(0, list.scrollTop + selectedTop - listTop);
+      const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
+      list.scrollTop = Math.min(requestedScrollTop, maxScrollTop);
     });
   }
   onProfileMenuClosed(): void { this.profileMenuOpen = false; }

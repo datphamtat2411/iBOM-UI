@@ -136,8 +136,11 @@ export class ProfileWorkspaceComponent implements OnDestroy {
        if (this.activeProfileId || this.context.summariesLoading() || this.context.summariesError()) return;
 
        const selectedId = this.context.selectedId();
-       if (selectedId && summaries.some((summary) => String(summary.id) === selectedId)) {
-         void this.router.navigate(['/profiles', selectedId]);
+       const selectedSummary = selectedId
+         ? summaries.find((summary) => String(summary.id) === selectedId)
+         : undefined;
+       if (selectedSummary) {
+         void this.router.navigate(['/profiles', selectedSummary.id]);
        } else if (summaries.length) {
          void this.router.navigate(['/profiles', summaries[0].id]);
        }

@@ -340,7 +340,7 @@ describe('ApplicationShellComponent', () => {
 
     tick(20);
 
-    expect(list.scrollTop).toBe(360);
+    expect(list.scrollTop).toBe(Math.min(360, list.scrollHeight - list.clientHeight));
   }));
 
   it('shows a direct Create Profile action when no own Profile exists', () => {
