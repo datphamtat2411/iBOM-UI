@@ -55,7 +55,7 @@
           <div class="section-panel"><app-education-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('education')" (interactionActiveChange)="mutationInteractionChanged('education', $event)"></app-education-section></div>
           <div class="section-panel"><app-language-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('languages')" (interactionActiveChange)="mutationInteractionChanged('languages', $event)"></app-language-section></div>
           <div class="section-panel"><app-certificate-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('certificates')" (interactionActiveChange)="mutationInteractionChanged('certificates', $event)"></app-certificate-section></div>
-          <div class="section-panel"><app-projects-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('projects')" (interactionActiveChange)="mutationInteractionChanged('projects', $event)" (navigationRequested)="projectNavigationRequested($event)"></app-projects-section></div>
+           <div class="section-panel"><app-projects-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('projects')" (interactionActiveChange)="mutationInteractionChanged('projects', $event)" (navigationRequested)="projectNavigationRequested($event)" (contentReady)="restoreWorkspaceScroll()"></app-projects-section></div>
           <div class="section-panel"><app-skill-section [profile]="profile" [mutationBlocked]="mutationBlockedFor('skills')" (interactionActiveChange)="mutationInteractionChanged('skills', $event)"></app-skill-section></div>
         </div>
       </div>

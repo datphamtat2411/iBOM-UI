@@ -11,6 +11,7 @@ import { ProfileContextService } from '../../services/profile-context.service';
 import { ProfileEditSessionService } from '../../services/profile-edit-session.service';
 import { ProfileService } from '../../services/profile.service';
 import { WorkspaceModalDirective } from '../profile-workspace/sections/workspace-modal.directive';
+import { PROFILE_WORKSPACE_SCROLL_STATE_KEY } from '../profile-workspace/sections/profile-section-events';
 
 type ProjectEditorMode = 'create' | 'edit';
 type ProjectSaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'failure' | 'conflict';
@@ -84,6 +85,7 @@ export class ProjectEditorComponent {
   private listGeneration = 0;
   private requestGeneration = 0;
   private originalValues: EditableProjectValues | null = null;
+  private workspaceScrollY: number | null = null;
 
   constructor() {
     this.projectForm.valueChanges.subscribe(() => this.syncDirtyState());
@@ -105,7 +107,7 @@ export class ProjectEditorComponent {
 
   returnToWorkspace(): void {
     if (!this.profileId) return;
-    void this.router.navigate(this.workspaceRoute());
+    this.navigateToWorkspace();
   }
 
   projectFieldError(field: EditableProjectField): string {
@@ -227,7 +229,7 @@ export class ProjectEditorComponent {
         this.projectForm.markAsUntouched();
         this.updateEndDateState();
         this.editSession.setDirty(false);
-        void this.router.navigate(this.workspaceRoute(profileId));
+        this.navigateToWorkspace(profileId);
       },
       error: (error: unknown) => {
         if (!this.isCurrentOperation(profileId, operationGeneration)) return;
@@ -253,7 +255,7 @@ export class ProjectEditorComponent {
   discardEditing(): void {
     this.cancelConfirmation = false;
     this.editSession.setDirty(false);
-    if (this.profileId) void this.router.navigate(this.workspaceRoute());
+    if (this.profileId) this.navigateToWorkspace();
   }
 
   reloadLatest(): void {
@@ -286,6 +288,7 @@ export class ProjectEditorComponent {
     this.memberId = memberId;
     this.profileId = profileId;
     this.projectId = projectId;
+    this.workspaceScrollY = this.readWorkspaceScrollY();
     this.editorMode = projectId ? 'edit' : 'create';
     this.project = null;
     this.savedProject = null;
@@ -660,10 +663,32 @@ export class ProjectEditorComponent {
       : ['/profiles', profileId];
   }
 
+  private navigateToWorkspace(profileId = this.profileId): void {
+    if (!profileId) return;
+
+    const commands = this.workspaceRoute(profileId);
+    const state: Record<string, unknown> = {};
+    if (this.workspaceScrollY !== null) state[PROFILE_WORKSPACE_SCROLL_STATE_KEY] = this.workspaceScrollY;
+
+    const managedMember = typeof history !== 'undefined' ? history.state?.managedMember : null;
+    if (managedMember) state['managedMember'] = managedMember;
+
+    if (Object.keys(state).length) {
+      void this.router.navigate(commands, { state });
+      return;
+    }
+    void this.router.navigate(commands);
+  }
+
   private managedMemberState(memberId: string): { id: string; username?: string; email?: string } {
     const state = typeof history !== 'undefined' ? history.state?.managedMember : null;
     if (!state || String(state.id) !== memberId) return { id: memberId };
     return { id: memberId, username: state.username, email: state.email };
+  }
+
+  private readWorkspaceScrollY(): number | null {
+    const value = typeof history !== 'undefined' ? history.state?.[PROFILE_WORKSPACE_SCROLL_STATE_KEY] : null;
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
   }
 
   private refreshManagedProfile(profileId: string): void {

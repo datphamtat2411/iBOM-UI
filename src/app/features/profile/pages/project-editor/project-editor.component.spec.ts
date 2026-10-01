@@ -63,6 +63,7 @@ describe('ProjectEditorComponent', () => {
   };
 
   beforeEach(async () => {
+    history.replaceState(null, '', window.location.href);
     params = new BehaviorSubject(convertToParamMap({ profileId: '1' }));
     router = { navigate: jasmine.createSpy('navigate') };
     notifications = { showSuccess: jasmine.createSpy('showSuccess') };
@@ -274,6 +275,29 @@ describe('ProjectEditorComponent', () => {
     expect(context.applyMutationVersion).toHaveBeenCalledWith('1', 4);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Project updated successfully.');
     expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1']);
+  });
+
+  it('carries the Workspace scroll position through a successful Project save', () => {
+    history.replaceState({ profileWorkspaceScrollY: 480 }, '', window.location.href);
+    params.next(convertToParamMap({ profileId: '1' }));
+    fixture.detectChanges();
+    const created = { ...project, id: 8, name: 'Saved Project' };
+    profiles.createProject.and.returnValue(of({ project: created, profileVersion: 4 }));
+    fillProjectDraft({ name: 'Saved Project' });
+
+    fixture.componentInstance.submit();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1'], { state: { profileWorkspaceScrollY: 480 } });
+  });
+
+  it('carries the Workspace scroll position through Project cancellation', () => {
+    history.replaceState({ profileWorkspaceScrollY: 560 }, '', window.location.href);
+    params.next(convertToParamMap({ profileId: '1' }));
+    fixture.detectChanges();
+
+    fixture.componentInstance.cancelEditing();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1'], { state: { profileWorkspaceScrollY: 560 } });
   });
 
   it('keeps Project create mode for Save & add another with a pristine reset and no navigation', () => {

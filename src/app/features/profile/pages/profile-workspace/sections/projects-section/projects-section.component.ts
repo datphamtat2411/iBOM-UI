@@ -24,6 +24,7 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
   @Input() mutationBlocked = false;
   @Output() readonly interactionActiveChange = new EventEmitter<boolean>();
   @Output() readonly navigationRequested = new EventEmitter<ProjectNavigationRequest>();
+  @Output() readonly contentReady = new EventEmitter<void>();
 
   projects: Project[] = [];
   projectLoading = false;
@@ -203,12 +204,14 @@ export class ProjectsSectionComponent implements OnChanges, OnDestroy {
         }
         this.projectLoading = false;
         onLoaded?.();
+        this.contentReady.emit();
       },
       error: (error: unknown) => {
         if (!this.isCurrentProjectProfile(profileId, generation)) return;
         this.projectError = error;
         this.projectLoading = false;
         onError?.();
+        this.contentReady.emit();
       },
     });
   }

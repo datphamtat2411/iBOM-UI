@@ -20,7 +20,7 @@ import { AboutMeSectionComponent } from './sections/about-me-section/about-me-se
 import { CertificateSectionComponent } from './sections/certificate-section/certificate-section.component';
 import { EducationSectionComponent } from './sections/education-section/education-section.component';
 import { LanguageSectionComponent } from './sections/language-section/language-section.component';
-import { ProfileWorkspaceSection, ProjectNavigationRequest } from './sections/profile-section-events';
+import { PROFILE_WORKSPACE_SCROLL_STATE_KEY, ProfileWorkspaceSection, ProjectNavigationRequest } from './sections/profile-section-events';
 import { ProjectsSectionComponent } from './sections/projects-section/projects-section.component';
 import { SkillSectionComponent } from './sections/skill-section/skill-section.component';
 import { WorkspaceModalDirective } from './sections/workspace-modal.directive';
@@ -70,6 +70,7 @@ export class ProfileWorkspaceComponent implements OnDestroy {
   private workspaceStatsGeneration = 0;
   private workspaceStatsProfileId: string | null = null;
   private readonly workspaceRouteGeneration = signal(0);
+  private pendingWorkspaceScrollY: number | null = null;
   isManagedContext = false;
 
   readonly completenessKeys: Readonly<Record<ProfileWorkspaceSection, string>> = {
@@ -96,13 +97,17 @@ export class ProfileWorkspaceComponent implements OnDestroy {
       this.activeMemberId = memberId;
       this.activeProfileId = profileId;
       this.isManagedContext = memberId !== null;
+      this.pendingWorkspaceScrollY = this.readWorkspaceScrollY();
       if (memberId) {
         this.context.loadManagedMember(this.managedMemberState(memberId), profileId);
       } else {
         this.context.clearManagedContext();
-        this.context.loadSummaries();
-        if (profileId) this.context.loadDetail(profileId);
-        else this.context.beginSelection(null);
+        if (profileId) {
+          this.context.loadSummaries();
+          this.context.loadDetail(profileId);
+        } else {
+          this.context.loadSummariesAndResolveSelection();
+        }
       }
     });
     effect(() => {
@@ -127,10 +132,15 @@ export class ProfileWorkspaceComponent implements OnDestroy {
         return;
       }
 
-      const summaries = this.context.summaries();
-      if (!this.context.summariesLoading() && !this.context.summariesError() && !this.context.selectedId() && summaries.length) {
-        void this.router.navigate(['/profiles', summaries[0].id]);
-      }
+       const summaries = this.context.summaries();
+       if (this.activeProfileId || this.context.summariesLoading() || this.context.summariesError()) return;
+
+       const selectedId = this.context.selectedId();
+       if (selectedId && summaries.some((summary) => String(summary.id) === selectedId)) {
+         void this.router.navigate(['/profiles', selectedId]);
+       } else if (summaries.length) {
+         void this.router.navigate(['/profiles', summaries[0].id]);
+       }
     }, { allowSignalWrites: true });
     effect(() => {
       const selectedId = this.context.selectedId();
@@ -340,7 +350,24 @@ export class ProfileWorkspaceComponent implements OnDestroy {
     const base = this.isManagedContext && this.activeMemberId
       ? ['/members', this.activeMemberId, 'profiles', profileId, 'projects']
       : ['/profiles', profileId, 'projects'];
-    void this.router.navigate(event.projectId === null ? [...base, 'new'] : [...base, event.projectId]);
+    const state: Record<string, unknown> = {
+      [PROFILE_WORKSPACE_SCROLL_STATE_KEY]: typeof window === 'undefined' ? 0 : window.scrollY,
+    };
+    const managedMember = this.context.managedMember();
+    if (managedMember) state['managedMember'] = managedMember;
+    void this.router.navigate(event.projectId === null ? [...base, 'new'] : [...base, event.projectId], { state });
+  }
+
+  restoreWorkspaceScroll(): void {
+    const target = this.pendingWorkspaceScrollY;
+    const routeGeneration = this.workspaceRouteGeneration();
+    if (target === null) return;
+
+    requestAnimationFrame(() => {
+      if (this.workspaceRouteGeneration() !== routeGeneration || this.pendingWorkspaceScrollY !== target) return;
+      window.scrollTo({ top: target, behavior: 'auto' });
+      this.pendingWorkspaceScrollY = null;
+    });
   }
 
   discardPendingNavigation(): void {
@@ -412,6 +439,11 @@ export class ProfileWorkspaceComponent implements OnDestroy {
     const state = typeof history !== 'undefined' ? history.state?.managedMember : null;
     if (!state || String(state.id) !== memberId) return { id: memberId };
     return { id: memberId, username: state.username, email: state.email };
+  }
+
+  private readWorkspaceScrollY(): number | null {
+    const value = typeof history !== 'undefined' ? history.state?.[PROFILE_WORKSPACE_SCROLL_STATE_KEY] : null;
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
   }
 
   private observeWorkspaceStats(profileId: string): void {

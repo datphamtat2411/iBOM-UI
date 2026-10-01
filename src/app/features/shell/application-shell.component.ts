@@ -203,7 +203,20 @@ export class ApplicationShellComponent {
     return selected?.profileName ?? 'Select a Profile';
   }
 
-  onProfileMenuOpened(): void { this.profileMenuOpen = true; }
+  onProfileMenuOpened(): void {
+    this.profileMenuOpen = true;
+    requestAnimationFrame(() => {
+      if (!this.profileMenuOpen) return;
+
+      const list = document.querySelector<HTMLElement>('.cdk-overlay-pane .profile-menu-list');
+      const selected = list?.querySelector<HTMLElement>('.profile-option.selected');
+      if (!list || !selected) return;
+
+      const listTop = list.getBoundingClientRect().top;
+      const selectedTop = selected.getBoundingClientRect().top;
+      list.scrollTop = Math.max(0, list.scrollTop + selectedTop - listTop);
+    });
+  }
   onProfileMenuClosed(): void { this.profileMenuOpen = false; }
   closeProfileMenu(): void { this.profileMenuOpen = false; }
   profileMenuOpen = false;

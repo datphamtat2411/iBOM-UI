@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -43,6 +43,7 @@ describe('ProfileWorkspaceComponent', () => {
     managedDetailError: ReturnType<typeof signal>;
     managedProfileMissing: ReturnType<typeof signal>;
     loadSummaries: jasmine.Spy;
+    loadSummariesAndResolveSelection: jasmine.Spy;
     clearManagedContext: jasmine.Spy;
     loadManagedMember: jasmine.Spy;
     retryManagedMember: jasmine.Spy;
@@ -111,6 +112,7 @@ describe('ProfileWorkspaceComponent', () => {
       managedDetailError: signal(null),
       managedProfileMissing: signal(false),
       loadSummaries: jasmine.createSpy('loadSummaries'),
+      loadSummariesAndResolveSelection: jasmine.createSpy('loadSummariesAndResolveSelection'),
       clearManagedContext: jasmine.createSpy('clearManagedContext'),
       loadManagedMember: jasmine.createSpy('loadManagedMember'),
       retryManagedMember: jasmine.createSpy('retryManagedMember'),
@@ -177,6 +179,19 @@ describe('ProfileWorkspaceComponent', () => {
     expect(fixture.nativeElement.querySelector('#workspace-section-certificates')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-projects')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#workspace-section-skills')).toBeTruthy();
+  });
+
+  it('retains a valid Dashboard selection when entering the root Profile Workspace route', () => {
+    const selected = { ...summary, id: 2, profileName: 'Frontend CV' };
+    context.summaries.set([summary, selected]);
+    context.selectedId.set('2');
+    context.detail.set(selected);
+    params.next(convertToParamMap({}));
+    fixture.detectChanges();
+
+    expect(context.loadSummariesAndResolveSelection).toHaveBeenCalled();
+    expect(context.beginSelection).not.toHaveBeenCalledWith(null);
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', 2]);
   });
 
   it('shows a structured skeleton while the Profile list or selected detail loads', () => {
@@ -409,6 +424,7 @@ describe('ProfileWorkspaceComponent', () => {
   });
 
   it('keeps Project route navigation in Workspace while preserving the child boundary', () => {
+    spyOnProperty(window, 'scrollY', 'get').and.returnValue(640);
     about().interactionActiveChange.emit(true);
     projectsSection().navigationRequested.emit({ projectId: null });
     expect(router.navigate).not.toHaveBeenCalled();
@@ -417,9 +433,26 @@ describe('ProfileWorkspaceComponent', () => {
     projectsSection().navigationRequested.emit({ projectId: null });
     projectsSection().navigationRequested.emit({ projectId: 99 });
 
-    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 'new']);
-    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 99]);
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 'new'], { state: { profileWorkspaceScrollY: 640 } });
+    expect(router.navigate).toHaveBeenCalledWith(['/profiles', '1', 'projects', 99], { state: { profileWorkspaceScrollY: 640 } });
   });
+
+  it('restores the saved Workspace scroll position after Project content is ready', fakeAsync(() => {
+    const originalState = history.state;
+    history.replaceState({ profileWorkspaceScrollY: 720 }, '', window.location.href);
+    const scrollTo = spyOn(window, 'scrollTo').and.stub();
+
+    try {
+      params.next(convertToParamMap({ profileId: '1' }));
+      fixture.detectChanges();
+      fixture.componentInstance.restoreWorkspaceScroll();
+      tick(20);
+
+      expect(scrollTo).toHaveBeenCalledWith({ top: 720, behavior: 'auto' });
+    } finally {
+      history.replaceState(originalState, '', window.location.href);
+    }
+  }));
 
   it('prevents About Me mutation entry while Education owns the mutation context', () => {
     education().interactionActiveChange.emit(true);

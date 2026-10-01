@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { By } from '@angular/platform-browser';
 import { NavigationEnd, provideRouter, Router } from '@angular/router';
@@ -317,6 +317,31 @@ describe('ApplicationShellComponent', () => {
     const menu = openMenu('.profile-trigger');
     expect(menu.querySelector('.profile-menu-head span')?.textContent?.trim()).toBe('4 profiles · Scroll to see all.');
   });
+
+  it('opens the Profile menu at the current Profile', fakeAsync(() => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/profiles/5');
+    profileContext.summaries.set([1, 2, 3, 4, 5].map((id) => ({
+      id,
+      profileName: `Profile ${id}`,
+      firstName: 'A',
+      lastName: 'User',
+      jobTitle: 'Engineer',
+      updatedAt: '2026-01-01',
+    })));
+    profileContext.selectedId.set('5');
+    fixture.detectChanges();
+
+    const menu = openMenu('.profile-trigger');
+    const list = menu.querySelector('.profile-menu-list') as HTMLElement;
+    const selected = list.querySelector('.profile-option.selected') as HTMLElement;
+    spyOn(list, 'getBoundingClientRect').and.returnValue({ top: 100 } as DOMRect);
+    spyOn(selected, 'getBoundingClientRect').and.returnValue({ top: 460 } as DOMRect);
+
+    tick(20);
+
+    expect(list.scrollTop).toBe(360);
+  }));
 
   it('shows a direct Create Profile action when no own Profile exists', () => {
     const router = TestBed.inject(Router);
