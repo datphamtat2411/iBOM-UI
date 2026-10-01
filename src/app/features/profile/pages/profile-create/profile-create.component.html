@@ -1,1 +1,160 @@
-<section class="create-profile-page" aria-labelledby="create-profile-title"><div class="page-heading"><div><p class="eyebrow">Profile Workspace</p><h1 id="create-profile-title">Create Profile</h1><p>Set up an independent CV Profile with its core identity and summary.</p></div></div>@if (warningRequired) {<section class="profile-warning" role="alert" aria-labelledby="profile-warning-title"><h2 id="profile-warning-title">Create another Profile?</h2><p>You already have five or more active Profiles. You can continue, but consider whether an existing Profile is a better fit.</p><div class="form-actions"><button type="button" class="btn secondary" (click)="cancel()">Cancel</button><button type="button" class="btn primary" (click)="confirmWarning()">Continue to Create Profile</button></div></section>} @else {<form [formGroup]="createForm" (ngSubmit)="submit()" novalidate>@if (message) {<div class="form-message" role="alert">{{ message }}</div>}<section class="form-section"><h2>Profile</h2><div class="field"><label for="profile-name">Profile Name</label><input id="profile-name" type="text" formControlName="profileName" maxlength="100" [attr.aria-invalid]="createForm.controls.profileName.invalid && createForm.controls.profileName.touched">@if (createForm.controls.profileName.invalid && createForm.controls.profileName.touched) {<span class="field-error">{{ fieldError('profileName') }}</span>}</div></section><section class="form-section"><h2>About Me</h2><div class="form-grid"><div class="field"><label for="first-name">First Name</label><input id="first-name" type="text" formControlName="firstName" maxlength="100">@if (createForm.controls.firstName.invalid && createForm.controls.firstName.touched) {<span class="field-error">{{ fieldError('firstName') }}</span>}</div><div class="field"><label for="last-name">Last Name</label><input id="last-name" type="text" formControlName="lastName" maxlength="100">@if (createForm.controls.lastName.invalid && createForm.controls.lastName.touched) {<span class="field-error">{{ fieldError('lastName') }}</span>}</div><div class="field"><label for="job-title">Job Title</label><input id="job-title" type="text" formControlName="jobTitle" maxlength="100">@if (createForm.controls.jobTitle.invalid && createForm.controls.jobTitle.touched) {<span class="field-error">{{ fieldError('jobTitle') }}</span>}</div><div class="field"><label for="years-of-experience">Years of Experience</label><input id="years-of-experience" type="number" min="0" formControlName="yearsOfExperience">@if (createForm.controls.yearsOfExperience.invalid && createForm.controls.yearsOfExperience.touched) {<span class="field-error">{{ fieldError('yearsOfExperience') }}</span>}</div></div><div class="field"><label for="personality">Personality / Characteristic Description</label><textarea id="personality" formControlName="personality" maxlength="4000" rows="5"></textarea>@if (createForm.controls.personality.invalid && createForm.controls.personality.touched) {<span class="field-error">{{ fieldError('personality') }}</span>}</div><div class="field"><label for="technical-summary">Technical Summary</label><textarea id="technical-summary" formControlName="technicalSummary" maxlength="4000" rows="6"></textarea>@if (createForm.controls.technicalSummary.invalid && createForm.controls.technicalSummary.touched) {<span class="field-error">{{ fieldError('technicalSummary') }}</span>}</div></section><div class="form-actions"><button type="button" class="btn secondary" [disabled]="isSubmitting" (click)="cancel()">Cancel</button><button type="submit" class="btn primary" [disabled]="isSubmitting">{{ isSubmitting ? 'Creating...' : 'Create Profile' }}</button></div></form>}</section>
+<section class="create-profile-page" aria-labelledby="create-profile-title" [attr.aria-busy]="isSubmitting">
+  <header class="page-heading">
+    <div class="heading-copy">
+      <span class="eyebrow"><span class="eyebrow-line"></span>Profiles / New Profile</span>
+      <h1 id="create-profile-title">Create Profile</h1>
+      <p>Enter the core details for a new CV Profile. You can complete the remaining sections after creation.</p>
+    </div>
+    <div class="heading-art" aria-hidden="true">
+      <span class="heading-art-grid"></span>
+      <span class="heading-art-card">
+        <span class="art-label">PROFILE / NEW</span>
+        <strong>CV</strong>
+        <span class="art-rule"></span>
+        <span class="art-label">SETUP</span>
+      </span>
+    </div>
+  </header>
+
+  @if (warningRequired) {
+    <section class="profile-warning" role="alert" aria-labelledby="profile-warning-title">
+      <span class="warning-icon" aria-hidden="true">!</span>
+      <div class="warning-copy">
+        <span class="section-kicker">Profile library limit</span>
+        <h2 id="profile-warning-title">Create another Profile?</h2>
+        <p>You already have five or more active Profiles. You can continue, but consider whether an existing Profile is a better fit.</p>
+      </div>
+      <div class="form-actions warning-actions">
+        <button type="button" class="btn secondary" (click)="cancel()">Cancel</button>
+        <button type="button" class="btn primary" (click)="confirmWarning()">Continue to Create Profile <span aria-hidden="true">&rarr;</span></button>
+      </div>
+    </section>
+  } @else {
+    <form class="create-profile-form" [formGroup]="createForm" (ngSubmit)="submit()" novalidate>
+      @if (message) {
+        <div class="notice error" role="alert" aria-live="polite">
+          <span class="notice-icon" aria-hidden="true">!</span>
+          <span class="notice-copy"><strong>Profile could not be created</strong><span>{{ message }}</span></span>
+        </div>
+      }
+
+      <div class="form-layout">
+        <div class="form-main">
+          <section class="form-card" aria-labelledby="profile-identity-title">
+            <header class="form-card-heading">
+              <span class="section-icon identity-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8" r="3.25" /><path d="M5.5 19c.8-3.2 2.9-4.8 6.5-4.8s5.7 1.6 6.5 4.8" /></svg>
+              </span>
+              <div>
+                <span class="section-kicker">Step 01 / Identity</span>
+                <h2 id="profile-identity-title">Profile identity</h2>
+                <p>Set a name that identifies this CV Profile in your Profile library.</p>
+              </div>
+            </header>
+
+            <div class="field">
+              <label for="profile-name"><span>Profile Name</span><span class="required">Required</span></label>
+              <input id="profile-name" type="text" formControlName="profileName" maxlength="100" autocomplete="off" aria-describedby="profile-name-hint" [attr.aria-invalid]="createForm.controls.profileName.invalid && createForm.controls.profileName.touched ? 'true' : null">
+                <span id="profile-name-hint" class="field-hint">Example: Frontend Engineer CV or Project Manager CV</span>
+              @if (createForm.controls.profileName.invalid && createForm.controls.profileName.touched) {
+                <span class="field-error">{{ fieldError('profileName') }}</span>
+              }
+            </div>
+          </section>
+
+          <section class="form-card" aria-labelledby="about-me-title">
+            <header class="form-card-heading">
+              <span class="section-icon about-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M5 5.5h14v13H5z" /><path d="M8.5 9h7M8.5 12h7M8.5 15h4" /></svg>
+              </span>
+              <div>
+                <span class="section-kicker">Step 02 / About you</span>
+                <h2 id="about-me-title">About Me</h2>
+                <p>Enter the required personal details. Additional sections can be added from the Profile Workspace.</p>
+              </div>
+            </header>
+
+            <div class="form-grid">
+              <div class="field">
+                <label for="first-name"><span>First Name</span><span class="required">Required</span></label>
+                <input id="first-name" type="text" formControlName="firstName" maxlength="100" autocomplete="given-name" [attr.aria-invalid]="createForm.controls.firstName.invalid && createForm.controls.firstName.touched ? 'true' : null">
+                @if (createForm.controls.firstName.invalid && createForm.controls.firstName.touched) {
+                  <span class="field-error">{{ fieldError('firstName') }}</span>
+                }
+              </div>
+              <div class="field">
+                <label for="last-name"><span>Last Name</span><span class="required">Required</span></label>
+                <input id="last-name" type="text" formControlName="lastName" maxlength="100" autocomplete="family-name" [attr.aria-invalid]="createForm.controls.lastName.invalid && createForm.controls.lastName.touched ? 'true' : null">
+                @if (createForm.controls.lastName.invalid && createForm.controls.lastName.touched) {
+                  <span class="field-error">{{ fieldError('lastName') }}</span>
+                }
+              </div>
+              <div class="field">
+                <label for="job-title"><span>Job Title</span><span class="required">Required</span></label>
+                <input id="job-title" type="text" formControlName="jobTitle" maxlength="100" autocomplete="organization-title" [attr.aria-invalid]="createForm.controls.jobTitle.invalid && createForm.controls.jobTitle.touched ? 'true' : null">
+                @if (createForm.controls.jobTitle.invalid && createForm.controls.jobTitle.touched) {
+                  <span class="field-error">{{ fieldError('jobTitle') }}</span>
+                }
+              </div>
+              <div class="field">
+                <label for="years-of-experience"><span>Years of Experience</span><span class="required">Required</span></label>
+                <input id="years-of-experience" type="number" min="0" formControlName="yearsOfExperience" inputmode="numeric" aria-describedby="years-of-experience-hint" [attr.aria-invalid]="createForm.controls.yearsOfExperience.invalid && createForm.controls.yearsOfExperience.touched ? 'true' : null">
+                <span id="years-of-experience-hint" class="field-hint">Use 0 if you are starting your career.</span>
+                @if (createForm.controls.yearsOfExperience.invalid && createForm.controls.yearsOfExperience.touched) {
+                  <span class="field-error">{{ fieldError('yearsOfExperience') }}</span>
+                }
+              </div>
+            </div>
+
+            <div class="field narrative-field">
+              <label for="personality"><span>Personality / Characteristic Description</span><span class="optional">Optional</span></label>
+              <textarea id="personality" formControlName="personality" maxlength="4000" rows="5" placeholder="What makes your working style distinctive?" aria-describedby="personality-hint" [attr.aria-invalid]="createForm.controls.personality.invalid && createForm.controls.personality.touched ? 'true' : null"></textarea>
+              <span id="personality-hint" class="field-hint">Share the qualities and working style you want this Profile to communicate.</span>
+              @if (createForm.controls.personality.invalid && createForm.controls.personality.touched) {
+                <span class="field-error">{{ fieldError('personality') }}</span>
+              }
+            </div>
+
+            <div class="field narrative-field">
+              <label for="technical-summary"><span>Technical Summary</span><span class="optional">Optional</span></label>
+              <textarea id="technical-summary" formControlName="technicalSummary" maxlength="4000" rows="6" placeholder="Summarize your strongest technical capabilities and focus areas." aria-describedby="technical-summary-hint" [attr.aria-invalid]="createForm.controls.technicalSummary.invalid && createForm.controls.technicalSummary.touched ? 'true' : null"></textarea>
+              <span id="technical-summary-hint" class="field-hint">Lead with the capabilities most relevant to the opportunities this Profile supports.</span>
+              @if (createForm.controls.technicalSummary.invalid && createForm.controls.technicalSummary.touched) {
+                <span class="field-error">{{ fieldError('technicalSummary') }}</span>
+              }
+            </div>
+          </section>
+
+          <div class="form-actions create-form-actions">
+            <div class="action-copy">
+              <span class="action-label">After creation</span>
+              <span>Add the remaining Profile sections in the workspace.</span>
+            </div>
+            <div class="action-buttons">
+              <button type="button" class="btn secondary" [disabled]="isSubmitting" (click)="cancel()">Cancel</button>
+              <button type="submit" class="btn primary" [disabled]="isSubmitting" [attr.aria-busy]="isSubmitting">{{ isSubmitting ? 'Creating...' : 'Create Profile' }} <span aria-hidden="true">&rarr;</span></button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="create-aside" aria-label="Profile creation guidance">
+          <section class="guidance-card">
+            <span class="eyebrow"><span class="eyebrow-line"></span>Creation steps</span>
+            <h2>Profile setup</h2>
+            <p>Complete the required fields first. Add skills, projects, and other details after the Profile is created.</p>
+            <ol class="creation-steps">
+              <li class="is-current"><span>01</span><div><strong>Profile identity</strong><small>Set a name for this Profile.</small></div></li>
+              <li><span>02</span><div><strong>About Me</strong><small>Enter your name, role, and experience.</small></div></li>
+              <li><span>03</span><div><strong>Additional sections</strong><small>Add skills, projects, and supporting details.</small></div></li>
+            </ol>
+          </section>
+
+          <section class="tip-card">
+            <div class="tip-heading"><span class="tip-icon" aria-hidden="true">i</span><span>Note</span></div>
+            <p>Use a name that reflects the role or purpose of this Profile.</p>
+          </section>
+        </aside>
+      </div>
+    </form>
+  }
+</section>
